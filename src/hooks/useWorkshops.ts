@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { workshopService } from '../services/workshops';
-import type { CreateWorkshopRequest } from '../types';
+import { workshopService } from '../services/apiGenerated';
+import type { WorkshopCreate } from '../api/generated';
 
 export function useWorkshops() {
   return useQuery({
@@ -23,7 +23,7 @@ export function useCreateWorkshop() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (workshop: CreateWorkshopRequest) => 
+    mutationFn: (workshop: WorkshopCreate) => 
       workshopService.createWorkshop(workshop),
     onSuccess: () => {
       // Invalidate and refetch workshops list

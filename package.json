@@ -15,7 +15,9 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest --coverage"
+    "test:coverage": "vitest --coverage",
+    "generate-types": "openapi-typescript-codegen --input http://localhost:8000/openapi.json --output ./src/api/generated --client axios",
+    "generate-types:file": "openapi-typescript-codegen --input ../orchestra-api/openapi.json --output ./src/api/generated --client axios"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.28.4",
@@ -40,6 +42,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
+    "openapi-typescript-codegen": "^0.29.0",
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
     "tailwindcss": "^3.4.1",

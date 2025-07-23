@@ -4,12 +4,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ExternalLink, Trash2, Clock, Server } from 'lucide-react';
-import { Workshop } from '../../types';
+import { WorkshopResponse } from '../../api/generated';
 import { formatDuration, getTimeRemaining } from '../../utils';
 import { useDeleteWorkshop } from '../../hooks/useWorkshops';
 
 interface WorkshopCardProps {
-  workshop: Workshop;
+  workshop: WorkshopResponse;
 }
 
 export function WorkshopCard({ workshop }: WorkshopCardProps) {
@@ -42,12 +42,12 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
     }
   };
 
-  // Extract data from the workshop spec for display
-  const image = workshop.spec.image;
-  const duration = workshop.spec.duration;
-  const cpu = workshop.spec.resources.cpu;
-  const memory = workshop.spec.resources.memory;
-  const storage = workshop.spec.storage.size;
+  // Extract data from the workshop spec for display with safe access
+  const image = workshop.spec?.image || 'Unknown';
+  const duration = workshop.spec?.duration || 'Unknown';
+  const cpu = workshop.spec?.resources?.cpu || 'N/A';
+  const memory = workshop.spec?.resources?.memory || 'N/A';
+  const storage = workshop.spec?.storage?.size || 'N/A';
 
   return (
     <Card className="flex flex-col">
@@ -97,16 +97,16 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
           </div>
         )}
 
-        {workshop.created_at && (
+        {workshop.status?.expiresAt && (
           <div className="flex items-center text-sm text-muted-foreground">
             <Clock className="h-4 w-4 mr-2" />
-            <span>Created {new Date(workshop.created_at).toLocaleString()}</span>
+            <span>Expires in {getTimeRemaining(workshop.status.expiresAt)}</span>
           </div>
         )}
 
-        {workshop.status?.message && (
+        {workshop.status?.conditions && workshop.status.conditions.length > 0 && (
           <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-            {workshop.status.message}
+            Latest: {workshop.status.conditions[workshop.status.conditions.length - 1]?.message || 'No message'}
           </div>
         )}
       </CardContent>
@@ -118,11 +118,11 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
               Details
             </Button>
           </Link>
-          {workshop.connection_info?.url && workshop.status?.phase === 'Running' && (
+          {workshop.status?.url && workshop.status?.phase === 'Running' && (
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open(workshop.connection_info?.url, '_blank')}
+              onClick={() => window.open(workshop.status?.url || '', '_blank')}
             >
               <ExternalLink className="h-4 w-4 mr-1" />
               Open
