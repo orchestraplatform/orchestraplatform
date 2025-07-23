@@ -17,7 +17,6 @@ export interface Workshop {
 export interface WorkshopSpec {
   name: string;
   duration: string;
-  participants?: number;
   image: string;
   resources: {
     cpu: string;

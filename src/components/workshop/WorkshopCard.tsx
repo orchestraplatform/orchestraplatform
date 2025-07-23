@@ -91,12 +91,6 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
           </div>
         </div>
 
-        {workshop.spec.participants && (
-          <div className="text-sm">
-            <span className="font-medium">Participants:</span> {workshop.spec.participants}
-          </div>
-        )}
-
         {workshop.status?.expiresAt && (
           <div className="flex items-center text-sm text-muted-foreground">
             <Clock className="h-4 w-4 mr-2" />

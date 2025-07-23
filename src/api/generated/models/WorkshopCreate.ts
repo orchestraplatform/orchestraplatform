@@ -18,10 +18,6 @@ export type WorkshopCreate = {
      */
     duration?: string;
     /**
-     * Number of participants
-     */
-    participants?: number;
-    /**
      * RStudio image
      */
     image?: string;
