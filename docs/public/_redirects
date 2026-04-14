@@ -1,0 +1,4 @@
+# Netlify redirects file
+# This handles client-side routing for Astro
+
+/*    /index.html   200

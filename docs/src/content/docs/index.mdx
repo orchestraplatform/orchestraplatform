@@ -1,0 +1,64 @@
+---
+title: Welcome to Orchestra Platform
+description: Comprehensive bioinformatics and data science learning environment
+template: splash
+hero:
+  tagline: Cloud-native workshops for bioinformatics and data science education
+  image:
+    file: ../../assets/orchestra-logo.png
+  actions:
+    - text: Get Started
+      link: /getting-started/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/orchestraplatform/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Features
+
+<CardGrid stagger>
+  <Card title="🚀 Instant Workshops" icon="rocket">
+    Create fully configured bioinformatics environments in minutes with automated provisioning and cleanup.
+  </Card>
+  <Card title="🔒 Secure & Isolated" icon="shield">
+    Each workshop runs in its own isolated environment with dedicated resources and secure access.
+  </Card>
+  <Card title="⏰ Time-Limited Sessions" icon="clock">
+    Configurable workshop duration with automatic cleanup for resource management and cost control.
+  </Card>
+  <Card title="🎯 User-Friendly" icon="star">
+    Simple web dashboard for workshop management with real-time status monitoring.
+  </Card>
+</CardGrid>
+
+## Perfect for
+
+- **Educational Institutions**: Bioinformatics courses, computational biology training, data science bootcamps
+- **Research Organizations**: Training workshops, collaborative analysis sessions, reproducible research
+- **Industry Training**: Professional development, customer training, product demonstrations
+
+## Architecture
+
+Orchestra Platform consists of four main components working together to provide a seamless workshop experience:
+
+<CardGrid>
+  <Card title="Orchestra Operator" icon="star">
+    Kubernetes operator managing workshop lifecycle and resource provisioning
+  </Card>
+  <Card title="Orchestra API" icon="laptop">
+    REST API backend handling workshop operations and user management
+  </Card>
+  <Card title="Orchestra Frontend" icon="document">
+    Web application providing an intuitive interface for workshop creation
+  </Card>
+  <Card title="Orchestra Docs" icon="information">
+    Comprehensive documentation and user guides (this site)
+  </Card>
+</CardGrid>
+
+For more details, see [the architecture page](/architecture/platform-overview/)
