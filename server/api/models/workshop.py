@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 
 try:
-    from pydantic import BaseModel, Field
+    from pydantic import BaseModel, Field, field_validator
 except ImportError:
     # Fallback for when pydantic is not installed
     class BaseModel:
@@ -43,17 +43,29 @@ class WorkshopStorage(BaseModel):
 
     size: str = Field(default="10Gi", description="Storage size")
     storage_class: str | None = Field(
-        default=None, description="Storage class", alias="storageClass"
+        default=None, description="Storage class name. Leave unset to use the cluster default.", alias="storageClass"
     )
+
+    @field_validator("storage_class", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: str | None) -> str | None:
+        return None if v == "" else v
 
 
 class WorkshopIngress(BaseModel):
     """Workshop ingress configuration."""
 
-    host: str | None = Field(default=None, description="Ingress hostname")
+    host: str | None = Field(
+        default=None, description="Custom ingress hostname. Leave unset to use the environment default."
+    )
     annotations: dict[str, str] = Field(
         default_factory=dict, description="Ingress annotations"
     )
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: str | None) -> str | None:
+        return None if v == "" else v
 
 
 class WorkshopCreate(BaseModel):
