@@ -78,7 +78,6 @@ update-types: check-api generate-types
 
 # Export OpenAPI schema from API for offline use
 export-schema api_url="http://localhost:8000" output="../server/openapi.json":
-
     @echo "💾 Exporting OpenAPI schema to {{output}}"
     curl -s "{{api_url}}/openapi.json" > {{output}}
     @echo "✅ Schema exported to {{output}}"

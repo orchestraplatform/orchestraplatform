@@ -16,7 +16,7 @@ export type {
   WorkshopResponse as Workshop,
   WorkshopCreate as CreateWorkshopRequest,
   WorkshopList as WorkshopListResponse 
-} from './generated';
+} from '../api/generated';
 
 // Convenience wrapper that matches our existing service interface
 export const workshopService = {
