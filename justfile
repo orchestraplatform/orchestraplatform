@@ -70,7 +70,7 @@ docker-logs:
 # --- Quality ---
 
 # Run all linting and formatting checks
-quality: quality-frontend quality-server quality-operator
+quality: quality-frontend quality-server quality-operator quality-docs
 
 quality-frontend:
     cd frontend && just quality
@@ -80,6 +80,9 @@ quality-server:
 
 quality-operator:
     cd operator && just quality
+
+quality-docs:
+    cd docs && just quality
 
 # --- Testing ---
 

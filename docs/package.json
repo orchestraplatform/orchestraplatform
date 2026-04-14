@@ -7,11 +7,21 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "lint": "eslint . --ext .js,.ts,.astro",
+    "format": "prettier --write \"**/*.{js,ts,astro,md,mdx,json,css}\"",
+    "format:check": "prettier --check \"**/*.{js,ts,astro,md,mdx,json,css}\""
   },
   "dependencies": {
     "@astrojs/starlight": "^0.35.1",
     "astro": "^5.6.1",
     "sharp": "^0.34.2"
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^7.2.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-astro": "^0.31.4",
+    "prettier": "^3.2.5",
+    "prettier-plugin-astro": "^0.13.0"
   }
-}
+  }
