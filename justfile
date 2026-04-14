@@ -25,15 +25,47 @@ setup-server:
 
 # Run the frontend development server
 dev-frontend:
-    cd frontend && npm run dev
+    cd frontend && just dev
 
 # Run the backend server
 dev-server:
-    cd server && uv run main.py
+    cd server && just dev
+
+# Run the operator locally
+dev-operator:
+    cd operator && just run-local
 
 # Run the docs development server
 dev-docs:
-    cd docs && npm run dev
+    cd docs && just dev
+
+# Run both frontend and backend for full-stack development
+dev-stack:
+    @just -j 2 dev-frontend dev-server
+
+# --- API Coordination ---
+
+# Generate OpenAPI schema from server
+generate-schema:
+    cd server && just generate-schema
+
+# Update frontend types from the server's OpenAPI schema
+sync-types: generate-schema
+    cd frontend && just generate-types-file ../server/openapi.json
+
+# --- Quality ---
+
+# Run all linting and formatting checks
+quality: quality-frontend quality-server quality-operator
+
+quality-frontend:
+    cd frontend && just quality
+
+quality-server:
+    cd server && just quality
+
+quality-operator:
+    cd operator && just quality
 
 # --- Testing ---
 
