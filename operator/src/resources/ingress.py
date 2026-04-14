@@ -45,6 +45,10 @@ def create_workshop_ingress(
     entry_points = ingress_config.get("entryPoints") or _default_entry_points()
     annotations = ingress_config.get("annotations", {})
 
+    # Store the resolved host as an annotation so callers can retrieve it
+    # without re-parsing the Traefik match expression.
+    meta_annotations = {**annotations, "orchestra.io/host": host}
+
     ingress_route = {
         "apiVersion": "traefik.io/v1alpha1",
         "kind": "IngressRoute",
@@ -56,7 +60,7 @@ def create_workshop_ingress(
                 "component": "rstudio",
                 "workshop": workshop_name,
             },
-            "annotations": annotations,
+            "annotations": meta_annotations,
         },
         "spec": {
             "entryPoints": entry_points,
