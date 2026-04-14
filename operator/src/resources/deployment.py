@@ -37,7 +37,15 @@ def create_rstudio_deployment(
         image=image,
         ports=[k8s.V1ContainerPort(container_port=8787, name="rstudio")],
         env=[
-            k8s.V1EnvVar(name="DISABLE_AUTH", value="true"),  # For demo purposes
+            # TODO: Replace DISABLE_AUTH with an OAuth proxy sidecar.
+            # The intended access model is: the Orchestra API issues a
+            # per-user token after OAuth login, and an auth proxy (e.g.
+            # oauth2-proxy) sits in front of each workshop pod, validating
+            # that token before forwarding the request. This ensures users
+            # can only reach their own workshop URL — the workshop name/URL
+            # is scoped to the authenticated user at creation time.
+            # Until then, DISABLE_AUTH=true is intentional for development.
+            k8s.V1EnvVar(name="DISABLE_AUTH", value="true"),
             k8s.V1EnvVar(name="ROOT", value="true"),
         ],
         resources=k8s.V1ResourceRequirements(
