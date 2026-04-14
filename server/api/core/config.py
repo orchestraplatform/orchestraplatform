@@ -3,17 +3,21 @@
 from functools import lru_cache
 
 try:
-    from pydantic_settings import BaseSettings
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 except ImportError:
     # Fallback for when pydantic-settings is not available
     class BaseSettings:
         def __init__(self, **kwargs):
             for key, value in kwargs.items():
                 setattr(self, key, value)
+    
+    def SettingsConfigDict(**kwargs):
+        return kwargs
 
 
 class Settings(BaseSettings):
     """Application settings."""
+    model_config = SettingsConfigDict(env_prefix='ORCHESTRA_', case_sensitive=False)
 
     # API settings
     app_name: str = "Orchestra API"
@@ -24,6 +28,7 @@ class Settings(BaseSettings):
 
     # Kubernetes settings
     kubeconfig_path: str | None = None
+    kube_context: str | None = None
     in_cluster: bool = False
 
     # Workshop defaults
@@ -57,11 +62,6 @@ class Settings(BaseSettings):
     # Workshop access control
     require_authentication: bool = True
     allow_anonymous_read: bool = False
-
-    class Config:
-        env_prefix = "ORCHESTRA_"
-        case_sensitive = False
-        env_file = ".env"
 
 
 @lru_cache
