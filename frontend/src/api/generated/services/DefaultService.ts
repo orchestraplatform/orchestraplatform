@@ -18,4 +18,15 @@ export class DefaultService {
             url: '/',
         });
     }
+    /**
+     * Api Documentation
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static apiDocumentationElementsGet(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/elements',
+        });
+    }
 }
