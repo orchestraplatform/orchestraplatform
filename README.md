@@ -51,10 +51,12 @@ This starts the server, frontend, and operator in parallel as local processes (w
 
 | Component | URL |
 |-----------|-----|
-| Frontend  | http://localhost:5173 |
-| API       | http://localhost:8000 |
-| API docs  | http://localhost:8000/docs |
+| Frontend  | http://localhost:3000 |
+| API       | http://localhost:8080 |
+| API docs  | http://localhost:8080/docs |
 | Docs site | run `just dev-docs` separately |
+
+> **Note:** Ports 8000 and 8001 are occupied by Docker Desktop on Mac; 8080 is used instead.
 
 Workshops created via the UI will be reachable at `http://<name>.127.0.0.1.nip.io:30080` — no DNS configuration required.
 
@@ -66,12 +68,16 @@ If you're working on the API or frontend only and don't need workshops to actual
 just dev-stack   # server + frontend only
 ```
 
-### Copying the server config
+### Config files
+
+`just dev-setup` copies these automatically on first run:
 
 ```bash
-cp server/.env.example server/.env
-# edit server/.env as needed
+server/.env.example    → server/.env           # API settings (gitignored)
+frontend/.env.local.example → frontend/.env.local  # VITE_API_URL etc (gitignored)
 ```
+
+Edit them as needed after copying.
 
 ## Docker Compose
 

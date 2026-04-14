@@ -9,12 +9,13 @@ pnpm-debug.log*
 dist/
 build/
 
-# Environment variables
+# Environment variables (example files are committed; actual files are not)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+!.env.local.example
 
 # IDE files
 .vscode/

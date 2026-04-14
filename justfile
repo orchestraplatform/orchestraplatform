@@ -27,7 +27,8 @@ setup-server:
 # --- Local dev cluster setup (run once per machine) ---
 
 # Prepare the local Kubernetes cluster for Orchestra development.
-# Switches to docker-desktop context, installs Traefik, and applies CRDs.
+# Switches to docker-desktop context, installs Traefik, applies CRDs,
+# and copies .env example files if no local copies exist yet.
 dev-setup:
     @echo "==> Switching to {{ dev_k8s_context }} context"
     kubectl config use-context {{ dev_k8s_context }}
@@ -43,6 +44,9 @@ dev-setup:
         --wait
     @echo "==> Applying Orchestra CRDs"
     kubectl apply -f operator/config/crd/
+    @echo "==> Copying example env files (skipped if already present)"
+    cp -n server/.env.example server/.env 2>/dev/null && echo "  Created server/.env" || echo "  server/.env already exists"
+    cp -n frontend/.env.local.example frontend/.env.local 2>/dev/null && echo "  Created frontend/.env.local" || echo "  frontend/.env.local already exists"
     @echo ""
     @echo "✓ Dev cluster ready."
     @echo "  Workshops will be reachable at http://<name>.127.0.0.1.nip.io:30080"
@@ -60,11 +64,13 @@ dev-frontend:
     cd frontend && just dev
 
 # Run the backend server
+# Uses port 8080 — ports 8000 and 8001 are occupied by Docker Desktop on Mac.
 dev-server:
-    ORCHESTRA_ENVIRONMENT=local \
+    cd server && ORCHESTRA_ENVIRONMENT=local \
     ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
-    cd server && just dev
+    ORCHESTRA_PORT=8080 \
+    just dev port=8080
 
 # Run the operator locally
 dev-operator:
