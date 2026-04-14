@@ -24,8 +24,10 @@ PLURAL = "workshops"
 class WorkshopService:
     """Service for managing workshops via Kubernetes CRDs."""
 
-    def __init__(self):
-        self.custom_api = get_custom_objects_api()
+    @property
+    def custom_api(self):
+        """Return a Kubernetes CustomObjects API client, initialised on first use."""
+        return get_custom_objects_api()
 
     async def create_workshop(
         self, workshop: WorkshopCreate, namespace: str = "default"

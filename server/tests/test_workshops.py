@@ -6,7 +6,7 @@ def test_list_workshops_empty(client, mock_k8s_client):
     # Mock empty response from Kubernetes
     mock_k8s_client.list_namespaced_custom_object.return_value = {"items": []}
 
-    response = client.get("/api/v1/workshops/")
+    response = client.get("/workshops/")
     assert response.status_code == 200
     data = response.json()
     assert data["items"] == []
@@ -32,7 +32,7 @@ def test_create_workshop(client, mock_k8s_client):
         "image": "rocker/rstudio:latest",
     }
 
-    response = client.post("/api/v1/workshops/", json=workshop_data)
+    response = client.post("/workshops/", json=workshop_data)
     assert response.status_code == 201
     data = response.json()
     assert data["name"] == "test-workshop"
@@ -46,7 +46,7 @@ def test_get_workshop_not_found(client, mock_k8s_client):
     # Mock 404 response
     mock_k8s_client.get_namespaced_custom_object.side_effect = ApiException(status=404)
 
-    response = client.get("/api/v1/workshops/nonexistent")
+    response = client.get("/workshops/nonexistent")
     assert response.status_code == 404
 
 
@@ -55,5 +55,5 @@ def test_delete_workshop(client, mock_k8s_client):
     # Mock successful deletion
     mock_k8s_client.delete_namespaced_custom_object.return_value = {}
 
-    response = client.delete("/api/v1/workshops/test-workshop")
+    response = client.delete("/workshops/test-workshop")
     assert response.status_code == 204
