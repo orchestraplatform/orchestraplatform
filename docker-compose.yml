@@ -5,7 +5,7 @@ services:
     build:
       context: ./server
     ports:
-      - "8000:8000"
+      - "8001:8000"
     environment:
       - ORCHESTRA_DEBUG=true
       - ORCHESTRA_IN_CLUSTER=false
@@ -19,10 +19,12 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:8001
     ports:
-      - "3000:80"
+      - "3002:80"
     environment:
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://localhost:8001
     depends_on:
       - server
     networks:
@@ -44,7 +46,7 @@ services:
     volumes:
       - ./docs:/app
     ports:
-      - "3001:4321"
+      - "3003:4321"
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     networks:
       - orchestra-network
