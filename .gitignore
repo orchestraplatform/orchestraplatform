@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+env/
+__pycache__/
+*.egg-info/
+wheels/
+
+# Build and Output
+dist/
+build/
+.astro/
+.vite/
+.out/
+.storybook-out/
+coverage/
+htmlcov/
+*.lcov
+*.py[oc]
+openapi.json
+
+# Environment and Secrets
+.env
+.env.*
+!.env.example
+
+# IDEs and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs and Temp
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+tmp/
+temp/
+.eslintcache
+.pytest_cache/
+.tox/
+
+# Project Specific
+.netlify/
+.dockerignore
