@@ -33,7 +33,13 @@ class OAuthCallbackRequest(BaseModel):
     """OAuth callback request model."""
 
     code: str
-    state: str = None
+    state: str | None = None
+
+
+class RefreshRequest(BaseModel):
+    """Refresh token request body."""
+
+    refresh_token: str
 
 
 @router.post("/oauth/callback", response_model=TokenResponse)
@@ -78,6 +84,8 @@ async def oauth_callback(request: OAuthCallbackRequest):
             },
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -86,10 +94,10 @@ async def oauth_callback(request: OAuthCallbackRequest):
 
 
 @router.post("/refresh", response_model=dict[str, Any])
-async def refresh_token(refresh_token: str):
+async def refresh_token(body: RefreshRequest):
     """Refresh access token using refresh token."""
     try:
-        payload = verify_token(refresh_token)
+        payload = verify_token(body.refresh_token)
 
         if payload.get("type") != "refresh":
             raise HTTPException(

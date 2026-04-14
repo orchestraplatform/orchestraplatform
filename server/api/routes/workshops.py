@@ -2,27 +2,8 @@
 
 import logging
 
-try:
-    from fastapi import APIRouter, HTTPException, Path, Query, status
-    from fastapi.responses import JSONResponse
-except ImportError:
-    # Fallback when FastAPI is not installed
-    class APIRouter:
-        def __init__(self, *args, **kwargs):
-            pass
-
-        def get(self, *args, **kwargs):
-            pass
-
-        def post(self, *args, **kwargs):
-            pass
-
-        def delete(self, *args, **kwargs):
-            pass
-
-    HTTPException = Exception
-    Query = Path = lambda *args, **kwargs: None
-    JSONResponse = dict
+from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi.responses import JSONResponse
 
 from api.models.workshop import (
     WorkshopCreate,

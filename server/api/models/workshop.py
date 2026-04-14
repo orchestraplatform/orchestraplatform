@@ -1,17 +1,10 @@
 """Pydantic models for workshop API."""
 
+import re
 from datetime import datetime, timezone
 from enum import Enum
 
-try:
-    from pydantic import BaseModel, Field, field_validator
-except ImportError:
-    # Fallback for when pydantic is not installed
-    class BaseModel:
-        pass
-
-    def Field(*args, **kwargs):
-        return None
+from pydantic import BaseModel, Field, field_validator
 
 
 class WorkshopPhase(str, Enum):
@@ -68,6 +61,10 @@ class WorkshopIngress(BaseModel):
         return None if v == "" else v
 
 
+_K8S_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+_K8S_NAME_MAX = 253
+
+
 class WorkshopCreate(BaseModel):
     """Request model for creating a workshop."""
 
@@ -77,6 +74,19 @@ class WorkshopCreate(BaseModel):
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
     ingress: WorkshopIngress | None = Field(default=None)
+
+    @field_validator("name")
+    @classmethod
+    def name_is_valid_k8s(cls, v: str) -> str:
+        """Validate that the name is a valid Kubernetes resource name (RFC 1123)."""
+        if len(v) > _K8S_NAME_MAX:
+            raise ValueError(f"name must be at most {_K8S_NAME_MAX} characters")
+        if not _K8S_NAME_RE.match(v):
+            raise ValueError(
+                "name must consist of lowercase alphanumeric characters or '-', "
+                "start and end with an alphanumeric character"
+            )
+        return v
 
 
 class WorkshopUpdate(BaseModel):

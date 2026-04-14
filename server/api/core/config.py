@@ -2,22 +2,13 @@
 
 from functools import lru_cache
 
-try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-except ImportError:
-    # Fallback for when pydantic-settings is not available
-    class BaseSettings:
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
-    
-    def SettingsConfigDict(**kwargs):
-        return kwargs
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings."""
-    model_config = SettingsConfigDict(env_prefix='ORCHESTRA_', case_sensitive=False)
+
+    model_config = SettingsConfigDict(env_prefix="ORCHESTRA_", case_sensitive=False)
 
     # API settings
     app_name: str = "Orchestra API"
@@ -41,7 +32,14 @@ class Settings(BaseSettings):
     default_storage_size: str = "10Gi"
 
     # Security
-    cors_origins: list = ["*"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "https://app.orchestraplatform.org",
+    ]
 
     # Authentication settings
     secret_key: str = "your-secret-key-change-in-production"

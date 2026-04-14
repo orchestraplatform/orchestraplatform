@@ -8,9 +8,12 @@ from api.core.kubernetes import ApiException, get_custom_objects_api
 from api.models.workshop import (
     WorkshopCondition,
     WorkshopCreate,
+    WorkshopIngress,
     WorkshopPhase,
+    WorkshopResources,
     WorkshopResponse,
     WorkshopStatus,
+    WorkshopStorage,
 )
 
 logger = logging.getLogger(__name__)
@@ -191,18 +194,11 @@ class WorkshopService:
             spec=self._parse_spec(spec),
             status=workshop_status,
             created_at=self._parse_datetime(metadata.get("creationTimestamp")),
-            updated_at=self._parse_datetime(metadata.get("resourceVersion")),
+            updated_at=None,
         )
 
     def _parse_spec(self, spec: dict[str, Any]) -> WorkshopCreate:
         """Parse workshop spec from Kubernetes CRD."""
-        # This is a simplified version - you'd want more robust parsing
-        from api.models.workshop import (
-            WorkshopIngress,
-            WorkshopResources,
-            WorkshopStorage,
-        )
-
         resources = WorkshopResources(
             cpu=spec.get("resources", {}).get("cpu", "1"),
             memory=spec.get("resources", {}).get("memory", "2Gi"),
