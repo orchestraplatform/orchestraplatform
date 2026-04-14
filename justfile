@@ -1,12 +1,15 @@
 # Justfile for Orchestra Platform monorepo
 
+# Default Kubernetes context for local development
+dev_k8s_context := "docker-desktop"
+
 # List all recipes
 default:
     @just --list
 
-# --- Setup ---
+# --- One-time setup ---
 
-# Set up all project components
+# Set up all project components (install dependencies)
 setup: setup-docs setup-frontend setup-operator setup-server
 
 setup-docs:
@@ -21,7 +24,36 @@ setup-operator:
 setup-server:
     cd server && uv sync
 
+# --- Local dev cluster setup (run once per machine) ---
+
+# Prepare the local Kubernetes cluster for Orchestra development.
+# Switches to docker-desktop context, installs Traefik, and applies CRDs.
+dev-setup:
+    @echo "==> Switching to {{ dev_k8s_context }} context"
+    kubectl config use-context {{ dev_k8s_context }}
+    @echo "==> Verifying cluster is reachable"
+    kubectl cluster-info
+    @echo "==> Installing Traefik (skipped if already present)"
+    helm repo add traefik https://traefik.github.io/charts 2>/dev/null || true
+    helm repo update
+    helm upgrade --install traefik traefik/traefik \
+        --namespace traefik --create-namespace \
+        --set ports.web.nodePort=30080 \
+        --set service.type=NodePort \
+        --wait
+    @echo "==> Applying Orchestra CRDs"
+    kubectl apply -f operator/config/crd/
+    @echo ""
+    @echo "✓ Dev cluster ready."
+    @echo "  Workshops will be reachable at http://<name>.127.0.0.1.nip.io:30080"
+    @echo "  Run 'just dev' to start the local development stack."
+
 # --- Development ---
+
+# Start the full local dev stack (server + frontend + operator)
+# Run 'just dev-setup' first if this is a new machine.
+dev:
+    @just -j 3 dev-server dev-frontend dev-operator
 
 # Run the frontend development server
 dev-frontend:
@@ -29,17 +61,22 @@ dev-frontend:
 
 # Run the backend server
 dev-server:
+    ORCHESTRA_ENVIRONMENT=local \
+    ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
+    ORCHESTRA_REQUIRE_AUTHENTICATION=false \
     cd server && just dev
 
 # Run the operator locally
 dev-operator:
+    ORCHESTRA_ENVIRONMENT=local \
+    KUBE_CONTEXT={{ dev_k8s_context }} \
     cd operator && just run-local
 
 # Run the docs development server
 dev-docs:
     cd docs && just dev
 
-# Run both frontend and backend for full-stack development
+# Run only server + frontend (no operator — workshops created but not reconciled)
 dev-stack:
     @just -j 2 dev-frontend dev-server
 
@@ -55,17 +92,29 @@ sync-types: generate-schema
 
 # --- Docker Compose ---
 
-# Start all services with Docker Compose
+# Start all services with Docker Compose (production-like, full image builds)
 docker-up:
     docker compose up --build -d
 
-# Stop all services
+# Start all services with Docker Compose in dev mode (hot-reload)
+docker-dev-up:
+    docker compose -f docker-compose.dev.yml up --build
+
+# Stop all services (production compose)
 docker-down:
     docker compose down
+
+# Stop all services (dev compose)
+docker-dev-down:
+    docker compose -f docker-compose.dev.yml down
 
 # View logs from all services
 docker-logs:
     docker compose logs -f
+
+# View logs from dev services
+docker-dev-logs:
+    docker compose -f docker-compose.dev.yml logs -f
 
 # --- Quality ---
 
