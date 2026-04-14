@@ -1,27 +1,33 @@
 """Workshop API routes."""
 
 import logging
-from typing import List, Optional
 
 try:
-    from fastapi import APIRouter, HTTPException, Query, Path, status
+    from fastapi import APIRouter, HTTPException, Path, Query, status
     from fastapi.responses import JSONResponse
 except ImportError:
     # Fallback when FastAPI is not installed
     class APIRouter:
-        def __init__(self, *args, **kwargs): pass
-        def get(self, *args, **kwargs): pass
-        def post(self, *args, **kwargs): pass
-        def delete(self, *args, **kwargs): pass
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def get(self, *args, **kwargs):
+            pass
+
+        def post(self, *args, **kwargs):
+            pass
+
+        def delete(self, *args, **kwargs):
+            pass
+
     HTTPException = Exception
     Query = Path = lambda *args, **kwargs: None
     JSONResponse = dict
 
 from api.models.workshop import (
     WorkshopCreate,
-    WorkshopResponse, 
     WorkshopList,
-    ErrorResponse
+    WorkshopResponse,
 )
 from api.services.workshop_service import WorkshopService
 
@@ -33,7 +39,7 @@ workshop_service = WorkshopService()
 @router.post("/", response_model=WorkshopResponse, status_code=status.HTTP_201_CREATED)
 async def create_workshop(
     workshop: WorkshopCreate,
-    namespace: str = Query(default="default", description="Kubernetes namespace")
+    namespace: str = Query(default="default", description="Kubernetes namespace"),
 ):
     """Create a new workshop."""
     try:
@@ -44,7 +50,7 @@ async def create_workshop(
         logger.error(f"Failed to create workshop: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create workshop: {str(e)}"
+            detail=f"Failed to create workshop: {str(e)}",
         )
 
 
@@ -52,35 +58,32 @@ async def create_workshop(
 async def list_workshops(
     namespace: str = Query(default="default", description="Kubernetes namespace"),
     page: int = Query(default=1, ge=1, description="Page number"),
-    size: int = Query(default=50, ge=1, le=100, description="Page size")
+    size: int = Query(default=50, ge=1, le=100, description="Page size"),
 ):
     """List workshops in a namespace."""
     try:
         workshops = await workshop_service.list_workshops(namespace)
-        
+
         # Simple pagination
         start = (page - 1) * size
         end = start + size
         paginated_workshops = workshops[start:end]
-        
+
         return WorkshopList(
-            items=paginated_workshops,
-            total=len(workshops),
-            page=page,
-            size=size
+            items=paginated_workshops, total=len(workshops), page=page, size=size
         )
     except Exception as e:
         logger.error(f"Failed to list workshops: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list workshops: {str(e)}"
+            detail=f"Failed to list workshops: {str(e)}",
         )
 
 
 @router.get("/{workshop_name}", response_model=WorkshopResponse)
 async def get_workshop(
     workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace")
+    namespace: str = Query(default="default", description="Kubernetes namespace"),
 ):
     """Get a workshop by name."""
     try:
@@ -88,7 +91,7 @@ async def get_workshop(
         if not workshop:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found"
+                detail=f"Workshop {workshop_name} not found",
             )
         return workshop
     except HTTPException:
@@ -97,14 +100,14 @@ async def get_workshop(
         logger.error(f"Failed to get workshop {workshop_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get workshop: {str(e)}"
+            detail=f"Failed to get workshop: {str(e)}",
         )
 
 
 @router.delete("/{workshop_name}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_workshop(
     workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace")
+    namespace: str = Query(default="default", description="Kubernetes namespace"),
 ):
     """Delete a workshop."""
     try:
@@ -112,7 +115,7 @@ async def delete_workshop(
         if not deleted:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found"
+                detail=f"Workshop {workshop_name} not found",
             )
         logger.info(f"Deleted workshop {workshop_name}")
         return None
@@ -122,14 +125,14 @@ async def delete_workshop(
         logger.error(f"Failed to delete workshop {workshop_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete workshop: {str(e)}"
+            detail=f"Failed to delete workshop: {str(e)}",
         )
 
 
 @router.get("/{workshop_name}/status", response_model=dict)
 async def get_workshop_status(
     workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace")
+    namespace: str = Query(default="default", description="Kubernetes namespace"),
 ):
     """Get workshop status information."""
     try:
@@ -137,14 +140,14 @@ async def get_workshop_status(
         if not workshop:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found"
+                detail=f"Workshop {workshop_name} not found",
             )
-        
+
         return {
             "name": workshop.name,
             "namespace": workshop.namespace,
             "status": workshop.status.dict() if workshop.status else None,
-            "url": workshop.status.url if workshop.status else None
+            "url": workshop.status.url if workshop.status else None,
         }
     except HTTPException:
         raise
@@ -152,5 +155,5 @@ async def get_workshop_status(
         logger.error(f"Failed to get workshop status {workshop_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get workshop status: {str(e)}"
+            detail=f"Failed to get workshop status: {str(e)}",
         )

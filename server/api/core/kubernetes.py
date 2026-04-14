@@ -1,7 +1,6 @@
 """Kubernetes client configuration."""
 
 import logging
-from typing import Optional
 
 try:
     import kubernetes
@@ -17,7 +16,7 @@ def get_k8s_client():
     """Get Kubernetes client."""
     if not kubernetes:
         raise ImportError("kubernetes package not installed")
-    
+
     try:
         # Try in-cluster config first
         kubernetes.config.load_incluster_config()
@@ -26,7 +25,7 @@ def get_k8s_client():
         # Fall back to local kubeconfig
         kubernetes.config.load_kube_config()
         logger.info("Loaded local Kubernetes configuration")
-    
+
     return kubernetes.client
 
 

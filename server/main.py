@@ -7,18 +7,17 @@ workshops through the Orchestra Operator's Workshop CRDs.
 """
 
 import logging
-from datetime import datetime
 from contextlib import asynccontextmanager
+from datetime import datetime
 
-from fastapi import FastAPI, status, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
 import uvicorn
+from fastapi import FastAPI, Request, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 
-from api.routes import workshops, health, auth
 from api.core.config import get_settings
 from api.core.kubernetes import get_k8s_client
-
+from api.routes import auth, health, workshops
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -29,17 +28,17 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     logger.info("Starting Orchestra API...")
-    
+
     # Initialize Kubernetes client
     try:
-        k8s_client = get_k8s_client()
+        get_k8s_client()
         logger.info("Kubernetes client initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize Kubernetes client: {e}")
         raise
-    
+
     yield
-    
+
     logger.info("Shutting down Orchestra API...")
 
 
@@ -51,7 +50,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -86,10 +85,11 @@ async def root():
         "description": "REST API for managing RStudio workshops",
         "docs_url": "/docs",
         "health_url": "/health",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
     }
 
-@app.get('/elements')
+
+@app.get("/elements")
 @app.get("/docs", include_in_schema=False)
 async def api_documentation(request: Request):
     return HTMLResponse("""
@@ -120,7 +120,7 @@ async def global_exception_handler(request, exc):
     logger.error(f"Unhandled exception: {exc}")
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"detail": "Internal server error"}
+        content={"detail": "Internal server error"},
     )
 
 
@@ -131,5 +131,5 @@ if __name__ == "__main__":
         host=settings.host,
         port=settings.port,
         reload=settings.debug,
-        log_level="info"
+        log_level="info",
     )

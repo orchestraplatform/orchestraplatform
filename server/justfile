@@ -61,24 +61,28 @@ test-watch:
 
 # === Code Quality ===
 
-# Format code with black
+# Format code with ruff
 format:
-    black .
+    uv run ruff format .
 
-# Sort imports with isort
+# Sort imports with ruff
 sort-imports:
-    isort .
+    uv run ruff check . --select I --fix
 
 # Lint code with ruff
 lint:
-    ruff check .
+    uv run ruff check . --fix --unsafe-fixes
 
 # Fix linting issues
 lint-fix:
-    ruff check . --fix
+    uv run ruff check . --fix --unsafe-fixes
+
+# Type checking with mypy
+type-check:
+    uv run mypy .
 
 # Run all code quality checks
-quality: format sort-imports lint
+quality: format sort-imports lint # type-check
 
 # === API Testing ===
 
