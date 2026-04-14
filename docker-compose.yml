@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      - ORCHESTRA_DEBUG=true
+      - ORCHESTRA_IN_CLUSTER=false
+      - ORCHESTRA_REQUIRE_AUTHENTICATION=false
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ~/.kube:/root/.kube:ro
+    networks:
+      - orchestra-network
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - server
+    networks:
+      - orchestra-network
+
+  operator:
+    build:
+      context: ./operator
+    environment:
+      - KUBECONFIG=/root/.kube/config
+    volumes:
+      - ~/.kube:/root/.kube:ro
+    networks:
+      - orchestra-network
+
+  docs:
+    image: node:20-slim
+    working_dir: /app
+    volumes:
+      - ./docs:/app
+    ports:
+      - "3001:4321"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    networks:
+      - orchestra-network
+
+networks:
+  orchestra-network:
+    driver: bridge

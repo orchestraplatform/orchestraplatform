@@ -53,6 +53,20 @@ generate-schema:
 sync-types: generate-schema
     cd frontend && just generate-types-file ../server/openapi.json
 
+# --- Docker Compose ---
+
+# Start all services with Docker Compose
+docker-up:
+    docker compose up --build -d
+
+# Stop all services
+docker-down:
+    docker compose down
+
+# View logs from all services
+docker-logs:
+    docker compose logs -f
+
 # --- Quality ---
 
 # Run all linting and formatting checks
