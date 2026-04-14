@@ -37,6 +37,7 @@ services:
     environment:
       - KUBE_CONTEXT=docker-desktop
       - KUBECONFIG=/root/.kube/config
+      - ORCHESTRA_ENVIRONMENT=local
     volumes:
       - ~/.kube:/root/.kube:ro
     networks:
