@@ -1,6 +1,6 @@
 """Health check routes."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
@@ -12,7 +12,7 @@ async def health_check():
     """Basic health check endpoint."""
     return {
         "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "service": "orchestra-api",
     }
 
@@ -21,10 +21,10 @@ async def health_check():
 async def readiness_check():
     """Readiness check for Kubernetes."""
     # Add checks for Kubernetes connectivity here
-    return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ready", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @router.get("/live")
 async def liveness_check():
     """Liveness check for Kubernetes."""
-    return {"status": "alive", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}

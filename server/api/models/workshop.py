@@ -1,6 +1,6 @@
 """Pydantic models for workshop API."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 try:
@@ -131,4 +131,4 @@ class ErrorResponse(BaseModel):
 
     detail: str
     error_code: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

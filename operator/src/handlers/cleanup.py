@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import kopf
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +34,9 @@ async def workshop_expiration_timer(
         logger.warning(f"Workshop {name} has no expiration time set")
         return
 
-    # Parse expiration time and check if expired
-    from datetime import datetime
-
     try:
         expiration_time = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-        current_time = datetime.now(expiration_time.tzinfo)
+        current_time = datetime.now(timezone.utc)
 
         if current_time >= expiration_time:
             logger.info(f"Workshop {name} has expired, scheduling for deletion")

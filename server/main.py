@@ -8,7 +8,7 @@ workshops through the Orchestra Operator's Workshop CRDs.
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import uvicorn
 from fastapi import FastAPI, Request, status
@@ -85,7 +85,7 @@ async def root():
         "description": "REST API for managing RStudio workshops",
         "docs_url": "/docs",
         "health_url": "/health",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

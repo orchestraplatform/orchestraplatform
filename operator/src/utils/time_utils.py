@@ -1,7 +1,7 @@
 """Time and duration utilities for the Orchestra Operator."""
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def parse_duration(duration_str: str) -> timedelta:
@@ -62,7 +62,7 @@ def get_expiration_time(
         datetime when the workshop should expire
     """
     if start_time is None:
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
 
     if isinstance(duration, str):
         duration = parse_duration(duration)
@@ -80,7 +80,7 @@ def is_expired(expiration_time: datetime) -> bool:
     Returns:
         True if the workshop has expired
     """
-    return datetime.utcnow() >= expiration_time
+    return datetime.now(timezone.utc) >= expiration_time
 
 
 def time_until_expiration(expiration_time: datetime) -> timedelta:
@@ -93,4 +93,4 @@ def time_until_expiration(expiration_time: datetime) -> timedelta:
     Returns:
         timedelta until expiration (negative if already expired)
     """
-    return expiration_time - datetime.utcnow()
+    return expiration_time - datetime.now(timezone.utc)
