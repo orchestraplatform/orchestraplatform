@@ -62,8 +62,7 @@ generate-types api_url="http://localhost:8000":
     @echo "🔄 Generating TypeScript types from API at {{api_url}}"
     npx openapi-typescript-codegen --input {{api_url}}/openapi.json --output ./src/api/generated --client axios
     @echo "✅ Types generated successfully"
-
-generate-types-file file="../orchestra-api/openapi.json":
+generate-types-file file="../server/openapi.json":
     @echo "🔄 Generating TypeScript types from file {{file}}"
     npx openapi-typescript-codegen --input {{file}} --output ./src/api/generated --client axios
     @echo "✅ Types generated from file"
@@ -73,11 +72,13 @@ check-api api_url="http://localhost:8000":
     @echo "🔍 Checking API health at {{api_url}}"
     curl -s "{{api_url}}/" | jq . || echo "❌ API not accessible"
 
+# Update types from running API
 update-types: check-api generate-types
     @echo "🔄 Updated types from running API"
 
 # Export OpenAPI schema from API for offline use
-export-schema api_url="http://localhost:8000" output="../orchestra-api/openapi.json":
+export-schema api_url="http://localhost:8000" output="../server/openapi.json":
+
     @echo "💾 Exporting OpenAPI schema to {{output}}"
     curl -s "{{api_url}}/openapi.json" > {{output}}
     @echo "✅ Schema exported to {{output}}"

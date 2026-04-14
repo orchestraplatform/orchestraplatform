@@ -139,7 +139,7 @@ workshop-pods:
 # === Integration Testing ===
 
 # Full integration test: operator + API + example workshop
-integration-test api_path="../orchestra-api":
+integration-test api_path="../server":
     @echo "🧪 Running full integration test"
     just dev-setup
     cd {{api_path}} && just run-bg
@@ -158,7 +158,7 @@ ci-setup version=k8s_version:
 # === Multi-Repository Workflows ===
 
 # Start all services for full-stack development
-start-all-services api_path="../orchestra-api" frontend_path="../orchestra-frontend":
+start-all-services api_path="../server" frontend_path="../frontend":
     @echo "🚀 Starting full Orchestra stack"
     just dev-setup
     cd {{api_path}} && just dev-for-frontend

@@ -144,14 +144,14 @@ serve-schema port="8001":
     uv run python serve_schema.py {{port}}
 
 # Update frontend types from generated schema
-update-frontend-types frontend_path="../orchestra-frontend":
+update-frontend-types frontend_path="../frontend":
     @echo "🔄 Updating frontend types from API schema"
     just generate-schema
-    cd {{frontend_path}} && just generate-types-file ../orchestra-api/openapi.json
+    cd {{frontend_path}} && just generate-types-file ../server/openapi.json
     @echo "✅ Frontend types updated from static schema"
 
 # Update frontend types from running API
-update-frontend-types-live frontend_path="../orchestra-frontend" url=api_url:
+update-frontend-types-live frontend_path="../frontend" url=api_url:
     @echo "🔄 Updating frontend types from running API at {{url}}"
     cd {{frontend_path}} && just generate-types {{url}}
     @echo "✅ Frontend types updated from running API"
@@ -251,16 +251,16 @@ dev-for-frontend:
     @echo "✅ API ready for frontend at {{api_url}}"
 
 # Full development setup for frontend work
-frontend-dev-setup frontend_path="../orchestra-frontend":
+frontend-dev-setup frontend_path="../frontend":
     @echo "🔧 Setting up full-stack development environment"
     just dev-for-frontend
     just update-frontend-types-live {{frontend_path}}
     @echo "✅ Both API and frontend types are ready"
 
 # Development cycle: update API, regenerate schema, update frontend types
-dev-cycle frontend_path="../orchestra-frontend":
+dev-cycle frontend_path="../frontend":
     @echo "🔄 Running development cycle"
     just quality
     just generate-schema
-    cd {{frontend_path}} && just generate-types-file ../orchestra-api/openapi.json
+    cd {{frontend_path}} && just generate-types-file ../server/openapi.json
     @echo "✅ Development cycle complete - API validated, schema updated, frontend types synced"
