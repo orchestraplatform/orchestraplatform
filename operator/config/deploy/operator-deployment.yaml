@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orchestra-system
+  labels:
+    name: orchestra-system
+    app: orchestra-operator
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestra-operator
+  namespace: orchestra-system
+  labels:
+    app: orchestra-operator
+    component: controller
+    version: v1.0.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestra-operator
+      component: controller
+  template:
+    metadata:
+      labels:
+        app: orchestra-operator
+        component: controller
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: orchestra-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: operator
+        image: seandavi/orchestra-operator:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: KOPF_LOG_LEVEL
+          value: "INFO"
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: OPERATOR_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: HOME
+          value: "/app"
+        - name: USER
+          value: "orchestra-operator"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestra-operator-metrics
+  namespace: orchestra-system
+  labels:
+    app: orchestra-operator
+    component: controller
+spec:
+  selector:
+    app: orchestra-operator
+    component: controller
+  ports:
+  - name: metrics
+    port: 8080
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestra-operator
+  namespace: orchestra-system
+  labels:
+    app: orchestra-operator
+    component: controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: orchestra-operator
+  labels:
+    app: orchestra-operator
+    component: controller
+rules:
+# Workshop CRD permissions
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops/status"]
+  verbs: ["get", "update", "patch"]
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops/finalizers"]
+  verbs: ["update"]
+# Core Kubernetes resources
+- apiGroups: [""]
+  resources: ["pods", "services", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+# Events for status reporting
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+# Kopf framework requirements
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch"]
+# Leader election (for HA deployments)
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: orchestra-operator
+  labels:
+    app: orchestra-operator
+    component: controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: orchestra-operator
+subjects:
+- kind: ServiceAccount
+  name: orchestra-operator
+  namespace: orchestra-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestra-operator-config
+  namespace: orchestra-system
+  labels:
+    app: orchestra-operator
+    component: controller
+data:
+  config.yaml: |
+    operator:
+      namespace: orchestra-system
+      logLevel: INFO
+      metricsPort: 8080
+      healthcheckPort: 8080
+    workshop:
+      defaultImage: "rocker/rstudio:latest"
+      defaultDuration: "4h"
+      defaultResources:
+        cpu: "1"
+        memory: "2Gi"
+        cpuRequest: "500m"
+        memoryRequest: "1Gi"
+      defaultStorage:
+        size: "10Gi"
+    cleanup:
+      checkInterval: 300  # 5 minutes
+      gracePeriod: 60     # 1 minute

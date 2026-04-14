@@ -1,0 +1,11 @@
+{
+  "files.associations": {
+    "justfile": "just",
+    "Justfile": "just",
+    ".justfile": "just"
+  },
+  "just.executable": "just",
+  "just.showRecipesInExplorer": true,
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.terminal.activateEnvironment": true
+}

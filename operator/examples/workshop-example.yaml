@@ -1,0 +1,22 @@
+apiVersion: orchestra.io/v1
+kind: Workshop
+metadata:
+  name: data-science-101
+  namespace: default
+spec:
+  name: "data-science-101"
+  duration: "4h"
+  image: "bioconductor/bioconductor_docker:devel"
+  resources:
+    cpu: "1"
+    memory: "2Gi"
+    cpuRequest: "500m"
+    memoryRequest: "1Gi"
+  storage:
+    size: "100Gi"
+    # storageClass: "fast-ssd"  # Optional
+  ingress:
+    host: "data-science-101.orchestraplatform.org"
+    annotations:
+      kubernetes.io/ingress.class: "traefik"
+      # cert-manager.io/cluster-issuer: "letsencrypt"  # For HTTPS

@@ -1,0 +1,36 @@
+{
+  "folders": [
+    {
+      "name": "Orchestra Operator",
+      "path": "."
+    },
+    {
+      "name": "Orchestra API", 
+      "path": "../orchestra-api"
+    },
+    {
+      "name": "Orchestra Frontend",
+      "path": "../orchestra-frontend"
+    }
+  ],
+  "settings": {
+    "files.associations": {
+      "justfile": "just",
+      "Justfile": "just", 
+      ".justfile": "just"
+    },
+    "just.executable": "just",
+    "just.showRecipesInExplorer": true,
+    "python.terminal.activateEnvironment": true,
+    "python.defaultInterpreterPath": "./.venv/bin/python"
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "ms-python.pylint", 
+      "ms-python.black-formatter",
+      "skellock.just",
+      "ms-kubernetes-tools.vscode-kubernetes-tools"
+    ]
+  }
+}

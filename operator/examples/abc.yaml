@@ -1,0 +1,90 @@
+# --- App 1 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app1-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app1
+  template:
+    metadata:
+      labels:
+        app: app1
+    spec:
+      containers:
+      - name: app1
+        image: bioconductor/bioconductor_docker:devel # Using the same image as in the workshop example
+        ports:
+        - containerPort: 8787
+        env:
+        - name: DISABLE_AUTH
+          value: "true"  # Disable authentication for the workshop
+        - name: ROOT
+          value: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app1-service
+spec:
+  selector:
+    app: app1
+  ports:
+    - port: 80
+      targetPort: 8787
+      protocol: TCP
+---
+# --- App 2 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app2-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app2
+  template:
+    metadata:
+      labels:
+        app: app2
+    spec:
+      containers:
+      - name: app2
+        image: traefik/whoami # Using a different image or version in reality
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app2-service
+spec:
+  selector:
+    app: app2
+  ports:
+    - port: 80
+---
+# --- Wildcard IngressRoute for Both Apps ---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: orchestra-wildcard-ingress
+spec:
+  entryPoints:
+    - web
+  routes:
+    # Route for app1
+    - match: Host(`app1-workshop.orchestraplatform.org`)
+      kind: Rule
+      services:
+        - name: app1-service
+          port: 80
+    # Route for app2
+    - match: Host(`app2-workshop.orchestraplatform.org`)
+      kind: Rule
+      services:
+        - name: app2-service
+          port: 80
