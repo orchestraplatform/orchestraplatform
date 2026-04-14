@@ -58,7 +58,7 @@ This starts the server, frontend, and operator in parallel as local processes (w
 
 > **Note:** Ports 8000 and 8001 are occupied by Docker Desktop on Mac; 8080 is used instead.
 
-Workshops created via the UI will be reachable at `http://<name>.127.0.0.1.nip.io:30080` — no DNS configuration required.
+Workshops created via the UI will be reachable at `http://<name>.orchestra.localhost:30080`. The `dev-setup` step configures dnsmasq to resolve `*.orchestra.localhost` → `127.0.0.1` automatically.
 
 ### Development without the operator
 

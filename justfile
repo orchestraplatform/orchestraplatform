@@ -44,12 +44,25 @@ dev-setup:
         --wait
     @echo "==> Applying Orchestra CRDs"
     kubectl apply -f operator/config/crd/
+    @echo "==> Configuring dnsmasq for *.orchestra.localhost → 127.0.0.1"
+    @grep -q "orchestra.localhost" /opt/homebrew/etc/dnsmasq.conf 2>/dev/null || \
+        (echo "address=/.orchestra.localhost/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf && \
+         echo "  Added dnsmasq rule") || echo "  dnsmasq rule already present"
+    @if [ ! -f /etc/resolver/orchestra.localhost ]; then \
+        echo "  Creating /etc/resolver/orchestra.localhost (requires sudo)"; \
+        sudo mkdir -p /etc/resolver && \
+        echo "nameserver 127.0.0.1" | sudo tee /etc/resolver/orchestra.localhost > /dev/null && \
+        echo "  Done"; \
+    else \
+        echo "  /etc/resolver/orchestra.localhost already exists"; \
+    fi
+    @sudo brew services restart dnsmasq > /dev/null 2>&1 && echo "  dnsmasq restarted"
     @echo "==> Copying example env files (skipped if already present)"
     cp -n server/.env.example server/.env 2>/dev/null && echo "  Created server/.env" || echo "  server/.env already exists"
     cp -n frontend/.env.local.example frontend/.env.local 2>/dev/null && echo "  Created frontend/.env.local" || echo "  frontend/.env.local already exists"
     @echo ""
     @echo "✓ Dev cluster ready."
-    @echo "  Workshops will be reachable at http://<name>.127.0.0.1.nip.io:30080"
+    @echo "  Workshops will be reachable at http://<name>.orchestra.localhost:30080"
     @echo "  Run 'just dev' to start the local development stack."
 
 # --- Development ---

@@ -8,12 +8,15 @@ from typing import Any
 # In any other environment the hostname follows the production convention.
 _LOCAL_ENV = os.environ.get("ORCHESTRA_ENVIRONMENT", "").lower() == "local"
 _PROD_BASE_DOMAIN = os.environ.get("ORCHESTRA_BASE_DOMAIN", "orchestraplatform.org")
+# Local dev domain — resolved by dnsmasq (*.orchestra.localhost → 127.0.0.1).
+# See docs/dev-setup for dnsmasq configuration instructions.
+_LOCAL_BASE_DOMAIN = os.environ.get("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
 
 
 def _default_host(workshop_name: str) -> str:
     """Return the default hostname for a workshop based on the environment."""
     if _LOCAL_ENV:
-        return f"{workshop_name}.127.0.0.1.nip.io"
+        return f"{workshop_name}.{_LOCAL_BASE_DOMAIN}"
     return f"{workshop_name}.{_PROD_BASE_DOMAIN}"
 
 
