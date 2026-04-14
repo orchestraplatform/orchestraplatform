@@ -1,0 +1,101 @@
+# Orchestra Frontend
+
+A modern React + TypeScript frontend for the Orchestra Workshop Management System.
+
+## Features
+
+- **Workshop Management**: Create, view, and manage RStudio workshops
+- **Real-time Updates**: Live status monitoring with React Query
+- **Modern UI**: Built with TailwindCSS and shadcn/ui components
+- **Type Safety**: Full TypeScript support
+- **Responsive Design**: Works on desktop and mobile devices
+
+## Quick Start
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Start development server**:
+   ```bash
+   npm run dev
+   ```
+
+3. **Open browser**: Navigate to `http://localhost:3000`
+
+## Development
+
+### Environment Variables
+
+Create a `.env.local` file:
+
+```env
+VITE_API_URL=http://localhost:8000
+```
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Fix linting issues
+- `npm run format` - Format code with Prettier
+- `npm run type-check` - Run TypeScript checks
+- `npm run test` - Run tests
+
+### Project Structure
+
+```
+src/
+├── components/          # Reusable UI components
+│   ├── ui/             # Base UI components
+│   ├── workshop/       # Workshop-specific components
+│   └── layout/         # Layout components
+├── pages/              # Page components
+├── services/           # API client and services
+├── hooks/              # Custom React hooks
+├── types/              # TypeScript type definitions
+├── utils/              # Utility functions
+└── App.tsx             # Main application component
+```
+
+## Building for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist/` directory.
+
+## Docker
+
+Build the container:
+
+```bash
+docker build -t orchestra-frontend .
+```
+
+Run the container:
+
+```bash
+docker run -p 80:80 orchestra-frontend
+```
+
+## Integration with Orchestra API
+
+The frontend communicates with the Orchestra API backend. Make sure the API is running and accessible at the configured `VITE_API_URL`.
+
+### API Endpoints Used
+
+- `GET /workshops` - List all workshops
+- `GET /workshops/{name}` - Get specific workshop
+- `POST /workshops` - Create new workshop
+- `DELETE /workshops/{name}` - Delete workshop
+- `GET /health` - Health check
+- `GET /ready` - Readiness check
+
+## Authentication
+
+Authentication support is planned for future releases. The codebase includes placeholders for easy integration.
