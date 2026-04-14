@@ -9,6 +9,8 @@ except ImportError:
     kubernetes = None
     ApiException = Exception
 
+from api.core.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,14 +19,26 @@ def get_k8s_client():
     if not kubernetes:
         raise ImportError("kubernetes package not installed")
 
+    settings = get_settings()
+
     try:
         # Try in-cluster config first
-        kubernetes.config.load_incluster_config()
-        logger.info("Loaded in-cluster Kubernetes configuration")
+        if settings.in_cluster:
+            kubernetes.config.load_incluster_config()
+            logger.info("Loaded in-cluster Kubernetes configuration")
+        else:
+            raise kubernetes.config.ConfigException("Not in-cluster")
     except kubernetes.config.ConfigException:
         # Fall back to local kubeconfig
-        kubernetes.config.load_kube_config()
-        logger.info("Loaded local Kubernetes configuration")
+        try:
+            kubernetes.config.load_kube_config(
+                config_file=settings.kubeconfig_path,
+                context=settings.kube_context
+            )
+            logger.info(f"Loaded local Kubernetes configuration (context: {settings.kube_context or 'default'})")
+        except Exception as e:
+            logger.error(f"Failed to load local Kubernetes configuration: {e}")
+            raise
 
     return kubernetes.client
 

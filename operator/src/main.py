@@ -9,6 +9,7 @@ This operator manages the complete lifecycle of RStudio workshops:
 """
 
 import logging
+import os
 import sys
 from typing import Any
 
@@ -35,12 +36,20 @@ def setup_kubernetes() -> None:
     """Initialize Kubernetes client configuration."""
     try:
         # Try in-cluster config first (when running in pod)
-        kubernetes.config.load_incluster_config()
-        logging.info("Loaded in-cluster Kubernetes configuration")
+        if os.environ.get("KUBERNETES_SERVICE_HOST"):
+            kubernetes.config.load_incluster_config()
+            logging.info("Loaded in-cluster Kubernetes configuration")
+        else:
+            raise kubernetes.config.ConfigException("Not in-cluster")
     except kubernetes.config.ConfigException:
         # Fall back to local kubeconfig (for development)
-        kubernetes.config.load_kube_config()
-        logging.info("Loaded local Kubernetes configuration")
+        try:
+            context = os.environ.get("KUBE_CONTEXT")
+            kubernetes.config.load_kube_config(context=context)
+            logging.info(f"Loaded local Kubernetes configuration (context: {context or 'default'})")
+        except Exception as e:
+            logging.error(f"Failed to load local Kubernetes configuration: {e}")
+            raise
 
 
 @kopf.on.startup()

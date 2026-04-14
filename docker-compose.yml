@@ -10,6 +10,7 @@ services:
       - ORCHESTRA_DEBUG=true
       - ORCHESTRA_IN_CLUSTER=false
       - ORCHESTRA_REQUIRE_AUTHENTICATION=false
+      - ORCHESTRA_KUBE_CONTEXT=docker-desktop
       - KUBECONFIG=/root/.kube/config
     volumes:
       - ~/.kube:/root/.kube:ro
@@ -34,6 +35,7 @@ services:
     build:
       context: ./operator
     environment:
+      - KUBE_CONTEXT=docker-desktop
       - KUBECONFIG=/root/.kube/config
     volumes:
       - ~/.kube:/root/.kube:ro
