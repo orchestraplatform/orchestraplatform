@@ -111,8 +111,8 @@ class WorkshopStatus(BaseModel):
 
     phase: WorkshopPhase
     url: str | None = None
-    created_at: datetime | None = Field(alias="createdAt")
-    expires_at: datetime | None = Field(alias="expiresAt")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
+    expires_at: datetime | None = Field(default=None, alias="expiresAt")
     conditions: list[WorkshopCondition] = Field(default_factory=list)
 
 
