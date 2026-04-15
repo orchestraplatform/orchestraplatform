@@ -103,7 +103,7 @@ class WorkshopCondition(BaseModel):
     status: str
     reason: str | None = None
     message: str | None = None
-    last_transition_time: datetime | None = Field(alias="lastTransitionTime")
+    last_transition_time: datetime | None = Field(default=None, alias="lastTransitionTime")
 
 
 class WorkshopStatus(BaseModel):

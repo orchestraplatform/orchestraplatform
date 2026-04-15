@@ -70,7 +70,7 @@ dev-setup:
 # Start the full local dev stack (server + frontend + operator)
 # Run 'just dev-setup' first if this is a new machine.
 dev:
-    @just -j 3 dev-server dev-frontend dev-operator
+    @just dev-server & just dev-frontend & just dev-operator & wait
 
 # Run the frontend development server
 dev-frontend:
@@ -82,8 +82,8 @@ dev-server:
     cd server && ORCHESTRA_ENVIRONMENT=local \
     ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
-    ORCHESTRA_PORT=8080 \
-    just dev port=8080
+    ORCHESTRA_DEV_IDENTITY=dev@example.com \
+    uv run uvicorn main:app --reload --host 0.0.0.0 --port 8080
 
 # Run the operator locally
 dev-operator:
