@@ -2,22 +2,13 @@
 
 from functools import lru_cache
 
-try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict
-except ImportError:
-    # Fallback for when pydantic-settings is not available
-    class BaseSettings:
-        def __init__(self, **kwargs):
-            for key, value in kwargs.items():
-                setattr(self, key, value)
-    
-    def SettingsConfigDict(**kwargs):
-        return kwargs
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings."""
-    model_config = SettingsConfigDict(env_prefix='ORCHESTRA_', case_sensitive=False)
+
+    model_config = SettingsConfigDict(env_prefix="ORCHESTRA_", case_sensitive=False)
 
     # API settings
     app_name: str = "Orchestra API"
@@ -40,28 +31,33 @@ class Settings(BaseSettings):
     default_memory_request: str = "1Gi"
     default_storage_size: str = "10Gi"
 
-    # Security
-    cors_origins: list = ["*"]
+    # CORS
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "https://app.orchestraplatform.org",
+    ]
 
-    # Authentication settings
-    secret_key: str = "your-secret-key-change-in-production"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
-
-    # OAuth settings
-    oauth_client_id: str | None = None
-    oauth_client_secret: str | None = None
-    oauth_redirect_uri: str = "http://localhost:3000/auth/callback"
-    oauth_provider: str = "github"  # github, google, oidc
-
-    # OIDC settings (for institutional SSO)
-    oidc_issuer: str | None = None
-    oidc_audience: str | None = None
-
-    # Workshop access control
+    # Authentication
+    # When True (default / production), all /workshops routes require a valid
+    # X-Auth-Request-Email header forwarded by the oauth2-proxy ingress.
     require_authentication: bool = True
-    allow_anonymous_read: bool = False
+
+    # Name of the header that oauth2-proxy sets after a successful login.
+    # Change only if you've configured a non-default header in your proxy.
+    trusted_auth_header: str = "X-Auth-Request-Email"
+
+    # Comma-separated list of email addresses that have admin privileges.
+    # Admins can list/get/delete any workshop regardless of owner.
+    admin_emails: list[str] = []
+
+    # Dev identity: if set AND require_authentication=False, the API behaves as
+    # if this email was forwarded by the proxy. Lets `just dev` work without
+    # any proxy. Never set this in production.
+    dev_identity: str | None = None
 
 
 @lru_cache

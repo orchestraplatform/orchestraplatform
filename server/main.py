@@ -8,7 +8,7 @@ workshops through the Orchestra Operator's Workshop CRDs.
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 import uvicorn
 from fastapi import FastAPI, Request, status
@@ -53,25 +53,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+settings = get_settings()
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",  # React development server
-        "http://localhost:5173",  # Vite development server
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173",
-        "http://localhost:8000",
-        "https://app.orchestraplatform.org",  # Production frontend
-        # Add production frontend URLs here
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
 # Include routers
-app.include_router(health.router, tags=["health"])
+app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(workshops.router, prefix="/workshops", tags=["workshops"])
 
@@ -85,7 +79,7 @@ async def root():
         "description": "REST API for managing RStudio workshops",
         "docs_url": "/docs",
         "health_url": "/health",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 

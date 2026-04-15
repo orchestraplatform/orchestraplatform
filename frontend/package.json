@@ -16,6 +16,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test",
     "generate-types": "openapi-typescript-codegen --input http://localhost:8000/openapi.json --output ./src/api/generated --client axios",
     "generate-types:file": "openapi-typescript-codegen --input ../server/openapi.json --output ./src/api/generated --client axios"
   },
@@ -48,6 +49,7 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.2.2",
     "vite": "^5.2.0",
-    "vitest": "^1.4.0"
+    "vitest": "^1.4.0",
+    "@playwright/test": "^1.44.0"
   }
 }

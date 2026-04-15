@@ -1,5 +1,6 @@
 """Workshop service layer for Kubernetes integration."""
 
+import hashlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -8,9 +9,12 @@ from api.core.kubernetes import ApiException, get_custom_objects_api
 from api.models.workshop import (
     WorkshopCondition,
     WorkshopCreate,
+    WorkshopIngress,
     WorkshopPhase,
+    WorkshopResources,
     WorkshopResponse,
     WorkshopStatus,
+    WorkshopStorage,
 )
 
 logger = logging.getLogger(__name__)
@@ -20,20 +24,30 @@ GROUP = "orchestra.io"
 VERSION = "v1"
 PLURAL = "workshops"
 
+# Label key used for server-side owner filtering (label values can't contain '@')
+OWNER_HASH_LABEL = "orchestra.io/owner-hash"
+
+
+def _owner_label_value(email: str) -> str:
+    """Return a k8s-safe label value derived from an owner email address."""
+    return hashlib.sha256(email.lower().encode()).hexdigest()[:63]
+
 
 class WorkshopService:
     """Service for managing workshops via Kubernetes CRDs."""
 
-    def __init__(self):
-        self.custom_api = get_custom_objects_api()
+    @property
+    def custom_api(self):
+        """Return a Kubernetes CustomObjects API client, initialised on first use."""
+        return get_custom_objects_api()
 
     async def create_workshop(
-        self, workshop: WorkshopCreate, namespace: str = "default"
+        self, workshop: WorkshopCreate, owner_email: str, namespace: str = "default"
     ) -> WorkshopResponse:
-        """Create a new workshop."""
+        """Create a new workshop owned by owner_email."""
         try:
             # Convert Pydantic model to Kubernetes CRD
-            workshop_crd = self._to_kubernetes_crd(workshop, namespace)
+            workshop_crd = self._to_kubernetes_crd(workshop, owner_email, namespace)
 
             # Create the workshop in Kubernetes
             result = self.custom_api.create_namespaced_custom_object(
@@ -72,9 +86,19 @@ class WorkshopService:
             raise
 
     async def list_workshops(
-        self, namespace: str = "default", label_selector: str | None = None
+        self,
+        namespace: str = "default",
+        owner_email: str | None = None,
+        label_selector: str | None = None,
     ) -> list[WorkshopResponse]:
-        """List all workshops in a namespace."""
+        """List workshops, optionally filtered to a specific owner."""
+        if owner_email is not None:
+            owner_selector = f"{OWNER_HASH_LABEL}={_owner_label_value(owner_email)}"
+            label_selector = (
+                f"{label_selector},{owner_selector}"
+                if label_selector
+                else owner_selector
+            )
         try:
             result = self.custom_api.list_namespaced_custom_object(
                 group=GROUP,
@@ -114,7 +138,7 @@ class WorkshopService:
             raise
 
     def _to_kubernetes_crd(
-        self, workshop: WorkshopCreate, namespace: str
+        self, workshop: WorkshopCreate, owner_email: str, namespace: str
     ) -> dict[str, Any]:
         """Convert Pydantic model to Kubernetes CRD format."""
         crd = {
@@ -123,10 +147,15 @@ class WorkshopService:
             "metadata": {
                 "name": workshop.name,
                 "namespace": namespace,
-                "labels": {"app": "orchestra-operator", "managed-by": "orchestra-api"},
+                "labels": {
+                    "app": "orchestra-operator",
+                    "managed-by": "orchestra-api",
+                    OWNER_HASH_LABEL: _owner_label_value(owner_email),
+                },
             },
             "spec": {
                 "name": workshop.name,
+                "owner": owner_email,
                 "duration": workshop.duration,
                 "image": workshop.image,
                 "resources": {
@@ -186,21 +215,15 @@ class WorkshopService:
         return WorkshopResponse(
             name=metadata.get("name"),
             namespace=metadata.get("namespace"),
+            owner=spec.get("owner") or None,
             spec=self._parse_spec(spec),
             status=workshop_status,
             created_at=self._parse_datetime(metadata.get("creationTimestamp")),
-            updated_at=self._parse_datetime(metadata.get("resourceVersion")),
+            updated_at=None,
         )
 
     def _parse_spec(self, spec: dict[str, Any]) -> WorkshopCreate:
         """Parse workshop spec from Kubernetes CRD."""
-        # This is a simplified version - you'd want more robust parsing
-        from api.models.workshop import (
-            WorkshopIngress,
-            WorkshopResources,
-            WorkshopStorage,
-        )
-
         resources = WorkshopResources(
             cpu=spec.get("resources", {}).get("cpu", "1"),
             memory=spec.get("resources", {}).get("memory", "2Gi"),

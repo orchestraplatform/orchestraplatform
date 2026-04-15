@@ -1,17 +1,10 @@
 """Pydantic models for workshop API."""
 
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 from enum import Enum
 
-try:
-    from pydantic import BaseModel, Field
-except ImportError:
-    # Fallback for when pydantic is not installed
-    class BaseModel:
-        pass
-
-    def Field(*args, **kwargs):
-        return None
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class WorkshopPhase(str, Enum):
@@ -43,17 +36,33 @@ class WorkshopStorage(BaseModel):
 
     size: str = Field(default="10Gi", description="Storage size")
     storage_class: str | None = Field(
-        default=None, description="Storage class", alias="storageClass"
+        default=None, description="Storage class name. Leave unset to use the cluster default.", alias="storageClass"
     )
+
+    @field_validator("storage_class", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: str | None) -> str | None:
+        return None if v == "" else v
 
 
 class WorkshopIngress(BaseModel):
     """Workshop ingress configuration."""
 
-    host: str | None = Field(default=None, description="Ingress hostname")
+    host: str | None = Field(
+        default=None, description="Custom ingress hostname. Leave unset to use the environment default."
+    )
     annotations: dict[str, str] = Field(
         default_factory=dict, description="Ingress annotations"
     )
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: str | None) -> str | None:
+        return None if v == "" else v
+
+
+_K8S_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
+_K8S_NAME_MAX = 253
 
 
 class WorkshopCreate(BaseModel):
@@ -65,6 +74,19 @@ class WorkshopCreate(BaseModel):
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
     ingress: WorkshopIngress | None = Field(default=None)
+
+    @field_validator("name")
+    @classmethod
+    def name_is_valid_k8s(cls, v: str) -> str:
+        """Validate that the name is a valid Kubernetes resource name (RFC 1123)."""
+        if len(v) > _K8S_NAME_MAX:
+            raise ValueError(f"name must be at most {_K8S_NAME_MAX} characters")
+        if not _K8S_NAME_RE.match(v):
+            raise ValueError(
+                "name must consist of lowercase alphanumeric characters or '-', "
+                "start and end with an alphanumeric character"
+            )
+        return v
 
 
 class WorkshopUpdate(BaseModel):
@@ -89,8 +111,8 @@ class WorkshopStatus(BaseModel):
 
     phase: WorkshopPhase
     url: str | None = None
-    created_at: datetime | None = Field(alias="createdAt")
-    expires_at: datetime | None = Field(alias="expiresAt")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
+    expires_at: datetime | None = Field(default=None, alias="expiresAt")
     conditions: list[WorkshopCondition] = Field(default_factory=list)
 
 
@@ -99,6 +121,7 @@ class WorkshopResponse(BaseModel):
 
     name: str
     namespace: str
+    owner: EmailStr | None = None  # None for legacy CRs created before ownership was added
     spec: WorkshopCreate
     status: WorkshopStatus | None = None
     created_at: datetime | None = None
@@ -119,4 +142,4 @@ class ErrorResponse(BaseModel):
 
     detail: str
     error_code: str | None = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

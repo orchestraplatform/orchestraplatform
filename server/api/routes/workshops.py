@@ -2,28 +2,9 @@
 
 import logging
 
-try:
-    from fastapi import APIRouter, HTTPException, Path, Query, status
-    from fastapi.responses import JSONResponse
-except ImportError:
-    # Fallback when FastAPI is not installed
-    class APIRouter:
-        def __init__(self, *args, **kwargs):
-            pass
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
-        def get(self, *args, **kwargs):
-            pass
-
-        def post(self, *args, **kwargs):
-            pass
-
-        def delete(self, *args, **kwargs):
-            pass
-
-    HTTPException = Exception
-    Query = Path = lambda *args, **kwargs: None
-    JSONResponse = dict
-
+from api.core.auth import CurrentUser, get_current_user
 from api.models.workshop import (
     WorkshopCreate,
     WorkshopList,
@@ -40,11 +21,17 @@ workshop_service = WorkshopService()
 async def create_workshop(
     workshop: WorkshopCreate,
     namespace: str = Query(default="default", description="Kubernetes namespace"),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Create a new workshop."""
+    """Create a new workshop owned by the authenticated user."""
     try:
-        logger.info(f"Creating workshop {workshop.name} in namespace {namespace}")
-        result = await workshop_service.create_workshop(workshop, namespace)
+        logger.info(
+            f"Creating workshop {workshop.name} in namespace {namespace} "
+            f"for {current_user.email}"
+        )
+        result = await workshop_service.create_workshop(
+            workshop, owner_email=current_user.email, namespace=namespace
+        )
         return result
     except Exception as e:
         logger.error(f"Failed to create workshop: {e}")
@@ -59,18 +46,25 @@ async def list_workshops(
     namespace: str = Query(default="default", description="Kubernetes namespace"),
     page: int = Query(default=1, ge=1, description="Page number"),
     size: int = Query(default=50, ge=1, le=100, description="Page size"),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    """List workshops in a namespace."""
-    try:
-        workshops = await workshop_service.list_workshops(namespace)
+    """List workshops.
 
-        # Simple pagination
+    Regular users see only their own workshops. Admins see all workshops.
+    """
+    try:
+        # Admins can see all workshops; regular users are filtered to their own.
+        owner_filter = None if current_user.is_admin else current_user.email
+        workshops = await workshop_service.list_workshops(
+            namespace=namespace, owner_email=owner_filter
+        )
+
         start = (page - 1) * size
         end = start + size
-        paginated_workshops = workshops[start:end]
+        paginated = workshops[start:end]
 
         return WorkshopList(
-            items=paginated_workshops, total=len(workshops), page=page, size=size
+            items=paginated, total=len(workshops), page=page, size=size
         )
     except Exception as e:
         logger.error(f"Failed to list workshops: {e}")
@@ -84,11 +78,16 @@ async def list_workshops(
 async def get_workshop(
     workshop_name: str = Path(..., description="Workshop name"),
     namespace: str = Query(default="default", description="Kubernetes namespace"),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Get a workshop by name."""
+    """Get a workshop by name.
+
+    Returns 404 if the workshop does not exist or belongs to another user
+    (avoids leaking existence information).
+    """
     try:
         workshop = await workshop_service.get_workshop(workshop_name, namespace)
-        if not workshop:
+        if not workshop or not _can_access(current_user, workshop):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workshop {workshop_name} not found",
@@ -108,16 +107,23 @@ async def get_workshop(
 async def delete_workshop(
     workshop_name: str = Path(..., description="Workshop name"),
     namespace: str = Query(default="default", description="Kubernetes namespace"),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Delete a workshop."""
+    """Delete a workshop.
+
+    Returns 404 if the workshop does not exist or belongs to another user.
+    """
     try:
-        deleted = await workshop_service.delete_workshop(workshop_name, namespace)
-        if not deleted:
+        workshop = await workshop_service.get_workshop(workshop_name, namespace)
+        if not workshop or not _can_access(current_user, workshop):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workshop {workshop_name} not found",
             )
-        logger.info(f"Deleted workshop {workshop_name}")
+        await workshop_service.delete_workshop(workshop_name, namespace)
+        logger.info(
+            f"Deleted workshop {workshop_name} by {current_user.email}"
+        )
         return None
     except HTTPException:
         raise
@@ -133,11 +139,12 @@ async def delete_workshop(
 async def get_workshop_status(
     workshop_name: str = Path(..., description="Workshop name"),
     namespace: str = Query(default="default", description="Kubernetes namespace"),
+    current_user: CurrentUser = Depends(get_current_user),
 ):
     """Get workshop status information."""
     try:
         workshop = await workshop_service.get_workshop(workshop_name, namespace)
-        if not workshop:
+        if not workshop or not _can_access(current_user, workshop):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Workshop {workshop_name} not found",
@@ -146,7 +153,8 @@ async def get_workshop_status(
         return {
             "name": workshop.name,
             "namespace": workshop.namespace,
-            "status": workshop.status.dict() if workshop.status else None,
+            "owner": workshop.owner,
+            "status": workshop.status.model_dump() if workshop.status else None,
             "url": workshop.status.url if workshop.status else None,
         }
     except HTTPException:
@@ -157,3 +165,14 @@ async def get_workshop_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get workshop status: {str(e)}",
         )
+
+
+def _can_access(user: CurrentUser, workshop: WorkshopResponse) -> bool:
+    """Return True if the user may read or modify this workshop.
+
+    Legacy CRs without an owner (created before ownership was added) are
+    visible only to admins.
+    """
+    if workshop.owner is None:
+        return user.is_admin
+    return user.is_admin or workshop.owner == user.email

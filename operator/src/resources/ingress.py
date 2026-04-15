@@ -1,6 +1,29 @@
 """Ingress creation for workshops."""
 
+import os
 from typing import Any
+
+# When ORCHESTRA_ENVIRONMENT=local, workshops are reachable at
+# {name}.127.0.0.1.nip.io — no DNS config required on Docker Desktop.
+# In any other environment the hostname follows the production convention.
+_LOCAL_ENV = os.environ.get("ORCHESTRA_ENVIRONMENT", "").lower() == "local"
+_PROD_BASE_DOMAIN = os.environ.get("ORCHESTRA_BASE_DOMAIN", "orchestraplatform.org")
+# Local dev domain — resolved by dnsmasq (*.orchestra.localhost → 127.0.0.1).
+# See docs/dev-setup for dnsmasq configuration instructions.
+_LOCAL_BASE_DOMAIN = os.environ.get("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
+
+
+def _default_host(workshop_name: str) -> str:
+    """Return the default hostname for a workshop based on the environment."""
+    if _LOCAL_ENV:
+        return f"{workshop_name}.{_LOCAL_BASE_DOMAIN}"
+    return f"{workshop_name}.{_PROD_BASE_DOMAIN}"
+
+
+def _default_entry_points() -> list[str]:
+    """Return Traefik entry points appropriate for the environment."""
+    # Local dev uses plain HTTP; production uses TLS.
+    return ["web"] if _LOCAL_ENV else ["websecure"]
 
 
 def create_workshop_ingress(
@@ -17,18 +40,14 @@ def create_workshop_ingress(
     Returns:
         IngressRoute manifest as a dictionary ready to be created
     """
-    # Generate host based on workshop name + orchestraplatform.org
-    host = f"{workshop_name}.orchestraplatform.org"
-
-    # Override with custom host if provided in config
-    if ingress_config.get("host"):
-        host = ingress_config["host"]
-
-    # Get entry points (default to 'web' for HTTP)
-    entry_points = ingress_config.get("entryPoints", ["web"])
-
-    # Additional annotations if needed
+    # Explicit host in the spec always wins; otherwise derive from environment.
+    host = ingress_config.get("host") or _default_host(workshop_name)
+    entry_points = ingress_config.get("entryPoints") or _default_entry_points()
     annotations = ingress_config.get("annotations", {})
+
+    # Store the resolved host as an annotation so callers can retrieve it
+    # without re-parsing the Traefik match expression.
+    meta_annotations = {**annotations, "orchestra.io/host": host}
 
     ingress_route = {
         "apiVersion": "traefik.io/v1alpha1",
@@ -41,7 +60,7 @@ def create_workshop_ingress(
                 "component": "rstudio",
                 "workshop": workshop_name,
             },
-            "annotations": annotations,
+            "annotations": meta_annotations,
         },
         "spec": {
             "entryPoints": entry_points,

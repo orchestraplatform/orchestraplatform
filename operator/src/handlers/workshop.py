@@ -16,6 +16,19 @@ from utils.time_utils import get_expiration_time
 logger = logging.getLogger(__name__)
 
 
+def _ingress_url(ingress: dict[str, Any]) -> str:
+    """Derive the public URL from an IngressRoute manifest.
+
+    Uses the entry points to decide the scheme (websecure → https, web → http).
+    The host is stored in a dedicated label on the IngressRoute so we never need
+    to parse the Traefik match expression.
+    """
+    entry_points = ingress["spec"].get("entryPoints", ["web"])
+    scheme = "https" if "websecure" in entry_points else "http"
+    host = ingress["metadata"]["annotations"].get("orchestra.io/host", "")
+    return f"{scheme}://{host}"
+
+
 def register_workshop_handlers() -> None:
     """Register all workshop-related Kopf handlers."""
     # Handlers are registered via decorators below
@@ -97,9 +110,8 @@ async def workshop_create_handler(
             else:
                 raise
 
-        # Create Ingress (if enabled)
+        # Create Ingress
         workshop_url = None
-        # Always create ingress with auto-generated hostname
         try:
             ingress = create_workshop_ingress(workshop_name, namespace, ingress_config)
             k8s_custom_objects_v1.create_namespaced_custom_object(
@@ -109,21 +121,15 @@ async def workshop_create_handler(
                 plural="ingressroutes",
                 body=ingress,
             )
-            # Extract the host from the ingress route
-            host = ingress["spec"]["routes"][0]["match"].split("`")[
-                1
-            ]  # Extract from Host(`hostname`)
-            workshop_url = f"https://{host}"
+            workshop_url = _ingress_url(ingress)
             logger.info(
                 f"Created ingress route for workshop {workshop_name} at {workshop_url}"
             )
         except ApiException as e:
             if e.status == 409:  # Already exists
-                # Generate the expected URL for existing ingress
-                host = f"{workshop_name}.orchestraplatform.org"
-                if ingress_config.get("host"):
-                    host = ingress_config["host"]
-                workshop_url = f"https://{host}"
+                # Reconstruct the URL from the ingress we would have created
+                ingress = create_workshop_ingress(workshop_name, namespace, ingress_config)
+                workshop_url = _ingress_url(ingress)
                 logger.info(
                     f"Ingress route for workshop {workshop_name} already exists at {workshop_url}"
                 )

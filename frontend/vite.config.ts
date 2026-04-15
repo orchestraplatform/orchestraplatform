@@ -11,12 +11,8 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-    },
+    // VITE_API_URL is set in .env.local (see .env.local.example).
+    // No proxy needed — the generated client calls the API directly.
   },
   build: {
     outDir: 'dist',

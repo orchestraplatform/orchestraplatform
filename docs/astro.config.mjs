@@ -47,6 +47,8 @@ export default defineConfig({
             { label: 'Platform Overview', link: '/architecture/platform-overview/' },
             { label: 'Domain Structure', link: '/architecture/domain-structure/' },
             { label: 'Components', link: '/architecture/components/' },
+            { label: 'Authentication', link: '/architecture/authentication/' },
+            { label: 'Authorization', link: '/architecture/authorization/' },
           ],
         },
         {
@@ -64,10 +66,26 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Development',
+          label: 'Deployment',
           items: [
+            { label: 'Helm Install', link: '/deployment/helm/' },
+            { label: 'oauth2-proxy Setup', link: '/deployment/oauth2-proxy/' },
+          ],
+        },
+        {
+          label: 'Contributing',
+          items: [
+            { label: 'Testing Guide', link: '/contributing/testing/' },
             { label: 'Contributing', link: '/development/contributing/' },
             { label: 'Local Development', link: '/development/local-development/' },
+          ],
+        },
+        {
+          label: 'Architecture Decision Records',
+          items: [
+            { label: 'ADR-0001: oauth2-proxy at ingress', link: '/adr/0001-oauth2-proxy-at-ingress/' },
+            { label: 'ADR-0002: spec.owner on CRD', link: '/adr/0002-spec-owner-on-crd/' },
+            { label: 'ADR-0003: Helm install method', link: '/adr/0003-helm-as-install-method/' },
           ],
         },
       ],

@@ -1,0 +1,31 @@
+# Dev values — use with `helm install orchestra deploy/charts/orchestra -f deploy/values-dev.yaml`
+# Targets a local kind cluster with Docker Desktop. No TLS, no oauth2-proxy.
+
+global:
+  domain: orchestra.localhost
+
+api:
+  requireAuthentication: false
+  devIdentity: dev@example.com
+  adminEmails:
+    - dev@example.com
+
+ingress:
+  enabled: true
+  className: traefik
+  tls:
+    enabled: false
+    clusterIssuer: ""
+
+oauth2Proxy:
+  enabled: false
+
+operator:
+  image:
+    pullPolicy: Never
+api:
+  image:
+    pullPolicy: Never
+frontend:
+  image:
+    pullPolicy: Never

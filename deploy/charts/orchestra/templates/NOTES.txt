@@ -1,0 +1,24 @@
+Orchestra has been deployed!
+
+Access the platform at:
+  https://app.{{ .Values.global.domain }}
+
+{{- if .Values.oauth2Proxy.enabled }}
+
+Auth is handled by oauth2-proxy (Google OIDC).
+Users will be redirected to Google login on first visit.
+
+Admin emails: {{ join ", " .Values.api.adminEmails | default "(none configured)" }}
+{{- else }}
+
+⚠  oauth2Proxy.enabled=false — you must provide a proxy that sets
+   X-Auth-Request-Email before traffic reaches the Orchestra API.
+{{- end }}
+
+API endpoint:
+  https://api.{{ .Values.global.domain }}
+
+To check health:
+  curl https://api.{{ .Values.global.domain }}/health/
+
+Full documentation: https://{{ .Values.global.domain }}/docs

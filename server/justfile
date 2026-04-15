@@ -51,6 +51,10 @@ test:
 test-cov:
     pytest tests/ --cov=api --cov-report=html --cov-report=term
 
+# Run integration tests (requires ORCHESTRA_INTEGRATION_TESTS=1 and a kind cluster)
+test-integration:
+    ORCHESTRA_INTEGRATION_TESTS=1 pytest tests/integration/ -v -m integration
+
 # Run specific test file
 test-file file:
     pytest {{file}} -v

@@ -10,6 +10,7 @@ services:
       - ORCHESTRA_DEBUG=true
       - ORCHESTRA_IN_CLUSTER=false
       - ORCHESTRA_REQUIRE_AUTHENTICATION=false
+      - ORCHESTRA_DEV_IDENTITY=dev@example.com
       - ORCHESTRA_KUBE_CONTEXT=docker-desktop
       - KUBECONFIG=/root/.kube/config
     volumes:
@@ -37,6 +38,7 @@ services:
     environment:
       - KUBE_CONTEXT=docker-desktop
       - KUBECONFIG=/root/.kube/config
+      - ORCHESTRA_ENVIRONMENT=local
     volumes:
       - ~/.kube:/root/.kube:ro
     networks:
