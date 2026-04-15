@@ -8,7 +8,11 @@ import kubernetes.client as k8s_client
 from kubernetes.client.rest import ApiException
 
 from resources.deployment import create_rstudio_deployment
-from resources.ingress import create_workshop_ingress
+from resources.ingress import (
+    _LOCAL_ENV,
+    _LOCAL_INGRESS_PORT,
+    create_workshop_ingress,
+)
 from resources.pvc import create_workshop_pvc
 from resources.service import create_workshop_service
 from utils.time_utils import get_expiration_time
@@ -26,7 +30,8 @@ def _ingress_url(ingress: dict[str, Any]) -> str:
     entry_points = ingress["spec"].get("entryPoints", ["web"])
     scheme = "https" if "websecure" in entry_points else "http"
     host = ingress["metadata"]["annotations"].get("orchestra.io/host", "")
-    return f"{scheme}://{host}"
+    port_suffix = f":{_LOCAL_INGRESS_PORT}" if _LOCAL_ENV and _LOCAL_INGRESS_PORT else ""
+    return f"{scheme}://{host}{port_suffix}"
 
 
 def register_workshop_handlers() -> None:

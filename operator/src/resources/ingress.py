@@ -11,6 +11,9 @@ _PROD_BASE_DOMAIN = os.environ.get("ORCHESTRA_BASE_DOMAIN", "orchestraplatform.o
 # Local dev domain — resolved by dnsmasq (*.orchestra.localhost → 127.0.0.1).
 # See docs/dev-setup for dnsmasq configuration instructions.
 _LOCAL_BASE_DOMAIN = os.environ.get("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
+# NodePort used by Traefik in local dev (helm install sets ports.web.nodePort=30080).
+# Empty string means no port suffix (i.e. standard 80/443).
+_LOCAL_INGRESS_PORT = os.environ.get("ORCHESTRA_LOCAL_INGRESS_PORT", "30080")
 
 
 def _default_host(workshop_name: str) -> str:
