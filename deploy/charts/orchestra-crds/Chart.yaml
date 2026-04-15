@@ -1,0 +1,10 @@
+apiVersion: v2
+name: orchestra-crds
+description: >
+  Custom Resource Definitions for Orchestra. Install this chart before the
+  main orchestra chart. CRDs are placed in templates/ so that helm upgrade
+  picks up schema changes — run `helm upgrade orchestra-crds` whenever the
+  CRD schema evolves.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

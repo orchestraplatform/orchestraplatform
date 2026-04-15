@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestra-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 8 }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101  # nginx default user
+      containers:
+      - name: frontend
+        image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+        imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        env:
+        - name: VITE_API_URL
+          value: "https://api.{{ .Values.global.domain }}"
+        resources:
+          {{- toYaml .Values.frontend.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestra-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 4 }}
+spec:
+  selector:
+    {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 4 }}
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP
+  type: ClusterIP

@@ -1,0 +1,104 @@
+# Orchestra Helm chart values
+# See docs/deployment/helm.md for a full reference and quickstart examples.
+
+global:
+  # Base domain for all Orchestra ingress hostnames.
+  # e.g. "orchestra.example.edu" produces:
+  #   app.orchestra.example.edu   -> frontend
+  #   api.orchestra.example.edu   -> API server
+  domain: "orchestra.localhost"
+
+# ── Operator ────────────────────────────────────────────────────────────────
+operator:
+  image:
+    repository: seandavi/orchestra-operator
+    tag: latest
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  logLevel: INFO
+
+# ── API server ───────────────────────────────────────────────────────────────
+api:
+  image:
+    repository: seandavi/orchestra-api
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # Comma-separated list of admin email addresses.
+  # Admins can list/get/delete all workshops regardless of owner.
+  adminEmails: []
+  # Dev identity bypass: set to an email address to skip the auth proxy in
+  # dev mode (only effective when requireAuthentication=false).
+  devIdentity: null
+  requireAuthentication: true
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+frontend:
+  image:
+    repository: seandavi/orchestra-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# ── Ingress ──────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  className: traefik
+  tls:
+    enabled: true
+    # cert-manager cluster issuer name.
+    clusterIssuer: letsencrypt-prod
+
+# ── oauth2-proxy (bundled) ───────────────────────────────────────────────────
+# Set oauth2Proxy.enabled=false if you bring your own auth proxy.
+# When disabled, the API still expects X-Auth-Request-Email to be forwarded
+# by whatever proxy sits upstream — see docs/deployment/oauth2-proxy.md.
+oauth2Proxy:
+  enabled: true
+  # Google OAuth credentials — create these at:
+  # https://console.cloud.google.com/apis/credentials
+  config:
+    clientID: ""
+    clientSecret: ""
+    # Generate with: python3 -c "import secrets; print(secrets.token_hex(16))"
+    cookieSecret: ""
+    # Restrict login to one or more email domains.
+    # Use "*" to allow any authenticated Google account.
+    allowedDomains:
+      - "*"
+    # Optional: restrict to specific email addresses in addition to domain check.
+    allowedEmails: []
+    # Optional: add GitHub as a second provider (leave empty to use Google only).
+    githubOrg: ""
+
+  # Values forwarded to the oauth2-proxy subchart.
+  # Full reference: https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
+  "oauth2-proxy":
+    replicaCount: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

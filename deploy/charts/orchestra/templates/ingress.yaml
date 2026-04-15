@@ -1,0 +1,86 @@
+{{- if .Values.ingress.enabled }}
+{{- $domain := .Values.global.domain }}
+{{- $tlsEnabled := .Values.ingress.tls.enabled }}
+---
+# Frontend ingress — protected by oauth2-proxy ForwardAuth
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orchestra-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+  annotations:
+    {{- if eq .Values.ingress.className "traefik" }}
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
+      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+    {{- end }}
+    {{- if and $tlsEnabled .Values.ingress.tls.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- if $tlsEnabled }}
+  tls:
+  - hosts:
+    - "app.{{ $domain }}"
+    secretName: orchestra-frontend-tls
+  {{- end }}
+  rules:
+  - host: "app.{{ $domain }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: orchestra-frontend
+            port:
+              name: http
+      # oauth2-proxy callback and static routes handled by the proxy itself
+      - path: /oauth2
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-oauth2-proxy
+            port:
+              number: 4180
+---
+# API ingress — also behind ForwardAuth so X-Auth-Request-Email is forwarded
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orchestra-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+  annotations:
+    {{- if eq .Values.ingress.className "traefik" }}
+    traefik.ingress.kubernetes.io/router.middlewares: >-
+      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
+      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+    {{- end }}
+    {{- if and $tlsEnabled .Values.ingress.tls.clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- if $tlsEnabled }}
+  tls:
+  - hosts:
+    - "api.{{ $domain }}"
+    secretName: orchestra-api-tls
+  {{- end }}
+  rules:
+  - host: "api.{{ $domain }}"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: orchestra-api
+            port:
+              name: http
+{{- end }}

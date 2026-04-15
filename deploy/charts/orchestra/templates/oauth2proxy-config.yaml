@@ -1,0 +1,57 @@
+{{- if .Values.oauth2Proxy.enabled }}
+{{- $cfg := .Values.oauth2Proxy.config }}
+---
+# Secret holding the oauth2-proxy credentials.
+# These are passed as environment variables into the subchart's Deployment
+# via the oauth2-proxy chart's standard envFrom / extraEnv mechanism.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: orchestra-oauth2-proxy-creds
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  OAUTH2_PROXY_CLIENT_ID: {{ $cfg.clientID | quote }}
+  OAUTH2_PROXY_CLIENT_SECRET: {{ $cfg.clientSecret | quote }}
+  OAUTH2_PROXY_COOKIE_SECRET: {{ $cfg.cookieSecret | quote }}
+---
+# Traefik ForwardAuth middleware — delegates auth decisions to oauth2-proxy.
+# oauth2-proxy validates the session cookie and sets X-Auth-Request-Email
+# which the Orchestra API reads to identify the caller.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: orchestra-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  forwardAuth:
+    address: {{ include "orchestra.oauth2ProxyAuthURL" . | quote }}
+    trustForwardHeader: true
+    authResponseHeaders:
+      - X-Auth-Request-User
+      - X-Auth-Request-Email
+      - X-Auth-Request-Access-Token
+      - Set-Cookie
+---
+# Strip and re-apply the auth headers so upstream services never receive
+# spoofed X-Auth-Request-* headers from the internet.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: orchestra-auth-headers
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  headers:
+    customRequestHeaders:
+      # These are cleared on ingress so that clients cannot forge identities.
+      # oauth2-proxy re-sets them via the ForwardAuth response headers above.
+      X-Auth-Request-User: ""
+      X-Auth-Request-Email: ""
+      X-Auth-Request-Access-Token: ""
+{{- end }}

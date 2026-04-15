@@ -1,0 +1,186 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orchestra-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-operator
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
+rules:
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops/status"]
+  verbs: ["get", "update", "patch"]
+- apiGroups: ["orchestra.io"]
+  resources: ["workshops/finalizers"]
+  verbs: ["update"]
+- apiGroups: [""]
+  resources: ["pods", "services", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apiextensions.k8s.io"]
+  resources: ["customresourcedefinitions"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-operator
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-operator
+subjects:
+- kind: ServiceAccount
+  name: orchestra-operator
+  namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestra-operator-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
+data:
+  config.yaml: |
+    operator:
+      namespace: {{ .Release.Namespace }}
+      logLevel: {{ .Values.operator.logLevel }}
+      metricsPort: 8080
+      healthcheckPort: 8080
+    workshop:
+      defaultImage: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
+      defaultDuration: "4h"
+      defaultResources:
+        cpu: "1"
+        memory: "2Gi"
+        cpuRequest: "500m"
+        memoryRequest: "1Gi"
+      defaultStorage:
+        size: "10Gi"
+    cleanup:
+      checkInterval: 300
+      gracePeriod: 60
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestra-operator
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: orchestra-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+      - name: operator
+        image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+        imagePullPolicy: {{ .Values.operator.image.pullPolicy }}
+        ports:
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        env:
+        - name: PYTHONPATH
+          value: "/app/src"
+        - name: KOPF_LOG_LEVEL
+          value: {{ .Values.operator.logLevel | quote }}
+        - name: OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: OPERATOR_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: HOME
+          value: "/app"
+        - name: USER
+          value: "orchestra-operator"
+        resources:
+          {{- toYaml .Values.operator.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      terminationGracePeriodSeconds: 60
+      nodeSelector:
+        kubernetes.io/os: linux

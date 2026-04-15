@@ -1,0 +1,84 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestra-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 4 }}
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 8 }}
+    spec:
+      serviceAccountName: orchestra-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: api
+        image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+        imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        - name: ORCHESTRA_IN_CLUSTER
+          value: "true"
+        - name: ORCHESTRA_REQUIRE_AUTHENTICATION
+          value: {{ .Values.api.requireAuthentication | quote }}
+        - name: ORCHESTRA_ADMIN_EMAILS
+          value: {{ join "," .Values.api.adminEmails | quote }}
+        {{- if .Values.api.devIdentity }}
+        - name: ORCHESTRA_DEV_IDENTITY
+          value: {{ .Values.api.devIdentity | quote }}
+        {{- end }}
+        - name: ORCHESTRA_CORS_ORIGINS
+          value: '["https://app.{{ .Values.global.domain }}"]'
+        resources:
+          {{- toYaml .Values.api.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /health/live
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /health/ready
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestra-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 4 }}
+spec:
+  selector:
+    {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 4 }}
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8000
+    protocol: TCP
+  type: ClusterIP
