@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from enum import Enum
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class WorkshopPhase(str, Enum):
@@ -21,6 +21,8 @@ class WorkshopPhase(str, Enum):
 class WorkshopResources(BaseModel):
     """Workshop resource requirements."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     cpu: str = Field(default="1", description="CPU limit")
     memory: str = Field(default="2Gi", description="Memory limit")
     cpu_request: str = Field(
@@ -33,6 +35,8 @@ class WorkshopResources(BaseModel):
 
 class WorkshopStorage(BaseModel):
     """Workshop storage configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     size: str = Field(default="10Gi", description="Storage size")
     storage_class: str | None = Field(
@@ -47,6 +51,8 @@ class WorkshopStorage(BaseModel):
 
 class WorkshopIngress(BaseModel):
     """Workshop ingress configuration."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     host: str | None = Field(
         default=None, description="Custom ingress hostname. Leave unset to use the environment default."
@@ -99,6 +105,8 @@ class WorkshopUpdate(BaseModel):
 class WorkshopCondition(BaseModel):
     """Workshop status condition."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     type: str
     status: str
     reason: str | None = None
@@ -108,6 +116,8 @@ class WorkshopCondition(BaseModel):
 
 class WorkshopStatus(BaseModel):
     """Workshop status information."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     phase: WorkshopPhase
     url: str | None = None

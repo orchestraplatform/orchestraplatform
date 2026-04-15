@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { ExternalLink, Trash2, Clock, Server } from 'lucide-react';
+import { ExternalLink, Trash2, Clock, Server, CalendarClock } from 'lucide-react';
 import { WorkshopResponse } from '../../api/generated';
-import { formatDuration, getTimeRemaining } from '../../utils';
+import { formatDuration, formatAbsoluteTime, getTimeRemaining } from '../../utils';
 import { useDeleteWorkshop } from '../../hooks/useWorkshops';
 
 interface WorkshopCardProps {
@@ -94,10 +94,26 @@ export function WorkshopCard({ workshop }: WorkshopCardProps) {
           </div>
         </div>
 
-        {workshop.status?.expiresAt && (
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Clock className="h-4 w-4 mr-2" />
-            <span>Expires in {getTimeRemaining(workshop.status.expiresAt)}</span>
+        {(workshop.status?.createdAt || workshop.status?.expiresAt) && (
+          <div className="flex items-start text-sm text-muted-foreground space-x-2">
+            <CalendarClock className="h-4 w-4 mt-0.5 shrink-0" />
+            <div className="space-y-0.5">
+              {workshop.status?.createdAt && (
+                <div>
+                  <span className="font-medium text-foreground">Started:</span>{' '}
+                  {formatAbsoluteTime(workshop.status.createdAt)}
+                </div>
+              )}
+              {workshop.status?.expiresAt && (
+                <div>
+                  <span className="font-medium text-foreground">Ends:</span>{' '}
+                  {formatAbsoluteTime(workshop.status.expiresAt)}
+                  <span className="ml-1 text-xs">
+                    ({getTimeRemaining(workshop.status.expiresAt)})
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

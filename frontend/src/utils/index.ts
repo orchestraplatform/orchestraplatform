@@ -31,6 +31,18 @@ export function formatTimestamp(timestamp: string): string {
   return new Date(timestamp).toLocaleString();
 }
 
+export function formatAbsoluteTime(timestamp: string | null | undefined): string {
+  if (!timestamp) return '—';
+  const d = new Date(timestamp);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function getTimeRemaining(expiresAt: string): string {
   const now = new Date();
   const expires = new Date(expiresAt);
