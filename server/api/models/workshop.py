@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from enum import Enum
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class WorkshopPhase(str, Enum):
@@ -121,6 +121,7 @@ class WorkshopResponse(BaseModel):
 
     name: str
     namespace: str
+    owner: EmailStr
     spec: WorkshopCreate
     status: WorkshopStatus | None = None
     created_at: datetime | None = None

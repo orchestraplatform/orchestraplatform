@@ -1,217 +1,73 @@
-"""Authentication utilities for Orchestra API."""
+"""Authentication utilities for Orchestra API.
 
-from datetime import datetime, timedelta, timezone
-from typing import Any
+Auth model: oauth2-proxy sits at the ingress and validates Google/GitHub OIDC
+tokens. After a successful login it forwards requests to the API with the
+header ``X-Auth-Request-Email: user@example.com`` (configurable via
+``ORCHESTRA_TRUSTED_AUTH_HEADER``). The API trusts that header and treats its
+value as the authenticated identity.
 
-import httpx
-import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from passlib.context import CryptContext
+For local development without a proxy, set:
+    ORCHESTRA_REQUIRE_AUTHENTICATION=false
+    ORCHESTRA_DEV_IDENTITY=dev@orchestra.localhost
 
-from api.core.config import get_settings
+The ``dev_identity`` is used only when ``require_authentication=False``.
+Never set it in production.
+"""
 
-settings = get_settings()
-security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from dataclasses import dataclass, field
 
+from fastapi import Depends, HTTPException, Request, status
 
-class TokenData:
-    """Token data structure."""
-
-    def __init__(self, username: str = None, user_id: str = None, scopes: list = None):
-        self.username = username
-        self.user_id = user_id
-        self.scopes = scopes or []
+from api.core.config import Settings, get_settings
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    """Create JWT access token."""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+@dataclass
+class CurrentUser:
+    """Authenticated user identity forwarded by oauth2-proxy."""
 
-    to_encode.update({"exp": expire, "type": "access"})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.secret_key, algorithm=settings.algorithm
-    )
-    return encoded_jwt
-
-
-def create_refresh_token(data: dict):
-    """Create JWT refresh token."""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
-    encoded_jwt = jwt.encode(
-        to_encode, settings.secret_key, algorithm=settings.algorithm
-    )
-    return encoded_jwt
-
-
-def verify_token(token: str) -> dict[str, Any]:
-    """Verify and decode JWT token."""
-    try:
-        payload = jwt.decode(
-            token, settings.secret_key, algorithms=[settings.algorithm]
-        )
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except jwt.JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    email: str
+    is_admin: bool = field(default=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    """Get current user from JWT token."""
-    token = credentials.credentials
-    payload = verify_token(token)
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> CurrentUser:
+    """Resolve the authenticated user from the oauth2-proxy forwarded header.
 
-    username = payload.get("sub")
-    if username is None:
+    In dev mode (``require_authentication=False`` + ``dev_identity`` set) the
+    dependency short-circuits and returns the configured dev identity so the
+    stack works without a running proxy.
+    """
+    # Dev bypass — only active when both conditions hold
+    if not settings.require_authentication and settings.dev_identity:
+        email = settings.dev_identity
+        return CurrentUser(
+            email=email,
+            is_admin=email in settings.admin_emails,
+        )
+
+    email = request.headers.get(settings.trusted_auth_header)
+    if not email:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials",
+            detail="Authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return TokenData(
-        username=username,
-        user_id=payload.get("user_id"),
-        scopes=payload.get("scopes", []),
+    return CurrentUser(
+        email=email,
+        is_admin=email in settings.admin_emails,
     )
 
 
-async def get_current_active_user(current_user: TokenData = Depends(get_current_user)):
-    """Get current active user (can add additional checks here)."""
+async def require_admin(
+    current_user: CurrentUser = Depends(get_current_user),
+) -> CurrentUser:
+    """Dependency that restricts a route to admin users."""
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin privileges required",
+        )
     return current_user
-
-
-class OAuthProvider:
-    """OAuth provider interface."""
-
-    @staticmethod
-    async def exchange_code_for_token(code: str) -> dict[str, Any]:
-        """Exchange authorization code for access token."""
-        if settings.oauth_provider == "github":
-            return await GitHubOAuth.exchange_code_for_token(code)
-        elif settings.oauth_provider == "google":
-            return await GoogleOAuth.exchange_code_for_token(code)
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported OAuth provider: {settings.oauth_provider}",
-            )
-
-    @staticmethod
-    async def get_user_info(access_token: str) -> dict[str, Any]:
-        """Get user information from OAuth provider."""
-        if settings.oauth_provider == "github":
-            return await GitHubOAuth.get_user_info(access_token)
-        elif settings.oauth_provider == "google":
-            return await GoogleOAuth.get_user_info(access_token)
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported OAuth provider: {settings.oauth_provider}",
-            )
-
-
-class GitHubOAuth:
-    """GitHub OAuth implementation."""
-
-    @staticmethod
-    async def exchange_code_for_token(code: str) -> dict[str, Any]:
-        """Exchange GitHub authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://github.com/login/oauth/access_token",
-                data={
-                    "client_id": settings.oauth_client_id,
-                    "client_secret": settings.oauth_client_secret,
-                    "code": code,
-                    "redirect_uri": settings.oauth_redirect_uri,
-                },
-                headers={"Accept": "application/json"},
-            )
-            return response.json()
-
-    @staticmethod
-    async def get_user_info(access_token: str) -> dict[str, Any]:
-        """Get GitHub user information."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://api.github.com/user",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            return response.json()
-
-
-class GoogleOAuth:
-    """Google OAuth implementation."""
-
-    @staticmethod
-    async def exchange_code_for_token(code: str) -> dict[str, Any]:
-        """Exchange Google authorization code for access token."""
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "https://oauth2.googleapis.com/token",
-                data={
-                    "client_id": settings.oauth_client_id,
-                    "client_secret": settings.oauth_client_secret,
-                    "code": code,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": settings.oauth_redirect_uri,
-                },
-            )
-            return response.json()
-
-    @staticmethod
-    async def get_user_info(access_token: str) -> dict[str, Any]:
-        """Get Google user information."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                "https://www.googleapis.com/oauth2/v2/userinfo",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            return response.json()
-
-
-# Optional: Workshop access control
-def require_workshop_access(workshop_id: str):
-    """Dependency to check if user has access to specific workshop."""
-
-    def _check_access(current_user: TokenData = Depends(get_current_active_user)):
-        # Implement your workshop access logic here
-        # For example: check if user is owner, collaborator, or has specific permissions
-        return current_user
-
-    return _check_access
-
-
-def require_admin():
-    """Dependency to check if user has admin privileges."""
-
-    def _check_admin(current_user: TokenData = Depends(get_current_active_user)):
-        if "admin" not in current_user.scopes:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Admin privileges required",
-            )
-        return current_user
-
-    return _check_admin

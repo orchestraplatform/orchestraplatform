@@ -14,7 +14,14 @@ spec:
         properties:
           spec:
             type: object
+            x-kubernetes-validations:
+            - rule: "!has(oldSelf.owner) || self.owner == oldSelf.owner"
+              message: "owner is immutable once set"
             properties:
+              owner:
+                type: string
+                description: "Email address of the workshop owner (set by the API from the authenticated user)"
+                pattern: "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$"
               name:
                 type: string
                 description: "Workshop instance name"
@@ -63,6 +70,7 @@ spec:
                 description: "Ingress configuration"
             required:
             - name
+            - owner
           status:
             type: object
             properties:
