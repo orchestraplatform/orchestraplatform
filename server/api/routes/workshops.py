@@ -168,5 +168,11 @@ async def get_workshop_status(
 
 
 def _can_access(user: CurrentUser, workshop: WorkshopResponse) -> bool:
-    """Return True if the user may read or modify this workshop."""
+    """Return True if the user may read or modify this workshop.
+
+    Legacy CRs without an owner (created before ownership was added) are
+    visible only to admins.
+    """
+    if workshop.owner is None:
+        return user.is_admin
     return user.is_admin or workshop.owner == user.email

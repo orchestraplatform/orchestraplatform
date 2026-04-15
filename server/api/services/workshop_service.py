@@ -215,7 +215,7 @@ class WorkshopService:
         return WorkshopResponse(
             name=metadata.get("name"),
             namespace=metadata.get("namespace"),
-            owner=spec.get("owner", ""),
+            owner=spec.get("owner") or None,
             spec=self._parse_spec(spec),
             status=workshop_status,
             created_at=self._parse_datetime(metadata.get("creationTimestamp")),

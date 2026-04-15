@@ -6,9 +6,9 @@ global:
 
 api:
   requireAuthentication: false
-  devIdentity: dev@orchestra.localhost
+  devIdentity: dev@example.com
   adminEmails:
-    - dev@orchestra.localhost
+    - dev@example.com
 
 ingress:
   enabled: true

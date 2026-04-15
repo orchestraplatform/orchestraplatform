@@ -121,7 +121,7 @@ class WorkshopResponse(BaseModel):
 
     name: str
     namespace: str
-    owner: EmailStr
+    owner: EmailStr | None = None  # None for legacy CRs created before ownership was added
     spec: WorkshopCreate
     status: WorkshopStatus | None = None
     created_at: datetime | None = None
