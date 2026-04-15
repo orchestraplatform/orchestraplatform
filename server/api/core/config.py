@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     # any proxy. Never set this in production.
     dev_identity: str | None = None
 
+    # Database
+    # Port 5433 is used locally to avoid conflict with a system Postgres on 5432.
+    # Inside docker-compose the server connects to the postgres service directly on 5432.
+    database_url: str = "postgresql+asyncpg://orchestra:orchestra@localhost:5433/orchestra"
+
 
 @lru_cache
 def get_settings() -> Settings:

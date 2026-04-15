@@ -41,6 +41,24 @@ dev:
 prod:
     uvicorn main:app --host {{api_host}} --port {{api_port}} --workers 4
 
+# === Database ===
+
+# Apply all pending migrations
+migrate:
+    uv run alembic upgrade head
+
+# Rollback the last migration
+migrate-down:
+    uv run alembic downgrade -1
+
+# Generate a new migration (usage: just migration "add foo table")
+migration msg:
+    uv run alembic revision --autogenerate -m "{{msg}}"
+
+# Show migration history
+migrate-history:
+    uv run alembic history
+
 # === Testing ===
 
 # Run all tests
