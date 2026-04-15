@@ -1,12 +1,40 @@
+import axios from 'axios';
 import { OpenAPI, WorkshopsService, HealthService } from '../api/generated';
-import type { 
-  WorkshopResponse, 
-  WorkshopCreate, 
-  WorkshopList 
+import type {
+  WorkshopResponse,
+  WorkshopCreate,
+  WorkshopList
 } from '../api/generated';
 
 // Configure the generated API client
 OpenAPI.BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+// Redirect to oauth2-proxy login on 401.
+// The `rd` parameter tells oauth2-proxy where to send the user after login.
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error?.response?.status === 401) {
+      const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/oauth2/start?rd=${returnTo}`;
+    }
+    return Promise.reject(error);
+  }
+);
+
+export interface CurrentUser {
+  email: string;
+  is_admin: boolean;
+}
+
+/** Fetch the authenticated user's identity from the API. */
+export async function getCurrentUser(): Promise<CurrentUser> {
+  const base = OpenAPI.BASE;
+  const response = await axios.get<CurrentUser>(`${base}/auth/me`, {
+    withCredentials: true,
+  });
+  return response.data;
+}
 
 // Re-export the generated services for easy use
 export { WorkshopsService, HealthService };
