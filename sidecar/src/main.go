@@ -45,15 +45,25 @@ func main() {
 	// 2. Setup Proxy
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
+	requireAuth := os.Getenv("ORCHESTRA_REQUIRE_AUTHENTICATION") != "false"
+
 	// 3. Handlers
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// --- Auth Check ---
-		// We trust the header from the global Ingress/oauth2-proxy
-		userEmail := r.Header.Get("X-Auth-Request-Email")
-		if userEmail != ownerEmail {
-			log.Printf("Unauthorized access attempt: %s (expected %s)", userEmail, ownerEmail)
-			http.Error(w, "Unauthorized: You do not own this workshop.", http.StatusForbidden)
-			return
+		if requireAuth {
+			// We trust the header from the global Ingress/oauth2-proxy
+			userEmail := r.Header.Get("X-Auth-Request-Email")
+			if userEmail != ownerEmail {
+				log.Printf("Unauthorized access attempt: %s (expected %s)", userEmail, ownerEmail)
+				http.Error(w, "Unauthorized: You do not own this workshop.", http.StatusForbidden)
+				return
+			}
+		} else {
+			// In dev mode, we log but don't block
+			userEmail := r.Header.Get("X-Auth-Request-Email")
+			if userEmail != "" && userEmail != ownerEmail {
+				log.Printf("DevMode: Access from %s (workshop owner is %s)", userEmail, ownerEmail)
+			}
 		}
 
 		// --- Activity Tracking ---
