@@ -16,8 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from api.core.config import get_settings
+from api.core.database import get_engine
 from api.core.kubernetes import get_k8s_client
 from api.routes import auth, health, workshops
+from api.routes import instances
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +39,19 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize Kubernetes client: {e}")
         raise
 
+    # Verify database connectivity
+    try:
+        engine = get_engine()
+        async with engine.connect():
+            pass
+        logger.info("Database connection verified")
+    except Exception as e:
+        logger.error(f"Failed to connect to database: {e}")
+        raise
+
     yield
+
+    await get_engine().dispose()
 
     logger.info("Shutting down Orchestra API...")
 
@@ -68,6 +82,7 @@ app.add_middleware(
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(auth.router, prefix="/auth", tags=["authentication"])
 app.include_router(workshops.router, prefix="/workshops", tags=["workshops"])
+app.include_router(instances.router, prefix="/instances", tags=["instances"])
 
 
 @app.get("/", response_model=dict)

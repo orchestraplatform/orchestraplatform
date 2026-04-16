@@ -1,178 +1,168 @@
-"""Workshop API routes."""
+"""Workshop template routes (admin CRUD + user launch)."""
 
 import logging
+import random
+import string
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.core.auth import CurrentUser, get_current_user
-from api.models.workshop import (
-    WorkshopCreate,
-    WorkshopList,
-    WorkshopResponse,
+from api.core.auth import CurrentUser, get_current_user, require_admin
+from api.core.database import get_db
+from api.models.schemas.workshop_template import (
+    WorkshopLaunchRequest,
+    WorkshopTemplateCreate,
+    WorkshopTemplateList,
+    WorkshopTemplateResponse,
+    WorkshopTemplateUpdate,
 )
-from api.services.workshop_service import WorkshopService
+from api.models.schemas.workshop_instance import WorkshopInstanceResponse
+from api.services.workshop_template_service import WorkshopTemplateService
+from api.services.workshop_instance_service import WorkshopInstanceService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-workshop_service = WorkshopService()
+template_service = WorkshopTemplateService()
+instance_service = WorkshopInstanceService()
 
 
-@router.post("/", response_model=WorkshopResponse, status_code=status.HTTP_201_CREATED)
-async def create_workshop(
-    workshop: WorkshopCreate,
-    namespace: str = Query(default="default", description="Kubernetes namespace"),
+def _random_suffix(length: int = 6) -> str:
+    """Return a random lowercase alphanumeric string of the given length."""
+    return "".join(random.choices(string.ascii_lowercase + string.digits, k=length))
+
+
+# ---------------------------------------------------------------------------
+# Template endpoints (GET open to all; mutating endpoints require admin)
+# ---------------------------------------------------------------------------
+
+@router.get("/", response_model=WorkshopTemplateList)
+async def list_templates(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=100),
+    include_inactive: bool = Query(default=False),
+    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    """Create a new workshop owned by the authenticated user."""
-    try:
-        logger.info(
-            f"Creating workshop {workshop.name} in namespace {namespace} "
-            f"for {current_user.email}"
-        )
-        result = await workshop_service.create_workshop(
-            workshop, owner_email=current_user.email, namespace=namespace
-        )
-        return result
-    except Exception as e:
-        logger.error(f"Failed to create workshop: {e}")
+    """List workshop templates. Inactive templates are hidden unless admin requests them."""
+    show_inactive = include_inactive and current_user.is_admin
+    items, total = await template_service.list_templates(
+        db, include_inactive=show_inactive, page=page, size=size
+    )
+    return WorkshopTemplateList(items=items, total=total, page=page, size=size)
+
+
+@router.post(
+    "/",
+    response_model=WorkshopTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin)],
+)
+async def create_template(
+    data: WorkshopTemplateCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Create a new workshop template (admin only)."""
+    existing = await template_service.get_template_by_slug(db, data.slug)
+    if existing:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create workshop: {str(e)}",
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"A template with slug '{data.slug}' already exists",
         )
+    return await template_service.create_template(db, data, created_by=current_user.email)
 
 
-@router.get("/", response_model=WorkshopList)
-async def list_workshops(
-    namespace: str = Query(default="default", description="Kubernetes namespace"),
-    page: int = Query(default=1, ge=1, description="Page number"),
-    size: int = Query(default=50, ge=1, le=100, description="Page size"),
+@router.get("/{template_id}", response_model=WorkshopTemplateResponse)
+async def get_template(
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    """List workshops.
+    """Get a workshop template by ID."""
+    template = await template_service.get_template(db, template_id)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return template
 
-    Regular users see only their own workshops. Admins see all workshops.
+
+@router.put(
+    "/{template_id}",
+    response_model=WorkshopTemplateResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def update_template(
+    data: WorkshopTemplateUpdate,
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update a workshop template (admin only)."""
+    template = await template_service.update_template(db, template_id, data)
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return template
+
+
+@router.delete(
+    "/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin)],
+)
+async def archive_template(
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Archive a workshop template (admin only). Sets is_active=False; does not hard-delete."""
+    found = await template_service.archive_template(db, template_id)
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Launch endpoint — creates a WorkshopInstance from a template
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{template_id}/launch",
+    response_model=WorkshopInstanceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def launch_workshop(
+    body: WorkshopLaunchRequest,
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Launch a new workshop instance from a template.
+
+    The instance name is auto-generated as ``{slug}-{6-char suffix}``.
+    Duration defaults to the template's default if not supplied.
     """
-    try:
-        # Admins can see all workshops; regular users are filtered to their own.
-        owner_filter = None if current_user.is_admin else current_user.email
-        workshops = await workshop_service.list_workshops(
-            namespace=namespace, owner_email=owner_filter
+    template = await template_service.get_template(db, template_id)
+    if not template or not template.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Template not found or inactive",
         )
 
-        start = (page - 1) * size
-        end = start + size
-        paginated = workshops[start:end]
+    k8s_name = f"{template.slug}-{_random_suffix()}"
+    duration = body.duration or template.default_duration
 
-        return WorkshopList(
-            items=paginated, total=len(workshops), page=page, size=size
+    try:
+        instance = await instance_service.launch(
+            db,
+            template=template,
+            k8s_name=k8s_name,
+            namespace=body.namespace,
+            owner_email=current_user.email,
+            duration=duration,
         )
     except Exception as e:
-        logger.error(f"Failed to list workshops: {e}")
+        logger.error("Failed to launch workshop instance: %s", e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list workshops: {str(e)}",
+            detail=f"Failed to launch workshop: {e}",
         )
 
-
-@router.get("/{workshop_name}", response_model=WorkshopResponse)
-async def get_workshop(
-    workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """Get a workshop by name.
-
-    Returns 404 if the workshop does not exist or belongs to another user
-    (avoids leaking existence information).
-    """
-    try:
-        workshop = await workshop_service.get_workshop(workshop_name, namespace)
-        if not workshop or not _can_access(current_user, workshop):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found",
-            )
-        return workshop
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get workshop {workshop_name}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get workshop: {str(e)}",
-        )
-
-
-@router.delete("/{workshop_name}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_workshop(
-    workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """Delete a workshop.
-
-    Returns 404 if the workshop does not exist or belongs to another user.
-    """
-    try:
-        workshop = await workshop_service.get_workshop(workshop_name, namespace)
-        if not workshop or not _can_access(current_user, workshop):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found",
-            )
-        await workshop_service.delete_workshop(workshop_name, namespace)
-        logger.info(
-            f"Deleted workshop {workshop_name} by {current_user.email}"
-        )
-        return None
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to delete workshop {workshop_name}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete workshop: {str(e)}",
-        )
-
-
-@router.get("/{workshop_name}/status", response_model=dict)
-async def get_workshop_status(
-    workshop_name: str = Path(..., description="Workshop name"),
-    namespace: str = Query(default="default", description="Kubernetes namespace"),
-    current_user: CurrentUser = Depends(get_current_user),
-):
-    """Get workshop status information."""
-    try:
-        workshop = await workshop_service.get_workshop(workshop_name, namespace)
-        if not workshop or not _can_access(current_user, workshop):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Workshop {workshop_name} not found",
-            )
-
-        return {
-            "name": workshop.name,
-            "namespace": workshop.namespace,
-            "owner": workshop.owner,
-            "status": workshop.status.model_dump() if workshop.status else None,
-            "url": workshop.status.url if workshop.status else None,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Failed to get workshop status {workshop_name}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get workshop status: {str(e)}",
-        )
-
-
-def _can_access(user: CurrentUser, workshop: WorkshopResponse) -> bool:
-    """Return True if the user may read or modify this workshop.
-
-    Legacy CRs without an owner (created before ownership was added) are
-    visible only to admins.
-    """
-    if workshop.owner is None:
-        return user.is_admin
-    return user.is_admin or workshop.owner == user.email
+    return instance

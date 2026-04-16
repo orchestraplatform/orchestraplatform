@@ -1,193 +1,244 @@
-"""Test workshop API endpoints."""
+"""Tests for workshop template API endpoints (/workshops/)."""
 
-from tests.conftest import MOCK_WORKSHOP_CRD
+import uuid
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, patch
+
+import pytest
+
+from api.models.schemas.workshop_template import (
+    WorkshopResourceDefaults,
+    WorkshopTemplateResponse,
+)
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+TEMPLATE_ID = uuid.uuid4()
+NOW = datetime.now(timezone.utc)
+
+MOCK_TEMPLATE = WorkshopTemplateResponse(
+    id=TEMPLATE_ID,
+    name="Standard RStudio",
+    slug="rstudio",
+    description="Default RStudio environment",
+    image="rocker/rstudio:latest",
+    defaultDuration="4h",
+    resources=WorkshopResourceDefaults(),
+    storage=None,
+    isActive=True,
+    createdBy="admin@test.example.com",
+    createdAt=NOW,
+    updatedAt=NOW,
+)
 
 
-# ── CRUD happy paths ──────────────────────────────────────────────────────────
+def _patch_template_svc(**overrides):
+    """Return a context-manager that patches WorkshopTemplateService methods."""
+    defaults = {
+        "list_templates": AsyncMock(return_value=([MOCK_TEMPLATE], 1)),
+        "get_template": AsyncMock(return_value=MOCK_TEMPLATE),
+        "get_template_by_slug": AsyncMock(return_value=None),
+        "create_template": AsyncMock(return_value=MOCK_TEMPLATE),
+        "update_template": AsyncMock(return_value=MOCK_TEMPLATE),
+        "archive_template": AsyncMock(return_value=True),
+    }
+    defaults.update(overrides)
+    return patch.multiple(
+        "api.routes.workshops.template_service", **defaults
+    )
 
-def test_list_workshops_empty(client, mock_k8s_client):
-    """Test listing workshops when none exist."""
-    mock_k8s_client.list_namespaced_custom_object.return_value = {"items": []}
 
-    response = client.get("/workshops/")
+# ── List ──────────────────────────────────────────────────────────────────────
+
+def test_list_templates_returns_200(client):
+    with _patch_template_svc():
+        response = client.get("/workshops/")
     assert response.status_code == 200
     data = response.json()
-    assert data["items"] == []
-    assert data["total"] == 0
-    assert data["page"] == 1
+    assert data["total"] == 1
+    assert data["items"][0]["slug"] == "rstudio"
 
 
-def test_create_workshop(client, mock_k8s_client):
-    """Test creating a workshop."""
-    mock_k8s_client.create_namespaced_custom_object.return_value = MOCK_WORKSHOP_CRD
+def test_list_templates_empty(client):
+    with _patch_template_svc(list_templates=AsyncMock(return_value=([], 0))):
+        response = client.get("/workshops/")
+    assert response.status_code == 200
+    assert response.json()["items"] == []
 
-    workshop_data = {
-        "name": "test-workshop",
-        "duration": "4h",
+
+def test_list_without_auth_returns_401(client):
+    """Unauthenticated requests are rejected before reaching the service."""
+    from main import app
+    from api.core.auth import get_current_user
+    from fastapi import HTTPException
+
+    app.dependency_overrides[get_current_user] = lambda: (_ for _ in ()).throw(
+        HTTPException(status_code=401)
+    )
+    try:
+        response = client.get("/workshops/")
+        assert response.status_code == 401
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+# ── Create (admin only) ───────────────────────────────────────────────────────
+
+def test_create_template_as_admin_returns_201(admin_client):
+    payload = {
+        "name": "Standard RStudio",
+        "slug": "rstudio",
         "image": "rocker/rstudio:latest",
+        "defaultDuration": "4h",
+        "resources": {},
     }
-
-    response = client.post("/workshops/", json=workshop_data)
+    with _patch_template_svc():
+        response = admin_client.post("/workshops/", json=payload)
     assert response.status_code == 201
-    data = response.json()
-    assert data["name"] == "test-workshop"
-    assert data["namespace"] == "default"
-    assert data["owner"] == "alice@test.example.com"
+    assert response.json()["slug"] == "rstudio"
 
 
-def test_get_workshop_not_found(client, mock_k8s_client):
-    """Test getting a workshop that doesn't exist."""
-    from kubernetes.client.rest import ApiException
+def test_create_template_as_non_admin_returns_403(client):
+    payload = {"name": "Test", "slug": "test", "image": "img:latest"}
+    with _patch_template_svc():
+        response = client.post("/workshops/", json=payload)
+    assert response.status_code == 403
 
-    mock_k8s_client.get_namespaced_custom_object.side_effect = ApiException(status=404)
 
-    response = client.get("/workshops/nonexistent")
+def test_create_template_duplicate_slug_returns_409(admin_client):
+    with _patch_template_svc(
+        get_template_by_slug=AsyncMock(return_value=MOCK_TEMPLATE)
+    ):
+        response = admin_client.post(
+            "/workshops/",
+            json={"name": "Dupe", "slug": "rstudio", "image": "img:latest"},
+        )
+    assert response.status_code == 409
+
+
+# ── Slug validation ───────────────────────────────────────────────────────────
+
+class TestTemplateSlugValidation:
+    def test_uppercase_slug_rejected(self, admin_client):
+        response = admin_client.post(
+            "/workshops/", json={"name": "X", "slug": "MySlug", "image": "img:latest"}
+        )
+        assert response.status_code == 422
+
+    def test_leading_dash_slug_rejected(self, admin_client):
+        response = admin_client.post(
+            "/workshops/", json={"name": "X", "slug": "-bad", "image": "img:latest"}
+        )
+        assert response.status_code == 422
+
+    def test_trailing_dash_slug_rejected(self, admin_client):
+        response = admin_client.post(
+            "/workshops/", json={"name": "X", "slug": "bad-", "image": "img:latest"}
+        )
+        assert response.status_code == 422
+
+    def test_slug_over_40_chars_rejected(self, admin_client):
+        long_slug = "a" * 41
+        response = admin_client.post(
+            "/workshops/", json={"name": "X", "slug": long_slug, "image": "img:latest"}
+        )
+        assert response.status_code == 422
+
+    def test_valid_slug_accepted(self, admin_client):
+        with _patch_template_svc():
+            response = admin_client.post(
+                "/workshops/",
+                json={"name": "Valid", "slug": "my-rstudio-01", "image": "img:latest"},
+            )
+        assert response.status_code == 201
+
+
+# ── Get ───────────────────────────────────────────────────────────────────────
+
+def test_get_template_returns_200(client):
+    with _patch_template_svc():
+        response = client.get(f"/workshops/{TEMPLATE_ID}")
+    assert response.status_code == 200
+    assert response.json()["id"] == str(TEMPLATE_ID)
+
+
+def test_get_template_not_found_returns_404(client):
+    with _patch_template_svc(get_template=AsyncMock(return_value=None)):
+        response = client.get(f"/workshops/{uuid.uuid4()}")
     assert response.status_code == 404
 
 
-def test_get_workshop_owned_by_other_user_returns_404(client, mock_k8s_client):
-    """A workshop owned by another user must appear as 404 (no existence leak)."""
-    other_workshop = {
-        **MOCK_WORKSHOP_CRD,
-        "spec": {**MOCK_WORKSHOP_CRD["spec"], "owner": "bob@test.example.com"},
-    }
-    mock_k8s_client.get_namespaced_custom_object.return_value = other_workshop
+# ── Update (admin only) ───────────────────────────────────────────────────────
 
-    response = client.get("/workshops/test-workshop")
-    assert response.status_code == 404
+def test_update_template_as_admin_returns_200(admin_client):
+    with _patch_template_svc():
+        response = admin_client.put(
+            f"/workshops/{TEMPLATE_ID}", json={"name": "Renamed"}
+        )
+    assert response.status_code == 200
 
 
-def test_delete_workshop(client, mock_k8s_client):
-    """Test deleting a workshop owned by the current user."""
-    mock_k8s_client.get_namespaced_custom_object.return_value = MOCK_WORKSHOP_CRD
-    mock_k8s_client.delete_namespaced_custom_object.return_value = {}
+def test_update_template_as_non_admin_returns_403(client):
+    with _patch_template_svc():
+        response = client.put(f"/workshops/{TEMPLATE_ID}", json={"name": "X"})
+    assert response.status_code == 403
 
-    response = client.delete("/workshops/test-workshop")
+
+# ── Archive (admin only) ──────────────────────────────────────────────────────
+
+def test_archive_template_as_admin_returns_204(admin_client):
+    with _patch_template_svc():
+        response = admin_client.delete(f"/workshops/{TEMPLATE_ID}")
     assert response.status_code == 204
 
 
-def test_delete_workshop_owned_by_other_user_returns_404(client, mock_k8s_client):
-    """Deleting another user's workshop must return 404."""
-    other_workshop = {
-        **MOCK_WORKSHOP_CRD,
-        "spec": {**MOCK_WORKSHOP_CRD["spec"], "owner": "bob@test.example.com"},
-    }
-    mock_k8s_client.get_namespaced_custom_object.return_value = other_workshop
+def test_archive_template_as_non_admin_returns_403(client):
+    with _patch_template_svc():
+        response = client.delete(f"/workshops/{TEMPLATE_ID}")
+    assert response.status_code == 403
 
-    response = client.delete("/workshops/test-workshop")
+
+def test_archive_template_not_found_returns_404(admin_client):
+    with _patch_template_svc(archive_template=AsyncMock(return_value=False)):
+        response = admin_client.delete(f"/workshops/{uuid.uuid4()}")
     assert response.status_code == 404
-
-
-# ── Status endpoint ───────────────────────────────────────────────────────────
-
-def test_get_workshop_status(client, mock_k8s_client):
-    """GET /workshops/{name}/status returns status dict for owned workshop."""
-    workshop_with_status = {
-        **MOCK_WORKSHOP_CRD,
-        "status": {
-            "phase": "Ready",
-            "url": "https://ws-123.orchestra.localhost",
-        },
-    }
-    mock_k8s_client.get_namespaced_custom_object.return_value = workshop_with_status
-
-    response = client.get("/workshops/test-workshop/status")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["name"] == "test-workshop"
-    assert data["owner"] == "alice@test.example.com"
-    assert data["url"] == "https://ws-123.orchestra.localhost"
-
-
-def test_get_workshop_status_not_found(client, mock_k8s_client):
-    """GET /workshops/{name}/status returns 404 for nonexistent workshop."""
-    from kubernetes.client.rest import ApiException
-
-    mock_k8s_client.get_namespaced_custom_object.side_effect = ApiException(status=404)
-
-    response = client.get("/workshops/nonexistent/status")
-    assert response.status_code == 404
-
-
-# ── Validation ────────────────────────────────────────────────────────────────
-
-class TestWorkshopNameValidation:
-    def test_invalid_name_uppercase_rejected(self, client):
-        """Names with uppercase letters are rejected."""
-        response = client.post("/workshops/", json={"name": "MyWorkshop"})
-        assert response.status_code == 422
-
-    def test_invalid_name_leading_dash_rejected(self, client):
-        """Names starting with a dash are rejected."""
-        response = client.post("/workshops/", json={"name": "-workshop"})
-        assert response.status_code == 422
-
-    def test_invalid_name_trailing_dash_rejected(self, client):
-        """Names ending with a dash are rejected."""
-        response = client.post("/workshops/", json={"name": "workshop-"})
-        assert response.status_code == 422
-
-    def test_invalid_name_too_long_rejected(self, client):
-        """Names exceeding 253 characters are rejected."""
-        long_name = "a" * 254
-        response = client.post("/workshops/", json={"name": long_name})
-        assert response.status_code == 422
-
-    def test_valid_name_with_dashes_accepted(self, client, mock_k8s_client):
-        """Names with lowercase letters, digits and dashes are accepted."""
-        mock_k8s_client.create_namespaced_custom_object.return_value = {
-            **MOCK_WORKSHOP_CRD,
-            "metadata": {**MOCK_WORKSHOP_CRD["metadata"], "name": "my-workshop-01"},
-            "spec": {**MOCK_WORKSHOP_CRD["spec"], "name": "my-workshop-01"},
-        }
-        response = client.post("/workshops/", json={"name": "my-workshop-01"})
-        assert response.status_code == 201
 
 
 # ── Pagination ────────────────────────────────────────────────────────────────
 
 class TestPagination:
-    def _make_workshop(self, name: str) -> dict:
-        return {
-            **MOCK_WORKSHOP_CRD,
-            "metadata": {**MOCK_WORKSHOP_CRD["metadata"], "name": name},
-            "spec": {**MOCK_WORKSHOP_CRD["spec"], "name": name},
-        }
+    def _make_templates(self, n: int) -> list[WorkshopTemplateResponse]:
+        return [
+            WorkshopTemplateResponse(
+                id=uuid.uuid4(),
+                name=f"Template {i}",
+                slug=f"tmpl-{i:02d}",
+                description=None,
+                image="rocker/rstudio:latest",
+                defaultDuration="4h",
+                resources=WorkshopResourceDefaults(),
+                storage=None,
+                isActive=True,
+                createdBy="admin@test.example.com",
+                createdAt=NOW,
+                updatedAt=NOW,
+            )
+            for i in range(n)
+        ]
 
-    def test_pagination_first_page(self, client, mock_k8s_client):
-        """First page returns first `size` items."""
-        items = [self._make_workshop(f"ws-{i:02d}") for i in range(10)]
-        mock_k8s_client.list_namespaced_custom_object.return_value = {"items": items}
+    def test_size_over_100_rejected(self, client):
+        response = client.get("/workshops/?size=101")
+        assert response.status_code == 422
 
-        response = client.get("/workshops/?page=1&size=3")
+    def test_pagination_params_forwarded(self, client):
+        templates = self._make_templates(10)
+        page3 = templates[6:9]
+        with _patch_template_svc(
+            list_templates=AsyncMock(return_value=(page3, 10))
+        ):
+            response = client.get("/workshops/?page=3&size=3")
         assert response.status_code == 200
         data = response.json()
         assert data["total"] == 10
+        assert data["page"] == 3
         assert len(data["items"]) == 3
-        assert data["page"] == 1
-
-    def test_pagination_second_page(self, client, mock_k8s_client):
-        """Second page returns the next `size` items."""
-        items = [self._make_workshop(f"ws-{i:02d}") for i in range(10)]
-        mock_k8s_client.list_namespaced_custom_object.return_value = {"items": items}
-
-        response = client.get("/workshops/?page=2&size=3")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 3
-        assert data["page"] == 2
-
-    def test_pagination_last_partial_page(self, client, mock_k8s_client):
-        """Last page returns remaining items even if fewer than `size`."""
-        items = [self._make_workshop(f"ws-{i:02d}") for i in range(10)]
-        mock_k8s_client.list_namespaced_custom_object.return_value = {"items": items}
-
-        response = client.get("/workshops/?page=4&size=3")
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 1  # item 10 of 10
-
-    def test_size_over_100_rejected(self, client):
-        """size > 100 is rejected by query validation."""
-        response = client.get("/workshops/?size=101")
-        assert response.status_code == 422
