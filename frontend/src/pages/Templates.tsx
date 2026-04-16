@@ -1,17 +1,19 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTemplates } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
-import { RefreshCw, Play, Clock, Cpu, HardDrive } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, Rocket } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { WorkshopTemplateResponse } from '../api/generated';
+import { useTemplateLaunchCounts } from '../hooks/useTemplates';
 
 interface TemplateCardProps {
   template: WorkshopTemplateResponse;
+  launchCount?: number;
 }
 
-function TemplateCard({ template }: TemplateCardProps) {
+function TemplateCard({ template, launchCount }: TemplateCardProps) {
   const navigate = useNavigate();
 
   return (
@@ -47,6 +49,12 @@ function TemplateCard({ template }: TemplateCardProps) {
           </div>
         )}
         <div className="text-xs text-muted-foreground font-mono pt-1">{template.image}</div>
+        {launchCount !== undefined && (
+          <div className="flex items-center text-sm text-muted-foreground space-x-1 pt-1">
+            <Rocket className="h-3.5 w-3.5 shrink-0" />
+            <span>{launchCount.toLocaleString()} {launchCount === 1 ? 'launch' : 'launches'}</span>
+          </div>
+        )}
       </CardContent>
 
       <CardFooter>
@@ -63,8 +71,40 @@ function TemplateCard({ template }: TemplateCardProps) {
   );
 }
 
+type SortOption = 'name-asc' | 'name-desc' | 'newest' | 'oldest';
+
 export function Templates() {
   const { data, isLoading, error, refetch } = useTemplates();
+  const { data: statsData } = useTemplateLaunchCounts();
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState<SortOption>('newest');
+
+  const launchCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const s of statsData ?? []) map[s.templateId] = s.totalLaunches;
+    return map;
+  }, [statsData]);
+
+  const active = useMemo(() => (data?.items ?? []).filter((t) => t.isActive), [data]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const matches = q
+      ? active.filter((t) =>
+          [t.name, t.description ?? '', t.image, t.slug]
+            .some((field) => field.toLowerCase().includes(q))
+        )
+      : active;
+
+    return [...matches].sort((a, b) => {
+      switch (sort) {
+        case 'name-asc':  return a.name.localeCompare(b.name);
+        case 'name-desc': return b.name.localeCompare(a.name);
+        case 'newest':    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'oldest':    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+    });
+  }, [active, search, sort]);
 
   if (isLoading) {
     return (
@@ -94,17 +134,12 @@ export function Templates() {
     );
   }
 
-  const templates = data?.items ?? [];
-  const active = templates.filter((t) => t.isActive);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Workshop Templates</h1>
-          <p className="text-muted-foreground mt-2">
-            Choose a template to launch a session
-          </p>
+          <p className="text-muted-foreground mt-2">Choose a template to launch a session</p>
         </div>
         <Button onClick={() => refetch()} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4 mr-2" />
@@ -112,19 +147,64 @@ export function Templates() {
         </Button>
       </div>
 
-      {active.length === 0 ? (
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search templates…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-sm border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          className="text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+        </select>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          {filtered.length} of {active.length}
+        </span>
+      </div>
+
+      {filtered.length === 0 ? (
         <div className="text-center py-12">
           <div className="mx-auto max-w-md">
-            <h3 className="text-lg font-semibold">No templates available</h3>
-            <p className="text-muted-foreground mt-2">
-              Ask an administrator to create a workshop template.
-            </p>
+            {search ? (
+              <>
+                <h3 className="text-lg font-semibold">No templates match "{search}"</h3>
+                <p className="text-muted-foreground mt-2">Try a different search term.</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold">No templates available</h3>
+                <p className="text-muted-foreground mt-2">Ask an administrator to create a workshop template.</p>
+              </>
+            )}
           </div>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {active.map((template) => (
-            <TemplateCard key={template.id} template={template} />
+          {filtered.map((template) => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              launchCount={launchCountMap[template.id]}
+            />
           ))}
         </div>
       )}

@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TemplatesService, InstancesService } from '../api/generated';
-import type { WorkshopLaunchRequest } from '../api/generated';
+import type { WorkshopLaunchRequest, TemplateStats } from '../api/generated';
+import { OpenAPI } from '../api/generated/core/OpenAPI';
+import { request as __request } from '../api/generated/core/request';
 
 const TEMPLATES_KEY = ['templates'] as const;
 
@@ -62,6 +64,15 @@ export function useToggleTemplateActive() {
       // Use exact: false (default) to match any query key that starts with TEMPLATES_KEY
       queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
     },
+  });
+}
+
+export function useTemplateLaunchCounts() {
+  return useQuery({
+    queryKey: ['template-stats'],
+    queryFn: () =>
+      __request<TemplateStats[]>(OpenAPI, { method: 'GET', url: '/templates/stats' }),
+    staleTime: 60_000,
   });
 }
 
