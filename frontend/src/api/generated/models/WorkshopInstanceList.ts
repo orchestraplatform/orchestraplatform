@@ -2,12 +2,12 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WorkshopResponse } from './WorkshopResponse';
+import type { WorkshopInstanceResponse } from './WorkshopInstanceResponse';
 /**
- * Response model for workshop list.
+ * Paginated list of workshop instances.
  */
-export type WorkshopList = {
-    items: Array<WorkshopResponse>;
+export type WorkshopInstanceList = {
+    items: Array<WorkshopInstanceResponse>;
     total: number;
     page?: number;
     size?: number;

@@ -1,6 +1,24 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: orchestra
+      POSTGRES_PASSWORD: orchestra
+      POSTGRES_DB: orchestra
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orchestra"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - orchestra-network
+
   server:
     build:
       context: ./server
@@ -12,9 +30,14 @@ services:
       - ORCHESTRA_REQUIRE_AUTHENTICATION=false
       - ORCHESTRA_DEV_IDENTITY=dev@example.com
       - ORCHESTRA_KUBE_CONTEXT=docker-desktop
+      - ORCHESTRA_DATABASE_URL=postgresql+asyncpg://orchestra:orchestra@postgres:5432/orchestra
+
       - KUBECONFIG=/root/.kube/config
     volumes:
       - ~/.kube:/root/.kube:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - orchestra-network
 
@@ -58,3 +81,6 @@ services:
 networks:
   orchestra-network:
     driver: bridge
+
+volumes:
+  postgres-data:

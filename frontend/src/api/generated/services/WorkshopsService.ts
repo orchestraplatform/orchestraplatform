@@ -2,30 +2,101 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WorkshopCreate } from '../models/WorkshopCreate';
-import type { WorkshopList } from '../models/WorkshopList';
-import type { WorkshopResponse } from '../models/WorkshopResponse';
+import type { WorkshopInstanceResponse } from '../models/WorkshopInstanceResponse';
+import type { WorkshopLaunchRequest } from '../models/WorkshopLaunchRequest';
+import type { WorkshopTemplateCreate } from '../models/WorkshopTemplateCreate';
+import type { WorkshopTemplateList } from '../models/WorkshopTemplateList';
+import type { WorkshopTemplateResponse } from '../models/WorkshopTemplateResponse';
+import type { WorkshopTemplateUpdate } from '../models/WorkshopTemplateUpdate';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class WorkshopsService {
     /**
-     * Create Workshop
-     * Create a new workshop.
-     * @param requestBody
-     * @param namespace Kubernetes namespace
-     * @returns WorkshopResponse Successful Response
+     * List Templates
+     * List workshop templates. Inactive templates are hidden unless admin requests them.
+     * @param page
+     * @param size
+     * @param includeInactive
+     * @returns WorkshopTemplateList Successful Response
      * @throws ApiError
      */
-    public static createWorkshopWorkshopsPost(
-        requestBody: WorkshopCreate,
-        namespace: string = 'default',
-    ): CancelablePromise<WorkshopResponse> {
+    public static listTemplatesWorkshopsGet(
+        page: number = 1,
+        size: number = 50,
+        includeInactive: boolean = false,
+    ): CancelablePromise<WorkshopTemplateList> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/workshops/',
+            query: {
+                'page': page,
+                'size': size,
+                'include_inactive': includeInactive,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Create Template
+     * Create a new workshop template (admin only).
+     * @param requestBody
+     * @returns WorkshopTemplateResponse Successful Response
+     * @throws ApiError
+     */
+    public static createTemplateWorkshopsPost(
+        requestBody: WorkshopTemplateCreate,
+    ): CancelablePromise<WorkshopTemplateResponse> {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/workshops/',
-            query: {
-                'namespace': namespace,
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Template
+     * Get a workshop template by ID.
+     * @param templateId
+     * @returns WorkshopTemplateResponse Successful Response
+     * @throws ApiError
+     */
+    public static getTemplateWorkshopsTemplateIdGet(
+        templateId: string,
+    ): CancelablePromise<WorkshopTemplateResponse> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/workshops/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Update Template
+     * Update a workshop template (admin only).
+     * @param templateId
+     * @param requestBody
+     * @returns WorkshopTemplateResponse Successful Response
+     * @throws ApiError
+     */
+    public static updateTemplateWorkshopsTemplateIdPut(
+        templateId: string,
+        requestBody: WorkshopTemplateUpdate,
+    ): CancelablePromise<WorkshopTemplateResponse> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/workshops/{template_id}',
+            path: {
+                'template_id': templateId,
             },
             body: requestBody,
             mediaType: 'application/json',
@@ -35,78 +106,20 @@ export class WorkshopsService {
         });
     }
     /**
-     * List Workshops
-     * List workshops in a namespace.
-     * @param namespace Kubernetes namespace
-     * @param page Page number
-     * @param size Page size
-     * @returns WorkshopList Successful Response
-     * @throws ApiError
-     */
-    public static listWorkshopsWorkshopsGet(
-        namespace: string = 'default',
-        page: number = 1,
-        size: number = 50,
-    ): CancelablePromise<WorkshopList> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/workshops/',
-            query: {
-                'namespace': namespace,
-                'page': page,
-                'size': size,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Get Workshop
-     * Get a workshop by name.
-     * @param workshopName Workshop name
-     * @param namespace Kubernetes namespace
-     * @returns WorkshopResponse Successful Response
-     * @throws ApiError
-     */
-    public static getWorkshopWorkshopsWorkshopNameGet(
-        workshopName: string,
-        namespace: string = 'default',
-    ): CancelablePromise<WorkshopResponse> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/workshops/{workshop_name}',
-            path: {
-                'workshop_name': workshopName,
-            },
-            query: {
-                'namespace': namespace,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Delete Workshop
-     * Delete a workshop.
-     * @param workshopName Workshop name
-     * @param namespace Kubernetes namespace
+     * Archive Template
+     * Archive a workshop template (admin only). Sets is_active=False; does not hard-delete.
+     * @param templateId
      * @returns void
      * @throws ApiError
      */
-    public static deleteWorkshopWorkshopsWorkshopNameDelete(
-        workshopName: string,
-        namespace: string = 'default',
+    public static archiveTemplateWorkshopsTemplateIdDelete(
+        templateId: string,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/workshops/{workshop_name}',
+            url: '/workshops/{template_id}',
             path: {
-                'workshop_name': workshopName,
-            },
-            query: {
-                'namespace': namespace,
+                'template_id': templateId,
             },
             errors: {
                 422: `Validation Error`,
@@ -114,26 +127,28 @@ export class WorkshopsService {
         });
     }
     /**
-     * Get Workshop Status
-     * Get workshop status information.
-     * @param workshopName Workshop name
-     * @param namespace Kubernetes namespace
-     * @returns any Successful Response
+     * Launch Workshop
+     * Launch a new workshop instance from a template.
+     *
+     * The instance name is auto-generated as ``{slug}-{6-char suffix}``.
+     * Duration defaults to the template's default if not supplied.
+     * @param templateId
+     * @param requestBody
+     * @returns WorkshopInstanceResponse Successful Response
      * @throws ApiError
      */
-    public static getWorkshopStatusWorkshopsWorkshopNameStatusGet(
-        workshopName: string,
-        namespace: string = 'default',
-    ): CancelablePromise<Record<string, any>> {
+    public static launchWorkshopWorkshopsTemplateIdLaunchPost(
+        templateId: string,
+        requestBody: WorkshopLaunchRequest,
+    ): CancelablePromise<WorkshopInstanceResponse> {
         return __request(OpenAPI, {
-            method: 'GET',
-            url: '/workshops/{workshop_name}/status',
+            method: 'POST',
+            url: '/workshops/{template_id}/launch',
             path: {
-                'workshop_name': workshopName,
+                'template_id': templateId,
             },
-            query: {
-                'namespace': namespace,
-            },
+            body: requestBody,
+            mediaType: 'application/json',
             errors: {
                 422: `Validation Error`,
             },
