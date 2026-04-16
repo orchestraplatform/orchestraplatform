@@ -7,6 +7,8 @@
     <title>Orchestra - Workshop Management</title>
   </head>
   <body>
+    <!-- Runtime config injected by docker-entrypoint.sh; missing in local dev (env var used instead). -->
+    <script src="/config.js" onerror="window.__ORCHESTRA_CONFIG__={}"></script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -12,7 +12,12 @@ import { History } from './pages/History';
 import { OpenAPI } from './api/generated';
 import './index.css';
 
-OpenAPI.BASE = import.meta.env.VITE_API_URL ?? '';
+declare global {
+  interface Window {
+    __ORCHESTRA_CONFIG__?: { apiUrl?: string };
+  }
+}
+OpenAPI.BASE = window.__ORCHESTRA_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || '';
 OpenAPI.WITH_CREDENTIALS = true;
 
 const queryClient = new QueryClient({
