@@ -6,6 +6,7 @@ import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Templates } from './pages/Templates';
 import { AdminTemplates } from './pages/AdminTemplates';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { LaunchTemplate } from './pages/LaunchTemplate';
 import { History } from './pages/History';
 import { OpenAPI } from './api/generated';
@@ -32,6 +33,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/admin/templates" element={<AdminTemplates />} />
+            <Route path="/admin/sessions" element={<AdminDashboard />} />
             <Route path="/history" element={<History />} />
             <Route path="/launch/:templateId" element={<LaunchTemplate />} />
           </Routes>

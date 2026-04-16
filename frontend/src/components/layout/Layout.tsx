@@ -8,6 +8,7 @@ import {
   Rocket,
   History,
   Settings2,
+  Monitor,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -95,6 +96,12 @@ export function Layout({ children }: LayoutProps) {
                 Admin
               </div>
             )}
+            <NavItem
+              to="/admin/sessions"
+              icon={<Monitor className="h-4 w-4" />}
+              label="Sessions"
+              collapsed={collapsed}
+            />
             <NavItem
               to="/admin/templates"
               icon={<Settings2 className="h-4 w-4" />}
