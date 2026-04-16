@@ -1,0 +1,82 @@
+INFO:     Started server process [99954]
+INFO:     Waiting for application startup.
+INFO:main:Starting Orchestra API...
+INFO:api.core.kubernetes:Loaded local Kubernetes configuration (context: docker-desktop)
+INFO:main:Kubernetes client initialised
+2026-04-16 15:48:51,098 INFO sqlalchemy.engine.Engine select pg_catalog.version()
+INFO:sqlalchemy.engine.Engine:select pg_catalog.version()
+2026-04-16 15:48:51,098 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+2026-04-16 15:48:51,099 INFO sqlalchemy.engine.Engine select current_schema()
+INFO:sqlalchemy.engine.Engine:select current_schema()
+2026-04-16 15:48:51,099 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+2026-04-16 15:48:51,100 INFO sqlalchemy.engine.Engine show standard_conforming_strings
+INFO:sqlalchemy.engine.Engine:show standard_conforming_strings
+2026-04-16 15:48:51,100 INFO sqlalchemy.engine.Engine [raw sql] ()
+INFO:sqlalchemy.engine.Engine:[raw sql] ()
+INFO:main:Database connection verified
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55936 - "GET /auth/me HTTP/1.1" 200 OK
+2026-04-16 15:49:07,091 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2026-04-16 15:49:07,094 INFO sqlalchemy.engine.Engine SELECT count(*) AS count_1 
+FROM (SELECT workshops.id AS id, workshops.name AS name, workshops.slug AS slug, workshops.description AS description, workshops.image AS image, workshops.default_duration AS default_duration, workshops.resources AS resources, workshops.storage AS storage, workshops.ingress AS ingress, workshops.is_active AS is_active, workshops.created_by AS created_by, workshops.created_at AS created_at, workshops.updated_at AS updated_at 
+FROM workshops ORDER BY workshops.name) AS anon_1
+INFO:sqlalchemy.engine.Engine:SELECT count(*) AS count_1 
+FROM (SELECT workshops.id AS id, workshops.name AS name, workshops.slug AS slug, workshops.description AS description, workshops.image AS image, workshops.default_duration AS default_duration, workshops.resources AS resources, workshops.storage AS storage, workshops.ingress AS ingress, workshops.is_active AS is_active, workshops.created_by AS created_by, workshops.created_at AS created_at, workshops.updated_at AS updated_at 
+FROM workshops ORDER BY workshops.name) AS anon_1
+2026-04-16 15:49:07,094 INFO sqlalchemy.engine.Engine [generated in 0.00007s] ()
+INFO:sqlalchemy.engine.Engine:[generated in 0.00007s] ()
+2026-04-16 15:49:07,096 INFO sqlalchemy.engine.Engine SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops ORDER BY workshops.name 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+INFO:sqlalchemy.engine.Engine:SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops ORDER BY workshops.name 
+ LIMIT $1::INTEGER OFFSET $2::INTEGER
+2026-04-16 15:49:07,096 INFO sqlalchemy.engine.Engine [generated in 0.00006s] (50, 0)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00006s] (50, 0)
+2026-04-16 15:49:07,098 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:sqlalchemy.engine.Engine:ROLLBACK
+INFO:     127.0.0.1:55947 - "GET /templates/?include_inactive=true HTTP/1.1" 200 OK
+2026-04-16 15:49:19,720 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2026-04-16 15:49:19,720 INFO sqlalchemy.engine.Engine SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+INFO:sqlalchemy.engine.Engine:SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+2026-04-16 15:49:19,720 INFO sqlalchemy.engine.Engine [generated in 0.00007s] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00007s] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+2026-04-16 15:49:19,722 INFO sqlalchemy.engine.Engine SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+INFO:sqlalchemy.engine.Engine:SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+2026-04-16 15:49:19,722 INFO sqlalchemy.engine.Engine [cached since 0.001359s ago] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+INFO:sqlalchemy.engine.Engine:[cached since 0.001359s ago] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+2026-04-16 15:49:19,723 INFO sqlalchemy.engine.Engine UPDATE workshops SET is_active=$1::BOOLEAN, updated_at=$2::TIMESTAMP WITH TIME ZONE WHERE workshops.id = $3::UUID
+INFO:sqlalchemy.engine.Engine:UPDATE workshops SET is_active=$1::BOOLEAN, updated_at=$2::TIMESTAMP WITH TIME ZONE WHERE workshops.id = $3::UUID
+2026-04-16 15:49:19,723 INFO sqlalchemy.engine.Engine [generated in 0.00009s] (False, datetime.datetime(2026, 4, 16, 19, 49, 19, 723127, tzinfo=datetime.timezone.utc), UUID('bff22978-915b-44ec-a23a-adeba5106343'))
+INFO:sqlalchemy.engine.Engine:[generated in 0.00009s] (False, datetime.datetime(2026, 4, 16, 19, 49, 19, 723127, tzinfo=datetime.timezone.utc), UUID('bff22978-915b-44ec-a23a-adeba5106343'))
+2026-04-16 15:49:19,724 INFO sqlalchemy.engine.Engine COMMIT
+INFO:sqlalchemy.engine.Engine:COMMIT
+2026-04-16 15:49:19,725 INFO sqlalchemy.engine.Engine BEGIN (implicit)
+INFO:sqlalchemy.engine.Engine:BEGIN (implicit)
+2026-04-16 15:49:19,726 INFO sqlalchemy.engine.Engine SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+INFO:sqlalchemy.engine.Engine:SELECT workshops.id, workshops.name, workshops.slug, workshops.description, workshops.image, workshops.default_duration, workshops.resources, workshops.storage, workshops.ingress, workshops.is_active, workshops.created_by, workshops.created_at, workshops.updated_at 
+FROM workshops 
+WHERE workshops.id = $1::UUID
+2026-04-16 15:49:19,726 INFO sqlalchemy.engine.Engine [generated in 0.00005s] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+INFO:sqlalchemy.engine.Engine:[generated in 0.00005s] (UUID('bff22978-915b-44ec-a23a-adeba5106343'),)
+INFO:api.services.workshop_template_service:Updated workshop template bff22978-915b-44ec-a23a-adeba5106343
+2026-04-16 15:49:19,727 INFO sqlalchemy.engine.Engine ROLLBACK
+INFO:sqlalchemy.engine.Engine:ROLLBACK
+INFO:     127.0.0.1:55952 - "PATCH /templates/bff22978-915b-44ec-a23a-adeba5106343/toggle-active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55955 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55955 - "GET /openapi.json HTTP/1.1" 200 OK

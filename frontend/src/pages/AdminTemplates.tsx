@@ -126,24 +126,38 @@ export function AdminTemplates() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right space-x-1">
-                        <Button variant="ghost" size="icon" title="Stats">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          title="Stats"
+                        >
                           <BarChart3 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Edit" onClick={() => handleEdit(t)}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                          title="Edit" 
+                          onClick={() => handleEdit(t)}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          title={t.isActive ? "Archive" : "Unarchive"}
+                          className={t.isActive 
+                            ? "text-amber-600 hover:text-amber-700 hover:bg-amber-50" 
+                            : "text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"}
+                          title={t.isActive ? "Archive" : "Restore"}
                           onClick={() => handleToggle(t.id)}
                         >
-                          {t.isActive ? <Archive className="h-4 w-4 text-amber-600" /> : <ArchiveRestore className="h-4 w-4 text-blue-600" />}
+                          {t.isActive ? <Archive className="h-4 w-4" /> : <ArchiveRestore className="h-4 w-4" />}
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           title="Delete Permanently"
                           onClick={() => handleDelete(t.id, true)}
                         >

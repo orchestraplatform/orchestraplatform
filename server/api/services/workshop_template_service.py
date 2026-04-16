@@ -137,14 +137,25 @@ class WorkshopTemplateService:
         self, db: AsyncSession, template_id: uuid.UUID, hard_delete: bool = False
     ) -> bool:
         """Archive (soft-delete) or permanently delete a template."""
+        from api.models.db.workshop_instance import WorkshopInstance
+        
         result = await db.execute(select(Workshop).where(Workshop.id == template_id))
         row = result.scalar_one_or_none()
         if row is None:
             return False
         
         if hard_delete:
-            await db.delete(row)
-            logger.info("Hard-deleted workshop template %s", template_id)
+            # Check if instances exist
+            inst_result = await db.execute(
+                select(WorkshopInstance).where(WorkshopInstance.workshop_id == template_id).limit(1)
+            )
+            if inst_result.scalar_one_or_none():
+                logger.warning("Refusing to hard-delete template %s: instances exist", template_id)
+                # Fallback to soft-delete
+                row.is_active = False
+            else:
+                await db.delete(row)
+                logger.info("Hard-deleted workshop template %s", template_id)
         else:
             row.is_active = False
             logger.info("Archived (soft-deleted) workshop template %s", template_id)
