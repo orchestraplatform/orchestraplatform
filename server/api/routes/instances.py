@@ -1,8 +1,10 @@
 """WorkshopInstance routes (list, get, delete, status, utilization)."""
 
+import asyncio
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
+from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.auth import CurrentUser, get_current_user
@@ -127,3 +129,17 @@ async def get_instance_status(
             detail=f"Instance {k8s_name} not found",
         )
     return instance_status
+
+
+@router.get("/events")
+async def instance_events(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
+):
+    """Stream workshop instance updates for the current user."""
+    owner_filter = None if current_user.is_admin else current_user.email
+    return EventSourceResponse(
+        svc.events(db, owner_email=owner_filter),
+    )

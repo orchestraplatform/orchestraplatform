@@ -357,6 +357,27 @@ class WorkshopInstanceService:
             await db.commit()
 
 
+    async def events(
+        self,
+        db: AsyncSession,
+        *,
+        owner_email: str | None = None,
+        interval: int = 5,
+    ):
+        """Generator for SSE events that yields the current instance list."""
+        import asyncio
+        import json
+
+        from api.models.schemas.workshop_instance import WorkshopInstanceList
+
+        while True:
+            items, total = await self.list_instances(db, owner_email=owner_email)
+            data = WorkshopInstanceList(items=items, total=total)
+            # We use model_dump_json for Pydantic v2 compatibility
+            yield data.model_dump_json()
+            await asyncio.sleep(interval)
+
+
 def get_instance_service() -> WorkshopInstanceService:
     """FastAPI dependency — returns a WorkshopInstanceService instance."""
     return WorkshopInstanceService()
