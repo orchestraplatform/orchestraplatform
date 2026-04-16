@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.auth import CurrentUser, get_current_user, require_admin
 from api.core.database import get_db
+from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
 from api.models.schemas.workshop_template import (
     WorkshopLaunchRequest,
     WorkshopTemplateCreate,
@@ -17,14 +18,17 @@ from api.models.schemas.workshop_template import (
     WorkshopTemplateResponse,
     WorkshopTemplateUpdate,
 )
-from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
-from api.services.workshop_template_service import WorkshopTemplateService
-from api.services.workshop_instance_service import WorkshopInstanceService
+from api.services.workshop_instance_service import (
+    WorkshopInstanceService,
+    get_instance_service,
+)
+from api.services.workshop_template_service import (
+    WorkshopTemplateService,
+    get_template_service,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-template_service = WorkshopTemplateService()
-instance_service = WorkshopInstanceService()
 
 
 def _random_suffix(length: int = 6) -> str:
@@ -43,12 +47,11 @@ async def list_templates(
     include_inactive: bool = Query(default=False),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopTemplateService = Depends(get_template_service),
 ):
     """List workshop templates. Inactive templates are hidden unless admin requests them."""
     show_inactive = include_inactive and current_user.is_admin
-    items, total = await template_service.list_templates(
-        db, include_inactive=show_inactive, page=page, size=size
-    )
+    items, total = await svc.list_templates(db, include_inactive=show_inactive, page=page, size=size)
     return WorkshopTemplateList(items=items, total=total, page=page, size=size)
 
 
@@ -62,15 +65,16 @@ async def create_template(
     data: WorkshopTemplateCreate,
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopTemplateService = Depends(get_template_service),
 ):
     """Create a new workshop template (admin only)."""
-    existing = await template_service.get_template_by_slug(db, data.slug)
+    existing = await svc.get_template_by_slug(db, data.slug)
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"A template with slug '{data.slug}' already exists",
         )
-    return await template_service.create_template(db, data, created_by=current_user.email)
+    return await svc.create_template(db, data, created_by=current_user.email)
 
 
 @router.get("/{template_id}", response_model=WorkshopTemplateResponse)
@@ -78,9 +82,10 @@ async def get_template(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopTemplateService = Depends(get_template_service),
 ):
     """Get a workshop template by ID."""
-    template = await template_service.get_template(db, template_id)
+    template = await svc.get_template(db, template_id)
     if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return template
@@ -95,9 +100,10 @@ async def update_template(
     data: WorkshopTemplateUpdate,
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
+    svc: WorkshopTemplateService = Depends(get_template_service),
 ):
     """Update a workshop template (admin only)."""
-    template = await template_service.update_template(db, template_id, data)
+    template = await svc.update_template(db, template_id, data)
     if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return template
@@ -111,9 +117,10 @@ async def update_template(
 async def archive_template(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
+    svc: WorkshopTemplateService = Depends(get_template_service),
 ):
     """Archive a workshop template (admin only). Sets is_active=False; does not hard-delete."""
-    found = await template_service.archive_template(db, template_id)
+    found = await svc.archive_template(db, template_id)
     if not found:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return None
@@ -131,9 +138,10 @@ async def archive_template(
 async def get_template_stats(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Aggregate launch and utilization statistics for a template (admin only)."""
-    stats = await instance_service.get_template_stats(db, template_id)
+    stats = await svc.get_template_stats(db, template_id)
     if not stats:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return stats
@@ -153,13 +161,15 @@ async def launch_workshop(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    template_svc: WorkshopTemplateService = Depends(get_template_service),
+    instance_svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Launch a new workshop instance from a template.
 
     The instance name is auto-generated as ``{slug}-{6-char suffix}``.
     Duration defaults to the template's default if not supplied.
     """
-    template = await template_service.get_template(db, template_id)
+    template = await template_svc.get_template(db, template_id)
     if not template or not template.is_active:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -170,7 +180,7 @@ async def launch_workshop(
     duration = body.duration or template.default_duration
 
     try:
-        instance = await instance_service.launch(
+        instance = await instance_svc.launch(
             db,
             template=template,
             k8s_name=k8s_name,

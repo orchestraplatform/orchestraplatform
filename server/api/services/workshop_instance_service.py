@@ -339,3 +339,8 @@ class WorkshopInstanceService:
 
         if changed:
             await db.commit()
+
+
+def get_instance_service() -> WorkshopInstanceService:
+    """FastAPI dependency — returns a WorkshopInstanceService instance."""
+    return WorkshopInstanceService()

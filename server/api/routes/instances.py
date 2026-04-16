@@ -1,4 +1,4 @@
-"""WorkshopInstance routes (list, get, delete, status)."""
+"""WorkshopInstance routes (list, get, delete, status, utilization)."""
 
 import logging
 
@@ -13,11 +13,13 @@ from api.models.schemas.workshop_instance import (
     WorkshopInstanceResponse,
     WorkshopInstanceStatus,
 )
-from api.services.workshop_instance_service import WorkshopInstanceService
+from api.services.workshop_instance_service import (
+    WorkshopInstanceService,
+    get_instance_service,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-instance_service = WorkshopInstanceService()
 
 
 def _can_access(user: CurrentUser, owner_email: str) -> bool:
@@ -31,15 +33,14 @@ async def list_instances(
     size: int = Query(default=50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """List running workshop instances.
 
     Regular users see only their own. Admins see all.
     """
     owner_filter = None if current_user.is_admin else current_user.email
-    items, total = await instance_service.list_instances(
-        db, owner_email=owner_filter, page=page, size=size
-    )
+    items, total = await svc.list_instances(db, owner_email=owner_filter, page=page, size=size)
     return WorkshopInstanceList(items=items, total=total, page=page, size=size)
 
 
@@ -49,9 +50,10 @@ async def get_instance(
     namespace: str = Query(default="default"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Get a workshop instance, syncing live status from k8s."""
-    instance = await instance_service.get_instance(db, k8s_name, namespace)
+    instance = await svc.get_instance(db, k8s_name, namespace)
     if not instance or not _can_access(current_user, instance.owner_email):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,16 +68,16 @@ async def terminate_instance(
     namespace: str = Query(default="default"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Terminate a workshop instance (deletes k8s CRD + marks DB record terminated)."""
-    # Check ownership before terminating
-    instance = await instance_service.get_instance(db, k8s_name, namespace)
+    instance = await svc.get_instance(db, k8s_name, namespace)
     if not instance or not _can_access(current_user, instance.owner_email):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Instance {k8s_name} not found",
         )
-    await instance_service.terminate(db, k8s_name, namespace)
+    await svc.terminate(db, k8s_name, namespace)
     return None
 
 
@@ -85,16 +87,16 @@ async def get_instance_utilization(
     namespace: str = Query(default="default"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Time-in-phase utilization breakdown for a workshop instance."""
-    # Verify ownership first via full record
-    instance = await instance_service.get_instance(db, k8s_name, namespace)
+    instance = await svc.get_instance(db, k8s_name, namespace)
     if not instance or not _can_access(current_user, instance.owner_email):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Instance {k8s_name} not found",
         )
-    utilization = await instance_service.get_utilization(db, k8s_name, namespace)
+    utilization = await svc.get_utilization(db, k8s_name, namespace)
     if not utilization:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -109,17 +111,17 @@ async def get_instance_status(
     namespace: str = Query(default="default"),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Lightweight status and URL for a workshop instance."""
-    instance_status = await instance_service.get_status(db, k8s_name, namespace)
-    if not instance_status:
+    instance = await svc.get_instance(db, k8s_name, namespace)
+    if not instance or not _can_access(current_user, instance.owner_email):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Instance {k8s_name} not found",
         )
-    # Verify ownership via full record
-    instance = await instance_service.get_instance(db, k8s_name, namespace)
-    if not instance or not _can_access(current_user, instance.owner_email):
+    instance_status = await svc.get_status(db, k8s_name, namespace)
+    if not instance_status:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Instance {k8s_name} not found",

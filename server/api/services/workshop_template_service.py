@@ -145,3 +145,8 @@ class WorkshopTemplateService:
         await db.commit()
         logger.info("Archived workshop template %s", template_id)
         return True
+
+
+def get_template_service() -> WorkshopTemplateService:
+    """FastAPI dependency — returns a WorkshopTemplateService instance."""
+    return WorkshopTemplateService()

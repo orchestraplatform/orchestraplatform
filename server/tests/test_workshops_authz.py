@@ -1,8 +1,9 @@
 """Ownership isolation and auth tests for workshop instance routes (/instances/)."""
 
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 from api.core.auth import CurrentUser, get_current_user
 from api.core.database import get_db
 from api.models.schemas.workshop_instance import WorkshopInstanceResponse, WorkshopInstanceStatus
+from api.services.workshop_instance_service import get_instance_service
 from tests.conftest import TEST_ADMIN
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -36,15 +38,29 @@ def _make_instance(owner: str, k8s_name: str = "test-ws-abc123") -> WorkshopInst
     )
 
 
-def _patch_instance_svc(**overrides):
-    defaults = {
-        "list_instances": AsyncMock(return_value=([], 0)),
-        "get_instance": AsyncMock(return_value=None),
-        "terminate": AsyncMock(return_value=True),
-        "get_status": AsyncMock(return_value=None),
-    }
-    defaults.update(overrides)
-    return patch.multiple("api.routes.instances.instance_service", **defaults)
+def _make_instance_svc(**overrides) -> MagicMock:
+    """Build a MagicMock WorkshopInstanceService with sensible defaults."""
+    svc = MagicMock()
+    svc.list_instances = AsyncMock(return_value=([], 0))
+    svc.get_instance = AsyncMock(return_value=None)
+    svc.terminate = AsyncMock(return_value=True)
+    svc.get_status = AsyncMock(return_value=None)
+    for key, val in overrides.items():
+        setattr(svc, key, val)
+    return svc
+
+
+@contextmanager
+def _override_instance_svc(**overrides):
+    """Override the get_instance_service dependency for the duration of the block."""
+    from main import app
+
+    svc = _make_instance_svc(**overrides)
+    app.dependency_overrides[get_instance_service] = lambda: svc
+    try:
+        yield svc
+    finally:
+        app.dependency_overrides.pop(get_instance_service, None)
 
 
 @pytest.fixture
@@ -70,7 +86,7 @@ def bob_client(_mock_k8s_startup):
 class TestOwnershipIsolation:
     def test_get_own_instance_succeeds(self, client):
         instance = _make_instance("alice@test.example.com")
-        with _patch_instance_svc(get_instance=AsyncMock(return_value=instance)):
+        with _override_instance_svc(get_instance=AsyncMock(return_value=instance)):
             response = client.get("/instances/test-ws-abc123")
         assert response.status_code == 200
         assert response.json()["ownerEmail"] == "alice@test.example.com"
@@ -78,27 +94,25 @@ class TestOwnershipIsolation:
     def test_get_other_users_instance_returns_404(self, bob_client):
         """Bob cannot see alice's instance — 404, no existence leak."""
         alice_instance = _make_instance("alice@test.example.com")
-        with _patch_instance_svc(get_instance=AsyncMock(return_value=alice_instance)):
+        with _override_instance_svc(get_instance=AsyncMock(return_value=alice_instance)):
             response = bob_client.get("/instances/test-ws-abc123")
         assert response.status_code == 404
 
     def test_delete_own_instance_succeeds(self, client):
         instance = _make_instance("alice@test.example.com")
-        with _patch_instance_svc(get_instance=AsyncMock(return_value=instance)):
+        with _override_instance_svc(get_instance=AsyncMock(return_value=instance)):
             response = client.delete("/instances/test-ws-abc123")
         assert response.status_code == 204
 
     def test_delete_other_users_instance_returns_404(self, bob_client):
-        """Bob cannot delete alice's instance."""
+        """Bob cannot delete alice's instance — terminate must not be called."""
         alice_instance = _make_instance("alice@test.example.com")
-        terminate_mock = AsyncMock(return_value=True)
-        with _patch_instance_svc(
-            get_instance=AsyncMock(return_value=alice_instance),
-            terminate=terminate_mock,
-        ):
+        with _override_instance_svc(
+            get_instance=AsyncMock(return_value=alice_instance)
+        ) as svc:
             response = bob_client.delete("/instances/test-ws-abc123")
         assert response.status_code == 404
-        terminate_mock.assert_not_called()
+        svc.terminate.assert_not_called()
 
     def test_list_filters_by_owner_for_non_admin(self, client):
         """Regular user's list call passes owner_email filter to the service."""
@@ -109,23 +123,23 @@ class TestOwnershipIsolation:
             captured["owner_email"] = owner_email
             return [alice_instance], 1
 
-        with _patch_instance_svc(list_instances=AsyncMock(side_effect=fake_list)):
+        with _override_instance_svc(list_instances=AsyncMock(side_effect=fake_list)):
             response = client.get("/instances/")
         assert response.status_code == 200
         assert captured["owner_email"] == "alice@test.example.com"
 
     def test_status_for_other_users_instance_returns_404(self, bob_client):
         alice_instance = _make_instance("alice@test.example.com")
-        status = WorkshopInstanceStatus(
+        status_obj = WorkshopInstanceStatus(
             id=alice_instance.id,
             k8sName="test-ws-abc123",
             phase="Ready",
             url=alice_instance.url,
             expiresAt=None,
         )
-        with _patch_instance_svc(
+        with _override_instance_svc(
             get_instance=AsyncMock(return_value=alice_instance),
-            get_status=AsyncMock(return_value=status),
+            get_status=AsyncMock(return_value=status_obj),
         ):
             response = bob_client.get("/instances/test-ws-abc123/status")
         assert response.status_code == 404
@@ -137,7 +151,7 @@ class TestAdminBypass:
     def test_admin_can_get_any_instance(self, admin_client):
         """Admin can GET an instance owned by any user."""
         instance = _make_instance("alice@test.example.com")
-        with _patch_instance_svc(get_instance=AsyncMock(return_value=instance)):
+        with _override_instance_svc(get_instance=AsyncMock(return_value=instance)):
             response = admin_client.get("/instances/test-ws-abc123")
         assert response.status_code == 200
 
@@ -149,14 +163,14 @@ class TestAdminBypass:
             captured["owner_email"] = owner_email
             return [], 0
 
-        with _patch_instance_svc(list_instances=AsyncMock(side_effect=fake_list)):
+        with _override_instance_svc(list_instances=AsyncMock(side_effect=fake_list)):
             admin_client.get("/instances/")
         assert captured.get("owner_email") is None
 
     def test_admin_can_delete_any_instance(self, admin_client):
         """Admin can terminate an instance owned by any user."""
         instance = _make_instance("alice@test.example.com")
-        with _patch_instance_svc(get_instance=AsyncMock(return_value=instance)):
+        with _override_instance_svc(get_instance=AsyncMock(return_value=instance)):
             response = admin_client.delete("/instances/test-ws-abc123")
         assert response.status_code == 204
 
