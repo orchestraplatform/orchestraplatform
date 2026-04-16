@@ -11,6 +11,8 @@ from sqlalchemy.orm import selectinload
 from api.core.kubernetes import ApiException
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_instance import (
+    InstanceUtilization,
+    TemplateStats,
     WorkshopInstanceList,
     WorkshopInstanceResponse,
     WorkshopInstanceStatus,
@@ -26,6 +28,37 @@ from api.services.workshop_service import WorkshopService
 
 logger = logging.getLogger(__name__)
 _k8s = WorkshopService()
+
+_ACTIVE_PHASES = {"Ready", "Running"}
+
+
+def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
+    """Compute time-in-phase breakdown from a row's pre-loaded events."""
+    events = sorted(row.events, key=lambda e: e.recorded_at)
+    now = datetime.now(timezone.utc)
+    endpoint = row.terminated_at or now
+
+    phase_seconds: dict[str, int] = {}
+    for i, event in enumerate(events):
+        start = event.recorded_at
+        end = events[i + 1].recorded_at if i + 1 < len(events) else endpoint
+        secs = max(0, int((end - start).total_seconds()))
+        phase_seconds[event.phase] = phase_seconds.get(event.phase, 0) + secs
+
+    active_seconds = sum(
+        s for phase, s in phase_seconds.items() if phase in _ACTIVE_PHASES
+    )
+    total_elapsed = max(0, int((endpoint - row.launched_at).total_seconds()))
+
+    return InstanceUtilization(
+        instance_id=row.id,
+        k8s_name=row.k8s_name,
+        launched_at=row.launched_at,
+        terminated_at=row.terminated_at,
+        total_elapsed_seconds=total_elapsed,
+        active_seconds=active_seconds,
+        phase_seconds=phase_seconds,
+    )
 
 
 def _to_response(
@@ -212,6 +245,68 @@ class WorkshopInstanceService:
             phase=row.phase,
             url=row.url,
             expiresAt=row.expires_at,
+        )
+
+    async def get_utilization(
+        self, db: AsyncSession, k8s_name: str, namespace: str = "default"
+    ) -> InstanceUtilization | None:
+        """Return time-in-phase utilization for an instance."""
+        result = await db.execute(
+            select(WorkshopInstance)
+            .options(selectinload(WorkshopInstance.events))
+            .where(
+                WorkshopInstance.k8s_name == k8s_name,
+                WorkshopInstance.namespace == namespace,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return _compute_utilization(row)
+
+    async def get_template_stats(
+        self, db: AsyncSession, template_id: "uuid.UUID"
+    ) -> TemplateStats | None:
+        """Return aggregate launch and utilization stats for a template."""
+        from sqlalchemy import case, distinct, func
+
+        from api.models.db.workshop import Workshop
+
+        # Verify template exists
+        tpl_result = await db.execute(
+            select(Workshop).where(Workshop.id == template_id)
+        )
+        if tpl_result.scalar_one_or_none() is None:
+            return None
+
+        agg_result = await db.execute(
+            select(
+                func.count().label("total"),
+                func.sum(
+                    case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)
+                ).label("active"),
+                func.count(distinct(WorkshopInstance.owner_email)).label("unique_users"),
+            ).where(WorkshopInstance.workshop_id == template_id)
+        )
+        counts = agg_result.one()
+
+        # Active-seconds requires loading events — computed in Python
+        instances_result = await db.execute(
+            select(WorkshopInstance)
+            .options(selectinload(WorkshopInstance.events))
+            .where(WorkshopInstance.workshop_id == template_id)
+        )
+        instances = instances_result.scalars().all()
+        total_active_secs = sum(
+            _compute_utilization(inst).active_seconds for inst in instances
+        )
+
+        return TemplateStats(
+            template_id=template_id,
+            total_launches=counts.total or 0,
+            active_instances=counts.active or 0,
+            total_active_seconds=total_active_secs,
+            unique_users=counts.unique_users or 0,
         )
 
     async def _sync_from_k8s(self, db: AsyncSession, row: WorkshopInstance) -> None:

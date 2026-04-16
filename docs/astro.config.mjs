@@ -46,6 +46,7 @@ export default defineConfig({
           items: [
             { label: 'Platform Overview', link: '/architecture/platform-overview/' },
             { label: 'Domain Structure', link: '/architecture/domain-structure/' },
+            { label: 'Data Model', link: '/architecture/data-model/' },
             { label: 'Components', link: '/architecture/components/' },
             { label: 'Authentication', link: '/architecture/authentication/' },
             { label: 'Authorization', link: '/architecture/authorization/' },
@@ -86,6 +87,7 @@ export default defineConfig({
             { label: 'ADR-0001: oauth2-proxy at ingress', link: '/adr/0001-oauth2-proxy-at-ingress/' },
             { label: 'ADR-0002: spec.owner on CRD', link: '/adr/0002-spec-owner-on-crd/' },
             { label: 'ADR-0003: Helm install method', link: '/adr/0003-helm-as-install-method/' },
+            { label: 'ADR-0004: Template/instance split', link: '/adr/0004-template-instance-split/' },
           ],
         },
       ],

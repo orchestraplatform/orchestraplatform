@@ -17,7 +17,7 @@ from api.models.schemas.workshop_template import (
     WorkshopTemplateResponse,
     WorkshopTemplateUpdate,
 )
-from api.models.schemas.workshop_instance import WorkshopInstanceResponse
+from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
 from api.services.workshop_template_service import WorkshopTemplateService
 from api.services.workshop_instance_service import WorkshopInstanceService
 
@@ -117,6 +117,26 @@ async def archive_template(
     if not found:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
     return None
+
+
+# ---------------------------------------------------------------------------
+# Template stats endpoint (admin only)
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{template_id}/stats",
+    response_model=TemplateStats,
+    dependencies=[Depends(require_admin)],
+)
+async def get_template_stats(
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Aggregate launch and utilization statistics for a template (admin only)."""
+    stats = await instance_service.get_template_stats(db, template_id)
+    if not stats:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return stats
 
 
 # ---------------------------------------------------------------------------

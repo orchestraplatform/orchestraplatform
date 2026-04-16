@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from api.core.auth import CurrentUser, get_current_user
 from api.core.database import get_db
 from api.models.schemas.workshop_instance import (
+    InstanceUtilization,
     WorkshopInstanceList,
     WorkshopInstanceResponse,
     WorkshopInstanceStatus,
@@ -76,6 +77,30 @@ async def terminate_instance(
         )
     await instance_service.terminate(db, k8s_name, namespace)
     return None
+
+
+@router.get("/{k8s_name}/utilization", response_model=InstanceUtilization)
+async def get_instance_utilization(
+    k8s_name: str = Path(..., description="Workshop instance k8s name"),
+    namespace: str = Query(default="default"),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Time-in-phase utilization breakdown for a workshop instance."""
+    # Verify ownership first via full record
+    instance = await instance_service.get_instance(db, k8s_name, namespace)
+    if not instance or not _can_access(current_user, instance.owner_email):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Instance {k8s_name} not found",
+        )
+    utilization = await instance_service.get_utilization(db, k8s_name, namespace)
+    if not utilization:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Instance {k8s_name} not found",
+        )
+    return utilization
 
 
 @router.get("/{k8s_name}/status", response_model=WorkshopInstanceStatus)
