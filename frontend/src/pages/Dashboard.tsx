@@ -1,12 +1,16 @@
 import React from 'react';
 import { useInstances } from '../hooks/useInstances';
+import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import { WorkshopCard } from '../components/workshop/WorkshopCard';
+import { NotificationBanner } from '../components/ui/NotificationBanner';
 import { Button } from '../components/ui/Button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Dashboard() {
   const { data: instancesData, isLoading, error, refetch } = useInstances();
+  const instances = instancesData?.items ?? [];
+  useExpiryNotifications(instances);
 
   if (isLoading) {
     return (
@@ -39,8 +43,6 @@ export function Dashboard() {
     );
   }
 
-  const instances = instancesData?.items || [];
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -63,6 +65,8 @@ export function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {instances.length > 0 && <NotificationBanner />}
 
       {instances.length === 0 ? (
         <div className="text-center py-12">

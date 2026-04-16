@@ -2,10 +2,11 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
-import { ExternalLink, Trash2, CalendarClock } from 'lucide-react';
+import { ExternalLink, Trash2, CalendarClock, AlertTriangle } from 'lucide-react';
 import { WorkshopInstanceResponse } from '../../api/generated';
 import { formatAbsoluteTime, getTimeRemaining } from '../../utils';
 import { useTerminateInstance } from '../../hooks/useInstances';
+import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
 
 interface WorkshopCardProps {
   instance: WorkshopInstanceResponse;
@@ -43,9 +44,15 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
   };
 
   const isOpen = instance.phase === 'Ready' || instance.phase === 'Running';
+  const minsLeft = minutesRemaining(instance.expiresAt);
+  const isCritical = minsLeft <= EXPIRY_CRITICAL_MINUTES;
+  const isWarning = !isCritical && minsLeft <= EXPIRY_WARN_MINUTES;
 
   return (
-    <Card className="flex flex-col">
+    <Card className={`flex flex-col transition-colors ${
+      isCritical ? 'border-red-400 bg-red-50' :
+      isWarning  ? 'border-amber-400 bg-amber-50' : ''
+    }`}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{instance.k8sName}</CardTitle>
@@ -68,12 +75,15 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
                 </div>
               )}
               {instance.expiresAt && (
-                <div>
+                <div className="flex items-center gap-1">
                   <span className="font-medium text-foreground">Ends:</span>{' '}
                   {formatAbsoluteTime(instance.expiresAt)}
-                  <span className="ml-1 text-xs">
+                  <span className={`ml-1 text-xs font-medium ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-600' : ''}`}>
                     ({getTimeRemaining(instance.expiresAt)})
                   </span>
+                  {(isCritical || isWarning) && (
+                    <AlertTriangle className={`h-3.5 w-3.5 ${isCritical ? 'text-red-500' : 'text-amber-500'}`} />
+                  )}
                 </div>
               )}
             </div>
