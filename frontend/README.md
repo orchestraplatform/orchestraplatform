@@ -1,10 +1,11 @@
 # Orchestra Frontend
 
-A modern React + TypeScript frontend for the Orchestra Workshop Management System.
+React + TypeScript dashboard for the Orchestra monorepo.
 
 ## Features
 
-- **Workshop Management**: Create, view, and manage RStudio workshops
+- **Template Catalog**: Browse curated workshop templates
+- **Instance Management**: Launch, view, and terminate workshop sessions
 - **Real-time Updates**: Live status monitoring with React Query
 - **Modern UI**: Built with TailwindCSS and shadcn/ui components
 - **Type Safety**: Full TypeScript support
@@ -31,8 +32,12 @@ A modern React + TypeScript frontend for the Orchestra Workshop Management Syste
 Create a `.env.local` file:
 
 ```env
-VITE_API_URL=http://localhost:8000
+VITE_API_URL=http://localhost:8080
 ```
+
+Use `http://localhost:8080` when running the full monorepo from the root via
+`just dev`. If you run the API directly with `cd server && just dev`, use
+`http://localhost:8000` instead.
 
 ### Available Scripts
 
@@ -54,10 +59,9 @@ src/
 │   ├── workshop/       # Workshop-specific components
 │   └── layout/         # Layout components
 ├── pages/              # Page components
-├── services/           # API client and services
 ├── hooks/              # Custom React hooks
-├── types/              # TypeScript type definitions
 ├── utils/              # Utility functions
+├── api/generated/      # OpenAPI-generated client
 └── App.tsx             # Main application component
 ```
 
@@ -89,13 +93,18 @@ The frontend communicates with the Orchestra API backend. Make sure the API is r
 
 ### API Endpoints Used
 
-- `GET /workshops` - List all workshops
-- `GET /workshops/{name}` - Get specific workshop
-- `POST /workshops` - Create new workshop
-- `DELETE /workshops/{name}` - Delete workshop
-- `GET /health` - Health check
-- `GET /ready` - Readiness check
+- `GET /auth/me`
+- `GET /auth/auth-config`
+- `GET /workshops/`
+- `GET /workshops/{template_id}`
+- `POST /workshops/{template_id}/launch`
+- `GET /instances/`
+- `DELETE /instances/{k8s_name}`
+- `GET /health/`
+- `GET /health/ready`
 
 ## Authentication
 
-Authentication support is planned for future releases. The codebase includes placeholders for easy integration.
+Authentication is handled by oauth2-proxy at ingress. In local dev, the API can
+run in a dev-identity bypass mode and the frontend surfaces that state via the
+`/auth/auth-config` endpoint.

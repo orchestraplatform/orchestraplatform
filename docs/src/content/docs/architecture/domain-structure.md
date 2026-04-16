@@ -18,16 +18,16 @@ The Orchestra Platform is organized around a clear, hierarchical domain structur
 #### Application Layer
 - **app.orchestraplatform.org**
   - Main user interface
-  - Workshop dashboard
-  - User management
-  - Workshop creation wizard
+  - Instance dashboard
+  - Template browser
+  - Session launch flow
 
 #### API Layer  
 - **api.orchestraplatform.org**
   - REST API endpoints
-  - Authentication services
-  - Workshop management operations
-  - Status and monitoring endpoints
+  - Authentication helpers
+  - Template catalog operations
+  - Instance lifecycle and status endpoints
 
 #### Documentation
 - **docs.orchestraplatform.org**
@@ -66,13 +66,6 @@ Each workshop instance receives a unique subdomain following a consistent naming
   - Service uptime monitoring
   - Performance metrics
   - Incident reporting
-
-#### Platform Administration
-- **admin.orchestraplatform.org**
-  - Operator dashboard
-  - System configuration
-  - User management
-  - Resource monitoring
 
 #### Development Environment
 - **staging.orchestraplatform.org**
@@ -133,8 +126,8 @@ spec:
 - Regular certificate rotation
 
 ### Access Control
-- Per-subdomain access policies
-- Workshop-specific authentication
+- oauth2-proxy in front of the main app and API
+- Workshop ownership tracked on the CRD and in Postgres
 - Network isolation between workshops
 
 ## Monitoring and Analytics

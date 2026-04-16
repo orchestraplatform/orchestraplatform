@@ -120,33 +120,37 @@ health url=api_url:
 ready url=api_url:
     curl "{{url}}/health/ready" | jq
 
-# List all workshops
-list-workshops url=api_url:
-    curl "{{url}}/api/v1/workshops/" | jq
+# Show auth config used by the frontend
+auth-config url=api_url:
+    curl "{{url}}/auth/auth-config" | jq
 
-# Get specific workshop
-get-workshop name url=api_url:
-    curl "{{url}}/api/v1/workshops/{{name}}" | jq
+# List templates for the current user header
+list-templates url=api_url email="alice@example.com":
+    curl -H "X-Auth-Request-Email: {{email}}" "{{url}}/workshops/" | jq
 
-# Get workshop status
-workshop-status name url=api_url:
-    curl "{{url}}/api/v1/workshops/{{name}}/status" | jq
+# Get a specific template by UUID
+get-template template_id url=api_url email="alice@example.com":
+    curl -H "X-Auth-Request-Email: {{email}}" "{{url}}/workshops/{{template_id}}" | jq
 
-# Create workshop from example file
-create-example url=api_url:
-    curl -X POST "{{url}}/api/v1/workshops/" \
+# Launch an instance from a template
+launch-template template_id url=api_url email="alice@example.com" duration="2h" namespace="default":
+    curl -X POST "{{url}}/workshops/{{template_id}}/launch" \
       -H "Content-Type: application/json" \
-      -d @examples/workshop-api-example.json | jq
+      -H "X-Auth-Request-Email: {{email}}" \
+      -d '{"duration":"{{duration}}","namespace":"{{namespace}}"}' | jq
 
-# Create a simple test workshop
-create-test-workshop name="test-workshop" url=api_url:
-    curl -X POST "{{url}}/api/v1/workshops/" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"{{name}}","duration":"2h","image":"rocker/rstudio:latest","resources":{"cpu":"1","memory":"2Gi"}}' | jq
+# List running instances for the current user
+list-instances url=api_url email="alice@example.com":
+    curl -H "X-Auth-Request-Email: {{email}}" "{{url}}/instances/" | jq
 
-# Delete a workshop
-delete-workshop name url=api_url:
-    curl -X DELETE "{{url}}/api/v1/workshops/{{name}}"
+# Get lightweight instance status
+instance-status k8s_name url=api_url email="alice@example.com":
+    curl -H "X-Auth-Request-Email: {{email}}" "{{url}}/instances/{{k8s_name}}/status" | jq
+
+# Delete a running instance
+delete-instance k8s_name url=api_url email="alice@example.com":
+    curl -X DELETE "{{url}}/instances/{{k8s_name}}" \
+      -H "X-Auth-Request-Email: {{email}}"
 
 # === Documentation ===
 

@@ -60,12 +60,12 @@ Orchestra Platform enables educational institutions, research organizations, and
 
 ## Architecture Overview
 
-Orchestra Platform consists of four main components:
+Orchestra Platform consists of four main components in a single monorepo:
 
-1. **Orchestra Operator** - Kubernetes operator managing workshop lifecycle
-2. **Orchestra API** - REST API for workshop operations
-3. **Orchestra Frontend** - Web application for users
-4. **Orchestra Docs** - Comprehensive documentation (this site)
+1. **Operator** - Kubernetes operator managing workshop lifecycle
+2. **API server** - FastAPI backend for templates, instances, and auth helpers
+3. **Frontend** - Web application for users
+4. **Docs** - Comprehensive documentation (this site)
 
 Each workshop gets its own unique subdomain and runs in complete isolation from other workshops.
 
@@ -75,7 +75,7 @@ Ready to start using Orchestra Platform? Check out our [Installation Guide](/get
 
 ## Community and Support
 
-Orchestra Platform is open source and welcomes contributions from the community. Visit our [GitHub repository](https://github.com/seandavi/orchestra-operator) to:
+Orchestra Platform is open source and welcomes contributions from the community. Visit the monorepo to:
 
 - Report issues or request features
 - Contribute code improvements

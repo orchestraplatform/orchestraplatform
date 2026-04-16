@@ -11,11 +11,11 @@ See [Domain Structure](../domain-structure/) for details on subdomains and works
 
 ### Core Platform Subdomains
 
-| Subdomain | Purpose | Repository |
-|-----------|---------|------------|
-| `app.orchestraplatform.org` | Main application dashboard and frontend where users create and manage workshops | `orchestra-frontend` |
-| `api.orchestraplatform.org` | REST API endpoints for the platform | `orchestra-api` |
-| `docs.orchestraplatform.org` | Documentation site (user guides, API docs, tutorials) | `orchestra-docs` |
+| Subdomain | Purpose | Monorepo Path |
+|-----------|---------|---------------|
+| `app.orchestraplatform.org` | Main application dashboard and frontend where users launch and manage workshop instances | `frontend/` |
+| `api.orchestraplatform.org` | REST API endpoints for templates, instances, and auth helpers | `server/` |
+| `docs.orchestraplatform.org` | Documentation site (user guides, API docs, tutorials) | `docs/` |
 
 ### Workshop Subdomains
 
@@ -60,7 +60,7 @@ All subdomains use HTTPS with automatic certificate management through cert-mana
 
 ## Platform Components
 
-### 1. Orchestra Operator (`orchestra-operator`)
+### 1. Orchestra Operator (`operator/`)
 
 - **Purpose**: Kubernetes operator that manages workshop lifecycle
 - **Technology**: Python, Kopf framework
@@ -69,27 +69,27 @@ All subdomains use HTTPS with automatic certificate management through cert-mana
   - Manages workshop expiration and cleanup
   - Handles Custom Resource Definitions (CRDs)
 
-### 2. Orchestra API (`orchestra-api`)
+### 2. Orchestra API (`server/`)
 
 - **Purpose**: REST API for workshop management
 - **Technology**: Python, FastAPI
 - **Responsibilities**:
-  - Workshop CRUD operations
-  - Integration with Kubernetes operator
+  - Template CRUD and launch operations
+  - Instance history and status sync
   - Authentication and authorization
-  - Workshop status monitoring
+  - Integration with Kubernetes operator
 
-### 3. Orchestra Frontend (`orchestra-frontend`)
+### 3. Orchestra Frontend (`frontend/`)
 
 - **Purpose**: Web application for users to manage workshops
 - **Technology**: React, TypeScript, Vite
 - **Responsibilities**:
-  - Workshop creation and management UI
-  - User dashboard
-  - Workshop status display
+  - Template browsing and launch UI
+  - User dashboard for running instances
+  - Instance status display
   - Integration with API backend
 
-### 4. Orchestra Docs (`orchestra-docs`)
+### 4. Orchestra Docs (`docs/`)
 
 - **Purpose**: Platform documentation
 - **Technology**: Astro, Starlight
@@ -101,14 +101,14 @@ All subdomains use HTTPS with automatic certificate management through cert-mana
 
 ## Workshop Lifecycle
 
-1. **Creation**: User requests workshop through frontend
-2. **API Processing**: Frontend calls API to create workshop
-3. **Operator Handling**: API creates Kubernetes Custom Resource
-4. **Resource Deployment**: Operator creates all necessary Kubernetes resources
-5. **URL Generation**: Unique subdomain is assigned and ingress configured
-6. **Ready State**: Workshop becomes accessible via unique URL
-7. **Expiration**: Workshop automatically expires after configured duration
-8. **Cleanup**: Operator removes all associated resources
+1. **Template selection**: User browses a curated workshop template in the frontend
+2. **Launch request**: Frontend calls the API to launch an instance from that template
+3. **API persistence**: API records the instance in Postgres and creates a `Workshop` CRD
+4. **Operator handling**: Operator reconciles the CRD into Kubernetes resources
+5. **URL generation**: Unique subdomain is assigned and ingress configured
+6. **Ready state**: Workshop becomes accessible via unique URL
+7. **Expiration**: Operator deletes expired workshop CRDs
+8. **Cleanup and sync**: API syncs terminated state and history back into Postgres
 
 ## Security Architecture
 
@@ -143,10 +143,10 @@ All subdomains use HTTPS with automatic certificate management through cert-mana
 
 ### Repository Structure
 ```
-orchestra-operator/     # Kubernetes operator
-orchestra-api/         # REST API backend  
-orchestra-frontend/    # React frontend
-orchestra-docs/        # Documentation site
+operator/    # Kubernetes operator
+server/      # FastAPI backend
+frontend/    # React frontend
+docs/        # Documentation site
 ```
 
 ### Deployment Pipeline

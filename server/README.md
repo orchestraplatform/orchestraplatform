@@ -1,96 +1,111 @@
 # Orchestra API
 
-REST API for managing RStudio workshops via the Orchestra Operator.
+FastAPI backend for the Orchestra monorepo.
+
+The API has two main responsibilities:
+
+- manage the **template catalog** stored in Postgres
+- launch and track **workshop instances** backed by Kubernetes `Workshop` CRDs
 
 ## Quick Start
 
-1. **Install dependencies**:
+1. Install dependencies:
    ```bash
    cd server
    just setup
    ```
 
-2. **Run the API**:
+2. Run the API directly from the `server` directory:
    ```bash
    cd server
    just dev
    ```
 
-3. **View API documentation**:
+3. View API docs:
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
 
-4. **Run the server test suite**:
+4. Run tests:
    ```bash
    cd server
    just test
    ```
 
-`just setup` installs the `dev` dependency group with `uv`, so `pytest` is
-available via `uv run` in all of the test recipes.
+`just setup` installs the `dev` dependency group with `uv`, so the test recipes
+work without any extra manual setup.
 
-## API Endpoints
+## Local Development Notes
 
-### Health Checks
-- `GET /health/` - Basic health check
-- `GET /health/ready` - Readiness probe
-- `GET /health/live` - Liveness probe
+- Running the API through the monorepo root `just dev` command uses port `8080`.
+- Running `cd server && just dev` uses port `8000`.
+- The frontend `VITE_API_URL` should match whichever mode you are using.
 
-### Workshops
-- `POST /api/v1/workshops/` - Create a new workshop
-- `GET /api/v1/workshops/` - List all workshops
-- `GET /api/v1/workshops/{name}` - Get workshop details
-- `DELETE /api/v1/workshops/{name}` - Delete a workshop
-- `GET /api/v1/workshops/{name}/status` - Get workshop status
+## API Shape
+
+### Health
+
+- `GET /health/`
+- `GET /health/ready`
+- `GET /health/live`
+
+### Authentication
+
+- `GET /auth/me`
+- `GET /auth/auth-config`
+
+### Templates
+
+- `GET /workshops/` - list workshop templates
+- `POST /workshops/` - create template (admin)
+- `GET /workshops/{template_id}` - get template
+- `PUT /workshops/{template_id}` - update template (admin)
+- `DELETE /workshops/{template_id}` - archive template (admin)
+- `GET /workshops/{template_id}/stats` - aggregate template stats (admin)
+- `POST /workshops/{template_id}/launch` - launch an instance from a template
+
+### Instances
+
+- `GET /instances/` - list running instances for the current user
+- `GET /instances/{k8s_name}` - get instance details
+- `GET /instances/{k8s_name}/status` - get lightweight status
+- `GET /instances/{k8s_name}/utilization` - get time-in-phase utilization
+- `DELETE /instances/{k8s_name}` - terminate an instance
 
 ## Example Usage
 
-### Create a Workshop
+### List templates
+
 ```bash
-curl -X POST "http://localhost:8000/api/v1/workshops/" \
+curl -H "X-Auth-Request-Email: alice@example.com" \
+  "http://localhost:8000/workshops/"
+```
+
+### Launch an instance from a template
+
+```bash
+curl -X POST \
   -H "Content-Type: application/json" \
-  -d '{
-    "name": "my-workshop",
-    "duration": "4h",
-    "image": "rocker/rstudio:latest",
-    "resources": {
-      "cpu": "1",
-      "memory": "2Gi",
-      "cpuRequest": "500m",
-      "memoryRequest": "1Gi"
-    },
-    "storage": {
-      "size": "10Gi"
-    },
-    "ingress": {
-      "host": "workshop.example.com"
-    }
-  }'
+  -H "X-Auth-Request-Email: alice@example.com" \
+  -d '{"duration":"2h","namespace":"default"}' \
+  "http://localhost:8000/workshops/<template-uuid>/launch"
 ```
 
-### List Workshops
+### List instances
+
 ```bash
-curl "http://localhost:8000/api/v1/workshops/"
+curl -H "X-Auth-Request-Email: alice@example.com" \
+  "http://localhost:8000/instances/"
 ```
-
-### Get Workshop Status
-```bash
-curl "http://localhost:8000/api/v1/workshops/my-workshop/status"
-```
-
-## Development
-
-The API interacts with the Orchestra Operator through Kubernetes Custom Resource Definitions (CRDs). It creates, monitors, and manages Workshop resources that the operator then reconciles into actual RStudio instances.
 
 ## Architecture
 
-```
-Client → API → Workshop CRD → Orchestra Operator → RStudio Pod
+```text
+Frontend → API → Postgres
+              ↓
+           Workshop CRD → Operator → Deployment / Service / Ingress / PVC
 ```
 
-The API layer provides:
-- User-friendly REST interface
-- Input validation
-- Error handling
-- Status monitoring
-- Multi-workshop management
+The API is intentionally split between:
+
+- **templates** in Postgres for curated reusable configuration
+- **instances** in Postgres plus Kubernetes for live runtime state and history

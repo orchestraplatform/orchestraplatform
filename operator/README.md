@@ -46,10 +46,9 @@ User Request → Workshop CRD → Operator → Pod/Service/Ingress → Ready for
 
 ### Installation
 
-1. **Clone the repository**
+1. **Open the monorepo**
    ```bash
-   git clone https://github.com/seandavi/orchestra-operator.git
-   cd orchestra-operator
+   cd operator
    ```
 
 2. **Set up development environment**
@@ -134,7 +133,7 @@ kubectl port-forward service/data-science-101-service 8787:80
 ### Project Structure
 
 ```
-orchestra-operator/
+operator/
 ├── config/
 │   ├── crd/                    # Custom Resource Definitions
 │   ├── rbac/                   # Role-based access control
@@ -142,7 +141,7 @@ orchestra-operator/
 ├── src/
 │   ├── main.py                 # Operator entry point
 │   ├── handlers/               # Event handlers
-│   │   ├── workshop.py         # Workshop CRUD operations
+│   │   ├── workshop.py         # Workshop reconciliation and deletion
 │   │   └── cleanup.py          # Expiration and cleanup
 │   ├── resources/              # K8s resource creation
 │   │   ├── deployment.py       # RStudio deployments
@@ -252,18 +251,11 @@ settings.batching.worker_limit = 20
 # Run all tests
 just test
 
-# Run specific test file
-pytest tests/unit/test_time_utils.py -v
+# Run with uv directly
+uv run pytest tests/ -v
 
 # Run with coverage
-pytest tests/ --cov=src --cov-report=html
-```
-
-### Integration Tests
-
-```bash
-# Run end-to-end tests (requires cluster)
-pytest tests/e2e/ -v
+uv run pytest tests/ --cov=src --cov-report=html
 ```
 
 ### Manual Testing
@@ -300,10 +292,6 @@ pytest tests/e2e/ -v
    kubectl apply -f config/deploy/
    ```
 
-### Helm Chart (Coming Soon)
-
-A Helm chart for easy deployment is planned for future releases.
-
 ## 🤝 Contributing
 
 We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
@@ -337,20 +325,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- 📫 **Issues**: [GitHub Issues](https://github.com/seandavi/orchestra-operator/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/seandavi/orchestra-operator/discussions)
-- 📖 **Documentation**: [Wiki](https://github.com/seandavi/orchestra-operator/wiki)
-
-## 🗺️ Roadmap
-
-- [ ] Authentication integration (LDAP, OAuth)
-- [ ] Multi-user workshop support
-- [ ] Workshop templates and presets
-- [ ] Metrics and monitoring integration
-- [ ] Backup and restore functionality
-- [ ] Advanced networking options
-- [ ] Helm chart for easy deployment
-
----
-
-**Made with ❤️ by the Orchestra Team**
+- Use the main monorepo issue tracker and docs for follow-up work.
