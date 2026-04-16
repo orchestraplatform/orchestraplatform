@@ -8,7 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     """Application settings."""
 
-    model_config = SettingsConfigDict(env_prefix="ORCHESTRA_", case_sensitive=False)
+    model_config = SettingsConfigDict(
+        env_prefix="ORCHESTRA_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # API settings
     app_name: str = "Orchestra API"

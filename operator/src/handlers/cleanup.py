@@ -1,68 +1,65 @@
 """Cleanup handlers for expired workshops."""
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 import kopf
-from datetime import datetime, timezone
+import kubernetes.client as k8s_client
+from kubernetes.client.rest import ApiException
 
 logger = logging.getLogger(__name__)
 
 
 def register_cleanup_handlers() -> None:
     """Register cleanup-related Kopf handlers."""
-    # Handlers are registered via decorators below
     pass
 
 
-# check every 5 minutes for expired workshops
-@kopf.timer("orchestra.io", "v1", "workshops", interval=300)  # type: ignore
+@kopf.timer("orchestra.io", "v1", "workshops", interval=30, idle=10)  # type: ignore
 async def workshop_expiration_timer(
     spec: dict, status: dict, namespace: str, name: str, **kwargs: Any
 ) -> None:
-    """
-    Periodic timer to check for expired workshops and clean them up.
+    """Periodic timer to delete workshops that have passed their expiresAt time.
 
-    This runs every 5 minutes to check if workshops have expired
-    based on their expiresAt timestamp.
+    Runs every 30 seconds. Deleting the CRD triggers workshop_delete_handler
+    which cleans up the deployment, service, ingress, and PVC.
     """
-    logger.info(f"Checking expiration for workshop {name} in namespace {namespace}")
-
-    # Get expiration time from status
-    expires_at = status.get("expiresAt")
-    if not expires_at:
-        logger.warning(f"Workshop {name} has no expiration time set")
-        return
+    expires_at_str = status.get("expiresAt")
+    if not expires_at_str:
+        return  # No expiry set — not an error, just skip
 
     try:
-        expiration_time = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-        current_time = datetime.now(timezone.utc)
-
-        if current_time >= expiration_time:
-            logger.info(f"Workshop {name} has expired, scheduling for deletion")
-
-            # Mark workshop for deletion by updating its phase
-            # The actual deletion will be handled by the delete handler
-            # For now, we'll just log the expiration
-            # In a real implementation, you'd trigger deletion here
-
-            logger.info(f"Workshop {name} marked for expiration cleanup")
-
+        expiration_time = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
     except ValueError as e:
-        logger.error(f"Failed to parse expiration time for workshop {name}: {e}")
+        logger.error("Failed to parse expiresAt for workshop %s: %s", name, e)
+        return
+
+    if datetime.now(timezone.utc) < expiration_time:
+        return  # Not expired yet
+
+    logger.info("Workshop %s has expired — deleting CRD", name)
+    try:
+        custom_api = k8s_client.CustomObjectsApi()
+        custom_api.delete_namespaced_custom_object(
+            group="orchestra.io",
+            version="v1",
+            namespace=namespace,
+            plural="workshops",
+            name=name,
+        )
+        logger.info("Workshop %s CRD deleted", name)
+    except ApiException as e:
+        if e.status == 404:
+            logger.info("Workshop %s already gone", name)
+        else:
+            logger.error("Failed to delete expired workshop %s: %s", name, e)
 
 
 @kopf.on.field("orchestra.io", "v1", "workshops", field="status.phase")  # type: ignore
 async def workshop_phase_change(
     old: str, new: str, namespace: str, name: str, **kwargs: Any
 ) -> None:
-    """
-    Handle changes to workshop phase for logging and monitoring.
-
-    This provides visibility into workshop lifecycle transitions.
-    """
+    """Log phase transitions for visibility."""
     if old != new:
-        logger.info(f"Workshop {name} phase changed: {old} -> {new}")
-
-        # You could add metrics collection here
-        # or send notifications about state changes
+        logger.info("Workshop %s phase changed: %s -> %s", name, old, new)

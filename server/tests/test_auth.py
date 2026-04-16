@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch
 
 from api.core.auth import CurrentUser, get_current_user
 from api.core.config import Settings
@@ -151,3 +150,26 @@ class TestAuthEndpoints:
         data = response.json()
         assert data["login_url"] == "/oauth2/start"
         assert data["logout_url"] == "/oauth2/sign_out"
+        assert data["dev_mode"] is False
+
+    def test_auth_config_reports_dev_mode(self, raw_client):
+        """GET /auth/auth-config exposes whether dev identity auth bypass is active."""
+        from main import app
+        from api.core.config import get_settings
+
+        app.dependency_overrides[get_settings] = lambda: Settings(
+            require_authentication=False,
+            trusted_auth_header="X-Auth-Request-Email",
+            admin_emails=["dev@example.com"],
+            dev_identity="dev@example.com",
+        )
+        try:
+            response = raw_client.get("/auth/auth-config")
+        finally:
+            app.dependency_overrides.pop(get_settings, None)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["login_url"] == "/oauth2/start"
+        assert data["logout_url"] == "/oauth2/sign_out"
+        assert data["dev_mode"] is True

@@ -117,7 +117,7 @@ class WorkshopInstanceService:
                 if template.storage
                 else None
             ),
-            ingress=WorkshopIngress() if template.ingress else None,
+            ingress=WorkshopIngress(),
         )
 
         # Create k8s CRD first; roll back DB record on failure
@@ -174,6 +174,16 @@ class WorkshopInstanceService:
         offset = (page - 1) * size
         result = await db.execute(query.offset(offset).limit(size))
         rows = result.scalars().all()
+
+        # Sync from k8s for instances that haven't settled yet, or have expired.
+        now = datetime.now(timezone.utc)
+        _TRANSITIONAL = {"Pending", "Creating"}
+        for row in rows:
+            if row.phase in _TRANSITIONAL or (
+                row.expires_at and row.expires_at <= now
+            ):
+                await self._sync_from_k8s(db, row)
+
         items = [_to_response(r, workshop_name=r.workshop.name) for r in rows]
         return items, total
 
@@ -317,6 +327,12 @@ class WorkshopInstanceService:
             return  # k8s unreachable; leave DB state as-is
 
         if k8s_workshop is None:
+            # CRD is gone — mark as terminated if not already
+            if row.terminated_at is None:
+                row.terminated_at = datetime.now(timezone.utc)
+                row.phase = "Terminated"
+                db.add(InstanceEvent(instance_id=row.id, phase="Terminated"))
+                await db.commit()
             return
 
         changed = False

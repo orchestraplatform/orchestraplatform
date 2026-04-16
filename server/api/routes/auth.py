@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter, Depends
 
 from api.core.auth import CurrentUser, get_current_user
+from api.core.config import Settings, get_settings
 
 router = APIRouter()
 
@@ -19,13 +20,11 @@ async def get_current_user_info(current_user: CurrentUser = Depends(get_current_
 
 
 @router.get("/auth-config", response_model=dict[str, Any])
-async def get_auth_config():
-    """Return auth endpoint URLs for the frontend.
-
-    The frontend uses these to redirect unauthenticated users to the oauth2-proxy
-    login page and to provide a logout link.
-    """
+async def get_auth_config(settings: Settings = Depends(get_settings)):
+    """Return auth endpoint URLs and mode flags for the frontend."""
+    dev_mode = not settings.require_authentication and bool(settings.dev_identity)
     return {
         "login_url": "/oauth2/start",
         "logout_url": "/oauth2/sign_out",
+        "dev_mode": dev_mode,
     }

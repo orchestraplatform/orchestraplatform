@@ -6,7 +6,11 @@ import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Templates } from './pages/Templates';
 import { LaunchWorkshop } from './pages/LaunchWorkshop';
+import { OpenAPI } from './api/generated';
 import './index.css';
+
+OpenAPI.BASE = import.meta.env.VITE_API_URL ?? '';
+OpenAPI.WITH_CREDENTIALS = true;
 
 const queryClient = new QueryClient({
   defaultOptions: {
