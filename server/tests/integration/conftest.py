@@ -16,13 +16,14 @@ To set up locally:
 """
 
 import os
+
 import pytest
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers",
-        "integration: integration tests requiring a live kind cluster (skipped by default)"
+        "integration: integration tests requiring a live kind cluster (skipped by default)",
     )
 
 

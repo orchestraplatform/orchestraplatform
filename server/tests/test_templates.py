@@ -2,10 +2,8 @@
 
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import ANY, AsyncMock, MagicMock
-
-import pytest
 
 from api.models.schemas.workshop_template import (
     WorkshopResourceDefaults,
@@ -16,7 +14,7 @@ from api.services.workshop_template_service import get_template_service
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 TEMPLATE_ID = uuid.uuid4()
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 MOCK_TEMPLATE = WorkshopTemplateResponse(
     id=TEMPLATE_ID,
@@ -63,6 +61,7 @@ def _override_template_svc(**overrides):
 
 # ── List ──────────────────────────────────────────────────────────────────────
 
+
 def test_list_templates_returns_200(client):
     with _override_template_svc():
         response = client.get("/templates/")
@@ -81,9 +80,10 @@ def test_list_templates_empty(client):
 
 def test_list_without_auth_returns_401(client):
     """Unauthenticated requests are rejected before reaching the service."""
-    from main import app
-    from api.core.auth import get_current_user
     from fastapi import HTTPException
+
+    from api.core.auth import get_current_user
+    from main import app
 
     app.dependency_overrides[get_current_user] = lambda: (_ for _ in ()).throw(
         HTTPException(status_code=401)
@@ -96,6 +96,7 @@ def test_list_without_auth_returns_401(client):
 
 
 # ── Create (admin only) ───────────────────────────────────────────────────────
+
 
 def test_create_template_as_admin_returns_201(admin_client):
     payload = {
@@ -119,7 +120,9 @@ def test_create_template_as_non_admin_returns_403(client):
 
 
 def test_create_template_duplicate_slug_returns_409(admin_client):
-    with _override_template_svc(get_template_by_slug=AsyncMock(return_value=MOCK_TEMPLATE)):
+    with _override_template_svc(
+        get_template_by_slug=AsyncMock(return_value=MOCK_TEMPLATE)
+    ):
         response = admin_client.post(
             "/templates/",
             json={"name": "Dupe", "slug": "rstudio", "image": "img:latest"},
@@ -128,6 +131,7 @@ def test_create_template_duplicate_slug_returns_409(admin_client):
 
 
 # ── Slug validation ───────────────────────────────────────────────────────────
+
 
 class TestTemplateSlugValidation:
     def test_uppercase_slug_rejected(self, admin_client):
@@ -166,6 +170,7 @@ class TestTemplateSlugValidation:
 
 # ── Get ───────────────────────────────────────────────────────────────────────
 
+
 def test_get_template_returns_200(client):
     with _override_template_svc():
         response = client.get(f"/templates/{TEMPLATE_ID}")
@@ -181,9 +186,12 @@ def test_get_template_not_found_returns_404(client):
 
 # ── Update (admin only) ───────────────────────────────────────────────────────
 
+
 def test_update_template_as_admin_returns_200(admin_client):
     with _override_template_svc():
-        response = admin_client.put(f"/templates/{TEMPLATE_ID}", json={"name": "Renamed"})
+        response = admin_client.put(
+            f"/templates/{TEMPLATE_ID}", json={"name": "Renamed"}
+        )
     assert response.status_code == 200
 
 
@@ -194,6 +202,7 @@ def test_update_template_as_non_admin_returns_403(client):
 
 
 # ── Delete (admin only) ───────────────────────────────────────────────────────
+
 
 def test_archive_template_soft_by_default(admin_client):
     with _override_template_svc(archive_template=AsyncMock(return_value=True)):
@@ -222,6 +231,7 @@ def test_archive_template_not_found_returns_404(admin_client):
 
 # ── Pagination ────────────────────────────────────────────────────────────────
 
+
 class TestPagination:
     def _make_templates(self, n: int) -> list[WorkshopTemplateResponse]:
         return [
@@ -249,9 +259,7 @@ class TestPagination:
     def test_pagination_params_forwarded(self, client):
         templates = self._make_templates(10)
         page3 = templates[6:9]
-        with _override_template_svc(
-            list_templates=AsyncMock(return_value=(page3, 10))
-        ):
+        with _override_template_svc(list_templates=AsyncMock(return_value=(page3, 10))):
             response = client.get("/templates/?page=3&size=3")
         assert response.status_code == 200
         data = response.json()

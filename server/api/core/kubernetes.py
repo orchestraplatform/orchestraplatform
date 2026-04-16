@@ -32,10 +32,11 @@ def get_k8s_client():
         # Fall back to local kubeconfig
         try:
             kubernetes.config.load_kube_config(
-                config_file=settings.kubeconfig_path,
-                context=settings.kube_context
+                config_file=settings.kubeconfig_path, context=settings.kube_context
             )
-            logger.info(f"Loaded local Kubernetes configuration (context: {settings.kube_context or 'default'})")
+            logger.info(
+                f"Loaded local Kubernetes configuration (context: {settings.kube_context or 'default'})"
+            )
         except Exception as e:
             logger.error(f"Failed to load local Kubernetes configuration: {e}")
             raise

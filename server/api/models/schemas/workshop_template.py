@@ -16,7 +16,9 @@ class WorkshopResourceDefaults(BaseModel):
 
     cpu: str = Field(default="1", description="CPU limit")
     memory: str = Field(default="2Gi", description="Memory limit")
-    cpu_request: str = Field(default="500m", alias="cpuRequest", description="CPU request")
+    cpu_request: str = Field(
+        default="500m", alias="cpuRequest", description="CPU request"
+    )
     memory_request: str = Field(
         default="1Gi", alias="memoryRequest", description="Memory request"
     )
@@ -48,7 +50,9 @@ class WorkshopTemplateCreate(BaseModel):
     default_duration: str = Field(
         default="4h", alias="defaultDuration", description="Default session duration"
     )
-    resources: WorkshopResourceDefaults = Field(default_factory=WorkshopResourceDefaults)
+    resources: WorkshopResourceDefaults = Field(
+        default_factory=WorkshopResourceDefaults
+    )
     storage: WorkshopStorageDefaults | None = Field(default=None)
 
     model_config = ConfigDict(populate_by_name=True)

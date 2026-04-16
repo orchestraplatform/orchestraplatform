@@ -2,7 +2,7 @@
 
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -10,16 +10,20 @@ from fastapi.testclient import TestClient
 
 from api.core.auth import CurrentUser, get_current_user
 from api.core.database import get_db
-from api.models.schemas.workshop_instance import WorkshopInstanceResponse, WorkshopInstanceStatus
+from api.models.schemas.workshop_instance import (
+    WorkshopInstanceResponse,
+    WorkshopInstanceStatus,
+)
 from api.services.workshop_instance_service import get_instance_service
-from tests.conftest import TEST_ADMIN
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-NOW = datetime.now(timezone.utc)
+NOW = datetime.now(UTC)
 
 
-def _make_instance(owner: str, k8s_name: str = "test-ws-abc123") -> WorkshopInstanceResponse:
+def _make_instance(
+    owner: str, k8s_name: str = "test-ws-abc123"
+) -> WorkshopInstanceResponse:
     return WorkshopInstanceResponse(
         id=uuid.uuid4(),
         workshopId=uuid.uuid4(),
@@ -83,6 +87,7 @@ def bob_client(_mock_k8s_startup):
 
 # ── Ownership isolation ───────────────────────────────────────────────────────
 
+
 class TestOwnershipIsolation:
     def test_get_own_instance_succeeds(self, client):
         instance = _make_instance("alice@test.example.com")
@@ -94,7 +99,9 @@ class TestOwnershipIsolation:
     def test_get_other_users_instance_returns_404(self, bob_client):
         """Bob cannot see alice's instance — 404, no existence leak."""
         alice_instance = _make_instance("alice@test.example.com")
-        with _override_instance_svc(get_instance=AsyncMock(return_value=alice_instance)):
+        with _override_instance_svc(
+            get_instance=AsyncMock(return_value=alice_instance)
+        ):
             response = bob_client.get("/instances/test-ws-abc123")
         assert response.status_code == 404
 
@@ -147,6 +154,7 @@ class TestOwnershipIsolation:
 
 # ── Admin bypass ──────────────────────────────────────────────────────────────
 
+
 class TestAdminBypass:
     def test_admin_can_get_any_instance(self, admin_client):
         """Admin can GET an instance owned by any user."""
@@ -177,12 +185,14 @@ class TestAdminBypass:
 
 # ── Unauthenticated requests ──────────────────────────────────────────────────
 
+
 class TestUnauthenticatedRequests:
     @pytest.fixture
     def anon_client(self, _mock_k8s_startup):
-        from main import app
+        from unittest.mock import AsyncMock, MagicMock
+
         from api.core.database import get_db
-        from unittest.mock import MagicMock, AsyncMock
+        from main import app
 
         mock_db = MagicMock()
         mock_db.__aenter__ = AsyncMock(return_value=mock_db)

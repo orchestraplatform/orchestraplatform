@@ -13,10 +13,10 @@ from alembic import context
 # alembic is run from the server/ directory.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from api.core.config import get_settings  # noqa: E402
-from api.core.database import Base  # noqa: E402
 # Import all models so Alembic autogenerate can see their metadata.
 import api.models.db  # noqa: E402, F401
+from api.core.config import get_settings  # noqa: E402
+from api.core.database import Base  # noqa: E402
 
 config = context.config
 

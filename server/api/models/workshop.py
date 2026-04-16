@@ -1,7 +1,7 @@
 """Pydantic models for workshop API."""
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -40,7 +40,9 @@ class WorkshopStorage(BaseModel):
 
     size: str = Field(default="10Gi", description="Storage size")
     storage_class: str | None = Field(
-        default=None, description="Storage class name. Leave unset to use the cluster default.", alias="storageClass"
+        default=None,
+        description="Storage class name. Leave unset to use the cluster default.",
+        alias="storageClass",
     )
 
     @field_validator("storage_class", mode="before")
@@ -55,7 +57,8 @@ class WorkshopIngress(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     host: str | None = Field(
-        default=None, description="Custom ingress hostname. Leave unset to use the environment default."
+        default=None,
+        description="Custom ingress hostname. Leave unset to use the environment default.",
     )
     annotations: dict[str, str] = Field(
         default_factory=dict, description="Ingress annotations"
@@ -111,7 +114,9 @@ class WorkshopCondition(BaseModel):
     status: str
     reason: str | None = None
     message: str | None = None
-    last_transition_time: datetime | None = Field(default=None, alias="lastTransitionTime")
+    last_transition_time: datetime | None = Field(
+        default=None, alias="lastTransitionTime"
+    )
 
 
 class WorkshopStatus(BaseModel):
@@ -131,7 +136,9 @@ class WorkshopResponse(BaseModel):
 
     name: str
     namespace: str
-    owner: EmailStr | None = None  # None for legacy CRs created before ownership was added
+    owner: EmailStr | None = (
+        None  # None for legacy CRs created before ownership was added
+    )
     spec: WorkshopCreate
     status: WorkshopStatus | None = None
     created_at: datetime | None = None
@@ -152,4 +159,4 @@ class ErrorResponse(BaseModel):
 
     detail: str
     error_code: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

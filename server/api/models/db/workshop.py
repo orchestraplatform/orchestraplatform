@@ -1,7 +1,7 @@
 """ORM model for Workshop templates."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -24,7 +24,9 @@ class Workshop(Base):
     image: Mapped[str] = mapped_column(
         String(500), nullable=False, default="rocker/rstudio:latest"
     )
-    default_duration: Mapped[str] = mapped_column(String(20), nullable=False, default="4h")
+    default_duration: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="4h"
+    )
     resources: Mapped[dict] = mapped_column(JSONB, nullable=False)
     storage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     ingress: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -33,13 +35,13 @@ class Workshop(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     instances: Mapped[list["WorkshopInstance"]] = relationship(  # noqa: F821

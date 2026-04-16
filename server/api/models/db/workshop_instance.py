@@ -1,7 +1,7 @@
 """ORM models for WorkshopInstance and InstanceEvent."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,7 +22,9 @@ class WorkshopInstance(Base):
         UUID(as_uuid=True), ForeignKey("workshops.id"), nullable=False
     )
     k8s_name: Mapped[str] = mapped_column(String(253), nullable=False)
-    namespace: Mapped[str] = mapped_column(String(63), nullable=False, default="default")
+    namespace: Mapped[str] = mapped_column(
+        String(63), nullable=False, default="default"
+    )
     owner_email: Mapped[str] = mapped_column(String(255), nullable=False)
     phase: Mapped[str] = mapped_column(String(50), nullable=False, default="Pending")
     url: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -30,7 +32,7 @@ class WorkshopInstance(Base):
     launched_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -41,13 +43,13 @@ class WorkshopInstance(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
     )
 
     workshop: Mapped["Workshop"] = relationship(  # noqa: F821
@@ -73,7 +75,7 @@ class InstanceEvent(Base):
     recorded_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc),
+        default=lambda: datetime.now(UTC),
     )
 
     instance: Mapped["WorkshopInstance"] = relationship(

@@ -1,7 +1,7 @@
 """Tests for WorkshopInstanceService lifecycle sync behavior."""
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -11,7 +11,7 @@ from api.services.workshop_instance_service import WorkshopInstanceService
 
 
 def _instance(**overrides) -> WorkshopInstance:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     row = WorkshopInstance(
         id=uuid.uuid4(),
         workshop_id=uuid.uuid4(),
@@ -64,7 +64,7 @@ async def test_sync_from_k8s_does_not_reterminate_existing_row():
     db.add = MagicMock()
     db.commit = AsyncMock()
 
-    terminated_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    terminated_at = datetime.now(UTC) - timedelta(minutes=1)
     row = _instance(phase="Terminated", terminated_at=terminated_at)
 
     with patch(

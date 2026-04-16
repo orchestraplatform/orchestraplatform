@@ -86,5 +86,7 @@ def admin_client(_mock_k8s_startup):
 def mock_k8s_client():
     """Mock the Kubernetes CustomObjects API used by WorkshopService."""
     mock_api = Mock()
-    with patch("api.services.workshop_service.get_custom_objects_api", return_value=mock_api):
+    with patch(
+        "api.services.workshop_service.get_custom_objects_api", return_value=mock_api
+    ):
         yield mock_api

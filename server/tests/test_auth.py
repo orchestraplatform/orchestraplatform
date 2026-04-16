@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from api.core.auth import CurrentUser, get_current_user
+from api.core.auth import get_current_user
 from api.core.config import Settings
 
 
@@ -43,14 +43,16 @@ def auth_settings_dev():
 
 # ── get_current_user dependency unit tests ───────────────────────────────────
 
+
 class TestGetCurrentUser:
     """Unit-test the get_current_user FastAPI dependency directly."""
 
     @pytest.mark.asyncio
     async def test_valid_header_returns_user(self, auth_settings_require):
         """Valid X-Auth-Request-Email header produces a CurrentUser."""
-        from fastapi import Request
         from unittest.mock import MagicMock
+
+        from fastapi import Request
 
         mock_request = MagicMock(spec=Request)
         mock_request.headers = {"X-Auth-Request-Email": "alice@example.com"}
@@ -63,8 +65,9 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_admin_email_sets_is_admin(self, auth_settings_require):
         """An email in admin_emails gets is_admin=True."""
-        from fastapi import Request
         from unittest.mock import MagicMock
+
+        from fastapi import Request
 
         mock_request = MagicMock(spec=Request)
         mock_request.headers = {"X-Auth-Request-Email": "admin@example.com"}
@@ -76,8 +79,9 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_missing_header_raises_401(self, auth_settings_require):
         """Missing header raises HTTP 401 when require_authentication=True."""
-        from fastapi import HTTPException, Request
         from unittest.mock import MagicMock
+
+        from fastapi import HTTPException, Request
 
         mock_request = MagicMock(spec=Request)
         mock_request.headers = {}
@@ -90,8 +94,9 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_dev_identity_bypasses_header(self, auth_settings_dev):
         """dev_identity is used when require_authentication=False, no header needed."""
-        from fastapi import Request
         from unittest.mock import MagicMock
+
+        from fastapi import Request
 
         mock_request = MagicMock(spec=Request)
         mock_request.headers = {}  # No auth header
@@ -103,8 +108,9 @@ class TestGetCurrentUser:
     @pytest.mark.asyncio
     async def test_dev_identity_not_used_without_flag(self, auth_settings_require):
         """dev_identity is ignored when require_authentication=True."""
-        from fastapi import HTTPException, Request
         from unittest.mock import MagicMock
+
+        from fastapi import HTTPException, Request
 
         settings = Settings(
             require_authentication=True,
@@ -121,6 +127,7 @@ class TestGetCurrentUser:
 
 
 # ── Integration: header-based auth through the real endpoint ─────────────────
+
 
 class TestAuthEndpoints:
     def test_me_returns_identity(self, raw_client):
@@ -154,8 +161,8 @@ class TestAuthEndpoints:
 
     def test_auth_config_reports_dev_mode(self, raw_client):
         """GET /auth/auth-config exposes whether dev identity auth bypass is active."""
-        from main import app
         from api.core.config import get_settings
+        from main import app
 
         app.dependency_overrides[get_settings] = lambda: Settings(
             require_authentication=False,
