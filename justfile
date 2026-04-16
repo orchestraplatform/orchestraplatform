@@ -69,7 +69,8 @@ dev-server:
     cd server && ORCHESTRA_ENVIRONMENT=local \
     ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
-    ORCHESTRA_DEV_IDENTITY=dev@example.com \
+    ORCHESTRA_DEV_IDENTITY=admin@orchestra.local \
+    ORCHESTRA_ADMIN_EMAILS='["admin@orchestra.local"]' \
     uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port {{ api_port }}
 
 # Run the frontend development server

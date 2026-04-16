@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTemplates, useToggleTemplateActive, useDeleteTemplate } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { RefreshCw, Plus, Trash2, Archive, ArchiveRestore, BarChart3, Edit } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { TemplateModal } from '../components/workshop/TemplateModal';
+import type { WorkshopTemplateResponse } from '../api/generated';
 
 export function AdminTemplates() {
-  const { data, isLoading, error, refetch } = useTemplates(1, 100, true);
+  const { data, isLoading, refetch } = useTemplates(1, 100, true);
   const toggleActive = useToggleTemplateActive();
   const deleteTemplate = useDeleteTemplate();
+  
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<WorkshopTemplateResponse | null>(null);
 
   if (isLoading) {
     return (
@@ -30,6 +34,16 @@ export function AdminTemplates() {
     } catch (err) {
       console.error('Failed to toggle template status:', err);
     }
+  };
+
+  const handleEdit = (template: WorkshopTemplateResponse) => {
+    setEditingTemplate(template);
+    setModalOpen(true);
+  };
+
+  const handleCreate = () => {
+    setEditingTemplate(null);
+    setModalOpen(true);
   };
 
   const handleDelete = async (id: string, hard = false) => {
@@ -60,12 +74,18 @@ export function AdminTemplates() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={handleCreate}>
             <Plus className="h-4 w-4 mr-2" />
             Create Template
           </Button>
         </div>
       </div>
+
+      <TemplateModal 
+        isOpen={modalOpen} 
+        onClose={() => setModalOpen(false)} 
+        template={editingTemplate} 
+      />
 
       <Card>
         <CardHeader className="pb-3">
@@ -92,7 +112,7 @@ export function AdminTemplates() {
                   </tr>
                 ) : (
                   templates.map((t) => (
-                    <tr key={t.id} className="hover:bg-muted/30">
+                    <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 font-medium">{t.name}</td>
                       <td className="px-4 py-3 font-mono text-xs">{t.slug}</td>
                       <td className="px-4 py-3 font-mono text-xs max-w-[200px] truncate">
@@ -109,7 +129,7 @@ export function AdminTemplates() {
                         <Button variant="ghost" size="icon" title="Stats">
                           <BarChart3 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Edit">
+                        <Button variant="ghost" size="icon" title="Edit" onClick={() => handleEdit(t)}>
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button 
@@ -118,7 +138,7 @@ export function AdminTemplates() {
                           title={t.isActive ? "Archive" : "Unarchive"}
                           onClick={() => handleToggle(t.id)}
                         >
-                          {t.isActive ? <Archive className="h-4 w-4" /> : <ArchiveRestore className="h-4 w-4" />}
+                          {t.isActive ? <Archive className="h-4 w-4 text-amber-600" /> : <ArchiveRestore className="h-4 w-4 text-blue-600" />}
                         </Button>
                         <Button 
                           variant="ghost" 

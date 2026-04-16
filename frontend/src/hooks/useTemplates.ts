@@ -31,6 +31,28 @@ export function useLaunchTemplate(templateId: string) {
   });
 }
 
+export function useCreateTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: WorkshopTemplateCreate) =>
+      TemplatesService.createTemplateTemplatesPost(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
+    },
+  });
+}
+
+export function useUpdateTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: WorkshopTemplateUpdate }) =>
+      TemplatesService.updateTemplateTemplatesTemplateIdPut(id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
+    },
+  });
+}
+
 export function useToggleTemplateActive() {
   const queryClient = useQueryClient();
   return useMutation({
