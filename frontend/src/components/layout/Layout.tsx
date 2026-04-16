@@ -1,12 +1,50 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
 import { useAuthConfig } from '../../hooks/useAuthConfig';
 import { useCurrentUser } from '../../hooks/useCurrentUser';
+import {
+  LayoutDashboard,
+  Rocket,
+  History,
+  Settings2,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
+}
+
+interface NavItemProps {
+  to: string;
+  icon: React.ReactNode;
+  label: string;
+  collapsed: boolean;
+  end?: boolean;
+}
+
+function NavItem({ to, icon, label, collapsed, end }: NavItemProps) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      title={collapsed ? label : undefined}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors
+         ${isActive
+           ? 'bg-primary/10 text-primary'
+           : 'text-foreground/60 hover:bg-muted hover:text-foreground'
+         }
+         ${collapsed ? 'justify-center px-2' : ''}`
+      }
+    >
+      <span className="shrink-0">{icon}</span>
+      {!collapsed && <span>{label}</span>}
+    </NavLink>
+  );
 }
 
 export function Layout({ children }: LayoutProps) {
@@ -16,83 +54,98 @@ export function Layout({ children }: LayoutProps) {
   const loginUrl = authConfig?.login_url ?? '/oauth2/start';
   const devMode = authConfig?.dev_mode ?? false;
 
+  const [collapsed, setCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="flex h-16 items-center justify-between px-4">
-          <div className="flex items-center space-x-4">
-            <Link to="/" className="text-xl font-semibold">
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar */}
+      <aside
+        className={`flex flex-col border-r bg-background transition-all duration-200 shrink-0
+          ${collapsed ? 'w-16' : 'w-56'}`}
+      >
+        {/* Logo + collapse toggle */}
+        <div className={`flex h-16 items-center border-b ${collapsed ? 'justify-center px-2' : 'justify-between px-4'}`}>
+          {!collapsed && (
+            <Link to="/" className="text-lg font-semibold tracking-tight">
               Orchestra
             </Link>
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              <NavLink
-                to="/"
-                className={({ isActive }) =>
-                  `transition-colors hover:text-foreground/80 ${
-                    isActive ? 'text-foreground' : 'text-foreground/60'
-                  }`
-                }
-              >
-                My Sessions
-              </NavLink>
-              <NavLink
-                to="/templates"
-                className={({ isActive }) =>
-                  `transition-colors hover:text-foreground/80 ${
-                    isActive ? 'text-foreground' : 'text-foreground/60'
-                  }`
-                }
-              >
-                Templates
-              </NavLink>
-              {user?.is_admin && (
-                <NavLink
-                  to="/admin/templates"
-                  className={({ isActive }) =>
-                    `transition-colors hover:text-foreground/80 ${
-                      isActive ? 'text-foreground' : 'text-foreground/60'
-                    }`
-                  }
-                >
-                  Admin
-                </NavLink>
-              )}
-            </nav>
-          </div>
-
-          {/* User identity + logout */}
-          <div className="flex items-center space-x-3 text-sm">
-            {devMode && <Badge variant="secondary">Dev mode</Badge>}
-            {user && (
-              <>
-                <span className="text-foreground/70">{user.email}</span>
-                {user.is_admin && (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                    admin
-                  </span>
-                )}
-                <a
-                  href={logoutUrl}
-                  className="transition-colors hover:text-foreground/80 text-foreground/60"
-                >
-                  Sign out
-                </a>
-              </>
-            )}
-            {!user && !devMode && (
-              <a href={loginUrl}>
-                <Button size="sm">Sign in</Button>
-              </a>
-            )}
-          </div>
+          )}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="rounded-md p-1.5 text-foreground/40 hover:bg-muted hover:text-foreground transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </button>
         </div>
-      </header>
+
+        {/* Primary nav */}
+        <nav className="flex-1 space-y-1 p-2 pt-3">
+          <NavItem to="/" icon={<LayoutDashboard className="h-4 w-4" />} label="My Sessions" collapsed={collapsed} end />
+          <NavItem to="/templates" icon={<Rocket className="h-4 w-4" />} label="Launch" collapsed={collapsed} />
+          <NavItem to="/history" icon={<History className="h-4 w-4" />} label="History" collapsed={collapsed} />
+        </nav>
+
+        {/* Admin section */}
+        {user?.is_admin && (
+          <div className="border-t p-2 pt-3 space-y-1">
+            {!collapsed && (
+              <div className="flex items-center gap-1.5 px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <ShieldCheck className="h-3 w-3" />
+                Admin
+              </div>
+            )}
+            <NavItem
+              to="/admin/templates"
+              icon={<Settings2 className="h-4 w-4" />}
+              label="Templates"
+              collapsed={collapsed}
+            />
+          </div>
+        )}
+
+        {/* User identity + sign out */}
+        <div className={`border-t p-3 ${collapsed ? 'flex flex-col items-center gap-2' : ''}`}>
+          {devMode && !collapsed && (
+            <div className="mb-2">
+              <Badge variant="secondary">Dev mode</Badge>
+            </div>
+          )}
+          {user ? (
+            <>
+              {!collapsed && (
+                <div className="mb-1 truncate text-xs text-foreground/60">{user.email}</div>
+              )}
+              {!collapsed && user.is_admin && (
+                <div className="mb-2 text-xs font-medium text-primary">admin</div>
+              )}
+              <a
+                href={logoutUrl}
+                title={collapsed ? 'Sign out' : undefined}
+                className={`flex items-center gap-2 rounded-md text-sm text-foreground/60 hover:text-foreground transition-colors
+                  ${collapsed ? 'justify-center p-1.5 hover:bg-muted rounded-md' : 'px-1 py-0.5'}`}
+              >
+                <LogOut className="h-4 w-4 shrink-0" />
+                {!collapsed && 'Sign out'}
+              </a>
+            </>
+          ) : !devMode ? (
+            <a
+              href={loginUrl}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {collapsed ? '→' : 'Sign in'}
+            </a>
+          ) : null}
+        </div>
+      </aside>
 
       {/* Main content */}
-      <main className="container mx-auto px-4 py-6">
-        {children}
-      </main>
+      <div className="flex-1 overflow-auto">
+        <main className="mx-auto max-w-5xl px-6 py-6">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

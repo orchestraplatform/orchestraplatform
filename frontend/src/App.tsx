@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Templates } from './pages/Templates';
 import { AdminTemplates } from './pages/AdminTemplates';
 import { LaunchTemplate } from './pages/LaunchTemplate';
+import { History } from './pages/History';
 import { OpenAPI } from './api/generated';
 import './index.css';
 
@@ -31,6 +32,7 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/admin/templates" element={<AdminTemplates />} />
+            <Route path="/history" element={<History />} />
             <Route path="/launch/:templateId" element={<LaunchTemplate />} />
           </Routes>
         </Layout>
