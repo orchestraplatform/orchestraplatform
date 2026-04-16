@@ -9,18 +9,22 @@ def create_rstudio_deployment(
     workshop_name: str,
     namespace: str,
     image: str,
+    owner_email: str,
     resources: dict[str, Any],
     storage: dict[str, Any],
+    sidecar_image: str = "seandavi/orchestra-sidecar:latest",
 ) -> k8s.V1Deployment:
     """
-    Create a Kubernetes Deployment for an RStudio workshop instance.
+    Create a Kubernetes Deployment for an RStudio workshop instance with an auth sidecar.
 
     Args:
         workshop_name: Name of the workshop
         namespace: Kubernetes namespace
         image: Docker image for RStudio
+        owner_email: Email of the workshop owner
         resources: Resource limits and requests
         storage: Storage configuration
+        sidecar_image: Image for the orchestra sidecar proxy
 
     Returns:
         V1Deployment object ready to be created
@@ -31,20 +35,12 @@ def create_rstudio_deployment(
     cpu_request = resources.get("cpuRequest", "500m")
     memory_request = resources.get("memoryRequest", "1Gi")
 
-    # Container definition
-    container = k8s.V1Container(
+    # 1. RStudio Application Container
+    app_container = k8s.V1Container(
         name="rstudio",
         image=image,
-        ports=[k8s.V1ContainerPort(container_port=8787, name="rstudio")],
+        ports=[k8s.V1ContainerPort(container_port=8787, name="rstudio-api")],
         env=[
-            # TODO: Replace DISABLE_AUTH with an OAuth proxy sidecar.
-            # The intended access model is: the Orchestra API issues a
-            # per-user token after OAuth login, and an auth proxy (e.g.
-            # oauth2-proxy) sits in front of each workshop pod, validating
-            # that token before forwarding the request. This ensures users
-            # can only reach their own workshop URL — the workshop name/URL
-            # is scoped to the authenticated user at creation time.
-            # Until then, DISABLE_AUTH=true is intentional for development.
             k8s.V1EnvVar(name="DISABLE_AUTH", value="true"),
             k8s.V1EnvVar(name="ROOT", value="true"),
         ],
@@ -55,6 +51,32 @@ def create_rstudio_deployment(
         volume_mounts=[k8s.V1VolumeMount(name="workshop-data", mount_path="/data")]
         if storage
         else None,
+    )
+
+    # 2. Orchestra Sidecar Proxy
+    sidecar_container = k8s.V1Container(
+        name="orchestra-sidecar",
+        image=sidecar_image,
+        ports=[k8s.V1ContainerPort(container_port=8080, name="http-proxy")],
+        env=[
+            k8s.V1EnvVar(name="ORCHESTRA_TARGET_URL", value="http://localhost:8787"),
+            k8s.V1EnvVar(name="ORCHESTRA_OWNER_EMAIL", value=owner_email),
+            k8s.V1EnvVar(name="ORCHESTRA_LISTEN_ADDR", value=":8080"),
+        ],
+        resources=k8s.V1ResourceRequirements(
+            requests={"cpu": "100m", "memory": "64Mi"},
+            limits={"cpu": "200m", "memory": "128Mi"},
+        ),
+        liveness_probe=k8s.V1Probe(
+            http_get=k8s.V1HTTPGetAction(path="/orchestra/health", port=8080),
+            initial_delay_seconds=5,
+            period_seconds=10,
+        ),
+        readiness_probe=k8s.V1Probe(
+            http_get=k8s.V1HTTPGetAction(path="/orchestra/health", port=8080),
+            initial_delay_seconds=2,
+            period_seconds=5,
+        ),
     )
 
     # Volume definition (if storage is configured)
@@ -79,7 +101,8 @@ def create_rstudio_deployment(
             }
         ),
         spec=k8s.V1PodSpec(
-            containers=[container], volumes=volumes if volumes else None
+            containers=[app_container, sidecar_container], 
+            volumes=volumes if volumes else None
         ),
     )
 

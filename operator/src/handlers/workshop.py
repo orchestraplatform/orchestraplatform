@@ -94,8 +94,9 @@ async def workshop_create_handler(
 
         # Create Deployment for RStudio
         try:
+            owner_email = spec.get("owner", "unknown")
             deployment = create_rstudio_deployment(
-                workshop_name, namespace, image, resources, storage
+                workshop_name, namespace, image, owner_email, resources, storage
             )
             k8s_apps_v1.create_namespaced_deployment(
                 namespace=namespace, body=deployment

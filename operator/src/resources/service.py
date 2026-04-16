@@ -24,7 +24,7 @@ def create_workshop_service(workshop_name: str, namespace: str) -> k8s.V1Service
         ),
         spec=k8s.V1ServiceSpec(
             selector={"app": workshop_name, "component": "rstudio"},
-            ports=[k8s.V1ServicePort(port=80, target_port=8787, protocol="TCP")],
+            ports=[k8s.V1ServicePort(port=80, target_port=8080, protocol="TCP")],
             type="ClusterIP",
         ),
     )
