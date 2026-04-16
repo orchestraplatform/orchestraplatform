@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useTemplate, useLaunchWorkshop } from '../hooks/useTemplates';
+import { useTemplate, useLaunchTemplate } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { ArrowLeft, Play, RefreshCw } from 'lucide-react';
 
-export function LaunchWorkshop() {
+export function LaunchTemplate() {
   const { templateId } = useParams<{ templateId: string }>();
   const navigate = useNavigate();
 
   const { data: template, isLoading, error } = useTemplate(templateId ?? '');
-  const launch = useLaunchWorkshop(templateId ?? '');
+  const launch = useLaunchTemplate(templateId ?? '');
 
   const [duration, setDuration] = useState('');
   const [namespace, setNamespace] = useState('default');

@@ -20,7 +20,7 @@ export function useTemplate(id: string) {
   });
 }
 
-export function useLaunchWorkshop(templateId: string) {
+export function useLaunchTemplate(templateId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: WorkshopLaunchRequest) =>

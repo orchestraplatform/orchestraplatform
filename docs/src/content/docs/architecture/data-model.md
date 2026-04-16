@@ -128,4 +128,4 @@ time_in_phase[events[i].phase] += events[i+1].recorded_at - events[i].recorded_a
 For the last (open) event the upper bound is `terminated_at` (if set) or `now()`.
 `active_seconds` is the sum of seconds in `Ready` and `Running` phases.
 
-See `GET /instances/{name}/utilization` and `GET /workshops/{id}/stats`.
+See `GET /instances/{name}/utilization` and `GET /templates/{id}/stats`.

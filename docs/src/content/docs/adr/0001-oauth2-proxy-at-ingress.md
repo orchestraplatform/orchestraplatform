@@ -8,7 +8,7 @@ description: Decision record — why Orchestra uses oauth2-proxy for control-pla
 
 ## Context
 
-The Orchestra API (`/workshops/*`) had no authentication — any caller could
+The Orchestra API (`/templates/*`) had no authentication — any caller could
 create or delete workshops in any namespace. The API contained scaffolding for
 self-issued JWTs (GitHub/Google OAuth exchange, `passlib`, `pyjwt`) but the
 dependency was never applied to the workshop routes.

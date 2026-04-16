@@ -36,10 +36,10 @@ stores the original email and is the source of truth.
 
 | Operation | Regular user | Admin |
 |---|---|---|
-| `POST /workshops/` | Creates workshop with `owner = self` | Same |
-| `GET /workshops/` | Lists only workshops where `owner = self` | Lists all workshops |
-| `GET /workshops/{name}` | 200 if owner matches, **404** otherwise | 200 always |
-| `DELETE /workshops/{name}` | Deletes if owner matches, **404** otherwise | Deletes always |
+| `POST /templates/` | Creates workshop with `owner = self` | Same |
+| `GET /templates/` | Lists only workshops where `owner = self` | Lists all workshops |
+| `GET /templates/{name}` | 200 if owner matches, **404** otherwise | 200 always |
+| `DELETE /templates/{name}` | Deletes if owner matches, **404** otherwise | Deletes always |
 
 Returning `404` (not `403`) for another user's workshop prevents leaking
 information about which workshops exist. An attacker cannot distinguish "this

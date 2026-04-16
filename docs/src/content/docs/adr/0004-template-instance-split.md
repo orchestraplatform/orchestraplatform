@@ -39,11 +39,11 @@ is appended each time the instance phase changes, enabling utilization tracking.
 
 The API surface reflects this split:
 
-- `GET/POST/PUT/DELETE /workshops/` — template CRUD (admin write, all-user read)
-- `POST /workshops/{id}/launch` — create an instance from a template
+- `GET/POST/PUT/DELETE /templates/` — template CRUD (admin write, all-user read)
+- `POST /templates/{id}/launch` — create an instance from a template
 - `GET/DELETE /instances/` — instance lifecycle (owner or admin only)
 - `GET /instances/{name}/utilization` — time-in-phase breakdown
-- `GET /workshops/{id}/stats` — aggregate stats across all launches (admin)
+- `GET /templates/{id}/stats` — aggregate stats across all launches (admin)
 
 ## Consequences
 

@@ -5,7 +5,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Templates } from './pages/Templates';
-import { LaunchWorkshop } from './pages/LaunchWorkshop';
+import { LaunchTemplate } from './pages/LaunchTemplate';
 import { OpenAPI } from './api/generated';
 import './index.css';
 
@@ -29,7 +29,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/templates" element={<Templates />} />
-            <Route path="/launch/:templateId" element={<LaunchWorkshop />} />
+            <Route path="/launch/:templateId" element={<LaunchTemplate />} />
           </Routes>
         </Layout>
       </Router>

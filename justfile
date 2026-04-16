@@ -87,11 +87,25 @@ dev-operator:
 dev-docs:
     cd docs && npm run dev -- --port {{ docs_port }}
 
+# --- Sidecar ---
+
+# Build the sidecar Docker image
+sidecar-build tag="seandavi/orchestra-sidecar:latest":
+    cd sidecar && docker build -t {{ tag }} .
+
+# Run sidecar tests
+sidecar-test:
+    cd sidecar && go test ./... -v
+
 # --- Database & Migrations ---
 
 # Apply all pending migrations
 migrate:
     cd server && uv run alembic upgrade head
+
+# Show migration history
+migrate-history:
+    cd server && uv run alembic history
 
 # Generate a new migration (usage: just migration "add foo table")
 migration msg:
@@ -114,6 +128,8 @@ quality:
     cd operator && uv run ruff format . && uv run ruff check . --fix
     @echo "--- Quality: Frontend ---"
     cd frontend && npm run lint && npm run format
+    @echo "--- Quality: Sidecar ---"
+    cd sidecar && go fmt ./...
     @echo "--- Quality: Docs ---"
     cd docs && npm run lint
 
@@ -123,6 +139,8 @@ test:
     cd server && uv run python -m pytest tests/ -v
     @echo "--- Test: Operator ---"
     cd operator && uv run python -m pytest tests/ -v
+    @echo "--- Test: Sidecar ---"
+    cd sidecar && go test ./... -v
     @echo "--- Test: Frontend ---"
     cd frontend && npm run test -- --run --passWithNoTests
 

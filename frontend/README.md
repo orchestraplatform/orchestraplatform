@@ -95,9 +95,9 @@ The frontend communicates with the Orchestra API backend. Make sure the API is r
 
 - `GET /auth/me`
 - `GET /auth/auth-config`
-- `GET /workshops/`
-- `GET /workshops/{template_id}`
-- `POST /workshops/{template_id}/launch`
+- `GET /templates/`
+- `GET /templates/{template_id}`
+- `POST /templates/{template_id}/launch`
 - `GET /instances/`
 - `DELETE /instances/{k8s_name}`
 - `GET /health/`
