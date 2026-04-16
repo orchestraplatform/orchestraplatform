@@ -55,13 +55,13 @@ work without any extra manual setup.
 
 ### Templates
 
-- `GET /workshops/` - list workshop templates
-- `POST /workshops/` - create template (admin)
-- `GET /workshops/{template_id}` - get template
-- `PUT /workshops/{template_id}` - update template (admin)
-- `DELETE /workshops/{template_id}` - archive template (admin)
-- `GET /workshops/{template_id}/stats` - aggregate template stats (admin)
-- `POST /workshops/{template_id}/launch` - launch an instance from a template
+- `GET /templates/` - list workshop templates
+- `POST /templates/` - create template (admin)
+- `GET /templates/{template_id}` - get template
+- `PUT /templates/{template_id}` - update template (admin)
+- `DELETE /templates/{template_id}` - archive template (admin)
+- `GET /templates/{template_id}/stats` - aggregate template stats (admin)
+- `POST /templates/{template_id}/launch` - launch an instance from a template
 
 ### Instances
 
@@ -77,7 +77,7 @@ work without any extra manual setup.
 
 ```bash
 curl -H "X-Auth-Request-Email: alice@example.com" \
-  "http://localhost:8000/workshops/"
+  "http://localhost:8000/templates/"
 ```
 
 ### Launch an instance from a template
@@ -87,7 +87,7 @@ curl -X POST \
   -H "Content-Type: application/json" \
   -H "X-Auth-Request-Email: alice@example.com" \
   -d '{"duration":"2h","namespace":"default"}' \
-  "http://localhost:8000/workshops/<template-uuid>/launch"
+  "http://localhost:8000/templates/<template-uuid>/launch"
 ```
 
 ### List instances

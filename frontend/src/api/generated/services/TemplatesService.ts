@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { TemplateStats } from '../models/TemplateStats';
 import type { WorkshopInstanceResponse } from '../models/WorkshopInstanceResponse';
 import type { WorkshopLaunchRequest } from '../models/WorkshopLaunchRequest';
 import type { WorkshopTemplateCreate } from '../models/WorkshopTemplateCreate';
@@ -11,7 +12,7 @@ import type { WorkshopTemplateUpdate } from '../models/WorkshopTemplateUpdate';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
-export class WorkshopsService {
+export class TemplatesService {
     /**
      * List Templates
      * List workshop templates. Inactive templates are hidden unless admin requests them.
@@ -21,14 +22,14 @@ export class WorkshopsService {
      * @returns WorkshopTemplateList Successful Response
      * @throws ApiError
      */
-    public static listTemplatesWorkshopsGet(
+    public static listTemplatesTemplatesGet(
         page: number = 1,
         size: number = 50,
         includeInactive: boolean = false,
     ): CancelablePromise<WorkshopTemplateList> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/workshops/',
+            url: '/templates/',
             query: {
                 'page': page,
                 'size': size,
@@ -46,12 +47,12 @@ export class WorkshopsService {
      * @returns WorkshopTemplateResponse Successful Response
      * @throws ApiError
      */
-    public static createTemplateWorkshopsPost(
+    public static createTemplateTemplatesPost(
         requestBody: WorkshopTemplateCreate,
     ): CancelablePromise<WorkshopTemplateResponse> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/workshops/',
+            url: '/templates/',
             body: requestBody,
             mediaType: 'application/json',
             errors: {
@@ -66,12 +67,12 @@ export class WorkshopsService {
      * @returns WorkshopTemplateResponse Successful Response
      * @throws ApiError
      */
-    public static getTemplateWorkshopsTemplateIdGet(
+    public static getTemplateTemplatesTemplateIdGet(
         templateId: string,
     ): CancelablePromise<WorkshopTemplateResponse> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/workshops/{template_id}',
+            url: '/templates/{template_id}',
             path: {
                 'template_id': templateId,
             },
@@ -88,13 +89,13 @@ export class WorkshopsService {
      * @returns WorkshopTemplateResponse Successful Response
      * @throws ApiError
      */
-    public static updateTemplateWorkshopsTemplateIdPut(
+    public static updateTemplateTemplatesTemplateIdPut(
         templateId: string,
         requestBody: WorkshopTemplateUpdate,
     ): CancelablePromise<WorkshopTemplateResponse> {
         return __request(OpenAPI, {
             method: 'PUT',
-            url: '/workshops/{template_id}',
+            url: '/templates/{template_id}',
             path: {
                 'template_id': templateId,
             },
@@ -112,12 +113,33 @@ export class WorkshopsService {
      * @returns void
      * @throws ApiError
      */
-    public static archiveTemplateWorkshopsTemplateIdDelete(
+    public static archiveTemplateTemplatesTemplateIdDelete(
         templateId: string,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',
-            url: '/workshops/{template_id}',
+            url: '/templates/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Template Stats
+     * Aggregate launch and utilization statistics for a template (admin only).
+     * @param templateId
+     * @returns TemplateStats Successful Response
+     * @throws ApiError
+     */
+    public static getTemplateStatsTemplatesTemplateIdStatsGet(
+        templateId: string,
+    ): CancelablePromise<TemplateStats> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/templates/{template_id}/stats',
             path: {
                 'template_id': templateId,
             },
@@ -137,13 +159,13 @@ export class WorkshopsService {
      * @returns WorkshopInstanceResponse Successful Response
      * @throws ApiError
      */
-    public static launchWorkshopWorkshopsTemplateIdLaunchPost(
+    public static launchWorkshopTemplatesTemplateIdLaunchPost(
         templateId: string,
         requestBody: WorkshopLaunchRequest,
     ): CancelablePromise<WorkshopInstanceResponse> {
         return __request(OpenAPI, {
             method: 'POST',
-            url: '/workshops/{template_id}/launch',
+            url: '/templates/{template_id}/launch',
             path: {
                 'template_id': templateId,
             },

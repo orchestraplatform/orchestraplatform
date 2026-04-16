@@ -20,10 +20,7 @@ export class AuthenticationService {
     }
     /**
      * Get Auth Config
-     * Return auth endpoint URLs for the frontend.
-     *
-     * The frontend uses these to redirect unauthenticated users to the oauth2-proxy
-     * login page and to provide a logout link.
+     * Return auth endpoint URLs and mode flags for the frontend.
      * @returns any Successful Response
      * @throws ApiError
      */

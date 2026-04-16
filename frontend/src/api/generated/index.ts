@@ -8,6 +8,8 @@ export { OpenAPI } from './core/OpenAPI';
 export type { OpenAPIConfig } from './core/OpenAPI';
 
 export type { HTTPValidationError } from './models/HTTPValidationError';
+export type { InstanceUtilization } from './models/InstanceUtilization';
+export type { TemplateStats } from './models/TemplateStats';
 export type { ValidationError } from './models/ValidationError';
 export type { WorkshopInstanceList } from './models/WorkshopInstanceList';
 export type { WorkshopInstanceResponse } from './models/WorkshopInstanceResponse';
@@ -24,4 +26,4 @@ export { AuthenticationService } from './services/AuthenticationService';
 export { DefaultService } from './services/DefaultService';
 export { HealthService } from './services/HealthService';
 export { InstancesService } from './services/InstancesService';
-export { WorkshopsService } from './services/WorkshopsService';
+export { TemplatesService } from './services/TemplatesService';

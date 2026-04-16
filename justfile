@@ -2,6 +2,9 @@
 
 # Default Kubernetes context for local development
 dev_k8s_context := "docker-desktop"
+api_port := "8080"
+frontend_port := "3000"
+docs_port := "3003"
 
 # List all recipes
 default:
@@ -10,26 +13,16 @@ default:
 # --- One-time setup ---
 
 # Set up all project components for local contribution and testing.
-# Python services install their dev dependency groups so `just test` works.
-setup: setup-docs setup-frontend setup-operator setup-server
-
-setup-docs:
+setup:
     cd docs && npm install
-
-setup-frontend:
     cd frontend && npm install
-
-setup-operator:
     cd operator && uv sync --group dev
-
-setup-server:
     cd server && uv sync --group dev
+    just sync-types
 
 # --- Local dev cluster setup (run once per machine) ---
 
 # Prepare the local Kubernetes cluster for Orchestra development.
-# Switches to docker-desktop context, installs Traefik, applies CRDs,
-# and copies .env example files if no local copies exist yet.
 dev-setup:
     @echo "==> Switching to {{ dev_k8s_context }} context"
     kubectl config use-context {{ dev_k8s_context }}
@@ -64,55 +57,92 @@ dev-setup:
     @echo ""
     @echo "✓ Dev cluster ready."
     @echo "  Workshops will be reachable at http://<name>.orchestra.localhost:30080"
-    @echo "  Run 'just dev' to start the local development stack."
 
-# --- Development ---
+# --- Development Stack ---
 
 # Start the full local dev stack (server + frontend + operator)
-# Run 'just dev-setup' first if this is a new machine.
 dev:
-    @just dev-server & just dev-frontend & just dev-operator & wait
-
-# Run the frontend development server
-dev-frontend:
-    cd frontend && just dev
+    @just -j 3 dev-server dev-frontend dev-operator
 
 # Run the backend server
-# Uses port 8080 — ports 8000 and 8001 are occupied by Docker Desktop on Mac.
 dev-server:
     cd server && ORCHESTRA_ENVIRONMENT=local \
     ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
     ORCHESTRA_DEV_IDENTITY=dev@example.com \
-    uv run uvicorn main:app --reload --host 0.0.0.0 --port 8080
+    uv run uvicorn main:app --reload --host 0.0.0.0 --port {{ api_port }}
+
+# Run the frontend development server
+dev-frontend:
+    cd frontend && npm run dev -- --port {{ frontend_port }}
 
 # Run the operator locally
 dev-operator:
+    cd operator/src && \
     ORCHESTRA_ENVIRONMENT=local \
     KUBE_CONTEXT={{ dev_k8s_context }} \
-    cd operator && just run-local
+    uv run python main.py
 
 # Run the docs development server
 dev-docs:
-    cd docs && just dev
+    cd docs && npm run dev -- --port {{ docs_port }}
 
-# Run only server + frontend (no operator — workshops created but not reconciled)
-dev-stack:
-    @just -j 2 dev-frontend dev-server
+# --- Database & Migrations ---
 
-# --- API Coordination ---
+# Apply all pending migrations
+migrate:
+    cd server && uv run alembic upgrade head
 
-# Generate OpenAPI schema from server
-generate-schema:
-    cd server && just generate-schema
+# Generate a new migration (usage: just migration "add foo table")
+migration msg:
+    cd server && uv run alembic revision --autogenerate -m "{{ msg }}"
 
-# Update frontend types from the server's OpenAPI schema
-sync-types: generate-schema
-    cd frontend && just generate-types-file ../server/openapi.json
+# --- Types & Schema ---
+
+# Generate OpenAPI schema and update frontend types
+sync-types:
+    cd server && uv run python generate_schema.py openapi.json
+    cd frontend && npx openapi-typescript-codegen --input ../server/openapi.json --output ./src/api/generated --client axios
+
+# --- Quality & Testing ---
+
+# Run all linting and formatting checks
+quality:
+    @echo "--- Quality: Server ---"
+    cd server && uv run ruff format . && uv run ruff check . --fix
+    @echo "--- Quality: Operator ---"
+    cd operator && uv run ruff format . && uv run ruff check . --fix
+    @echo "--- Quality: Frontend ---"
+    cd frontend && npm run lint && npm run format
+    @echo "--- Quality: Docs ---"
+    cd docs && npm run lint
+
+# Run all tests
+test:
+    @echo "--- Test: Server ---"
+    cd server && uv run python -m pytest tests/ -v
+    @echo "--- Test: Operator ---"
+    cd operator && uv run python -m pytest tests/ -v
+    @echo "--- Test: Frontend ---"
+    cd frontend && npm run test -- --run --passWithNoTests
+
+# --- Kubernetes Tools ---
+
+# Watch workshops in the cluster
+watch-workshops:
+    kubectl get workshops -A -w
+
+# List all workshop pods
+workshop-pods:
+    kubectl get pods -A -l workshop
+
+# Delete all workshops (use with caution!)
+clear-workshops:
+    kubectl delete workshops --all -A
 
 # --- Docker Compose ---
 
-# Start all services with Docker Compose (production-like, full image builds)
+# Start all services with Docker Compose (production-like)
 docker-up:
     docker compose up --build -d
 
@@ -120,57 +150,10 @@ docker-up:
 docker-dev-up:
     docker compose -f docker-compose.dev.yml up --build
 
-# Stop all services (production compose)
+# Stop all services
 docker-down:
     docker compose down
 
-# Stop all services (dev compose)
-docker-dev-down:
-    docker compose -f docker-compose.dev.yml down
-
-# View logs from all services
+# View logs
 docker-logs:
     docker compose logs -f
-
-# View logs from dev services
-docker-dev-logs:
-    docker compose -f docker-compose.dev.yml logs -f
-
-# --- Quality ---
-
-# Run all linting and formatting checks
-quality: quality-frontend quality-server quality-operator quality-docs
-
-quality-frontend:
-    cd frontend && just quality
-
-quality-server:
-    cd server && just quality
-
-quality-operator:
-    cd operator && just quality
-
-quality-docs:
-    cd docs && just quality
-
-# --- Testing ---
-
-# Run all tests
-test: test-frontend test-server
-
-test-frontend:
-    cd frontend && just test
-
-test-server:
-    cd server && just test
-
-# --- Build ---
-
-# Build all components
-build: build-frontend build-docs
-
-build-frontend:
-    cd frontend && npm run build
-
-build-docs:
-    cd docs && npm run build

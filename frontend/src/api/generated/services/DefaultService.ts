@@ -8,7 +8,7 @@ import { request as __request } from '../core/request';
 export class DefaultService {
     /**
      * Root
-     * Root endpoint with API information.
+     * Root endpoint — API metadata.
      * @returns any Successful Response
      * @throws ApiError
      */
@@ -16,17 +16,6 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/',
-        });
-    }
-    /**
-     * Api Documentation
-     * @returns any Successful Response
-     * @throws ApiError
-     */
-    public static apiDocumentationElementsGet(): CancelablePromise<any> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/elements',
         });
     }
 }

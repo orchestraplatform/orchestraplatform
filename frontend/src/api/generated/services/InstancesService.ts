@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { InstanceUtilization } from '../models/InstanceUtilization';
 import type { WorkshopInstanceList } from '../models/WorkshopInstanceList';
 import type { WorkshopInstanceResponse } from '../models/WorkshopInstanceResponse';
 import type { WorkshopInstanceStatus } from '../models/WorkshopInstanceStatus';
@@ -79,6 +80,32 @@ export class InstancesService {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/instances/{k8s_name}',
+            path: {
+                'k8s_name': k8SName,
+            },
+            query: {
+                'namespace': namespace,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Get Instance Utilization
+     * Time-in-phase utilization breakdown for a workshop instance.
+     * @param k8SName Workshop instance k8s name
+     * @param namespace
+     * @returns InstanceUtilization Successful Response
+     * @throws ApiError
+     */
+    public static getInstanceUtilizationInstancesK8SNameUtilizationGet(
+        k8SName: string,
+        namespace: string = 'default',
+    ): CancelablePromise<InstanceUtilization> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/instances/{k8s_name}/utilization',
             path: {
                 'k8s_name': k8SName,
             },
