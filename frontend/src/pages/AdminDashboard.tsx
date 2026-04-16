@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useInstances, useTerminateInstance } from '../hooks/useInstances';
+import { useInstances, useTerminateInstance, useInstanceSummary } from '../hooks/useInstances';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { RefreshCw, Search, X, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
@@ -36,6 +36,7 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 
 export function AdminDashboard() {
   const { data, isLoading, error, refetch } = useInstances('default', 1, 100);
+  const { data: summary } = useInstanceSummary();
   const terminate = useTerminateInstance();
 
   const [search, setSearch] = useState('');
@@ -127,11 +128,15 @@ export function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <StatCard label="Total active" value={stats.total} color="text-foreground" />
         <StatCard label="Ready / Running" value={stats.ready} color="text-green-600" />
         <StatCard label="Starting up" value={stats.transitional} color="text-yellow-600" />
+      </div>
+      <div className="grid grid-cols-3 gap-3">
         <StatCard label="Failed" value={stats.failed} color="text-red-600" />
+        <StatCard label="Total launches (all time)" value={summary?.totalLaunches ?? 0} color="text-foreground" />
+        <StatCard label="Launches (last 7 days)" value={summary?.launchedLast7Days ?? 0} color="text-primary" />
       </div>
 
       {/* Filters */}

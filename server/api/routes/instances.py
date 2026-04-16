@@ -6,9 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, sta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
-from api.core.auth import CurrentUser, get_current_user
+from api.core.auth import CurrentUser, get_current_user, require_admin
 from api.core.database import get_db
 from api.models.schemas.workshop_instance import (
+    InstanceSummary,
     InstanceUtilization,
     WorkshopInstanceList,
     WorkshopInstanceResponse,
@@ -45,6 +46,15 @@ async def list_instances(
         db, owner_email=owner_filter, page=page, size=size
     )
     return WorkshopInstanceList(items=items, total=total, page=page, size=size)
+
+
+@router.get("/summary", response_model=InstanceSummary, dependencies=[Depends(require_admin)])
+async def get_instance_summary(
+    db: AsyncSession = Depends(get_db),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
+):
+    """Aggregate launch counts all-time and over the last 7 days (admin only)."""
+    return await svc.get_instance_summary(db)
 
 
 @router.get("/events")

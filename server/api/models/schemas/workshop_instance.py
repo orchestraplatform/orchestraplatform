@@ -31,6 +31,15 @@ class WorkshopInstanceResponse(BaseModel):
     updated_at: datetime = Field(alias="updatedAt")
 
 
+class InstanceSummary(BaseModel):
+    """Aggregate launch counts across all instances."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    total_launches: int = Field(alias="totalLaunches")
+    launched_last_7_days: int = Field(alias="launchedLast7Days")
+
+
 class WorkshopInstanceList(BaseModel):
     """Paginated list of workshop instances."""
 

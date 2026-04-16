@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { InstancesService, OpenAPI } from '../api/generated';
+import { request as __request } from '../api/generated/core/request';
 import type { WorkshopInstanceList } from '../api/generated';
 
 const DETAIL_POLL_MS = 2000;
@@ -50,6 +51,17 @@ export function useInstance(k8sName: string, namespace = 'default') {
       InstancesService.getInstanceInstancesK8SNameGet(k8sName, namespace),
     enabled: !!k8sName,
     refetchInterval: DETAIL_POLL_MS,
+  });
+}
+
+export function useInstanceSummary() {
+  return useQuery({
+    queryKey: ['instance-summary'],
+    queryFn: () =>
+      __request<{ totalLaunches: number; launchedLast7Days: number }>(
+        OpenAPI, { method: 'GET', url: '/instances/summary' }
+      ),
+    staleTime: 60_000,
   });
 }
 

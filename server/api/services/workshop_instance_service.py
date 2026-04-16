@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from api.core.kubernetes import ApiException
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_instance import (
+    InstanceSummary,
     InstanceUtilization,
     TemplateStats,
     WorkshopInstanceList,
@@ -323,6 +324,26 @@ class WorkshopInstanceService:
             active_instances=counts.active or 0,
             total_active_seconds=total_active_secs,
             unique_users=counts.unique_users or 0,
+        )
+
+    async def get_instance_summary(self, db: AsyncSession) -> InstanceSummary:
+        """Total launches all-time and within the last 7 days."""
+        from datetime import timedelta
+        from sqlalchemy import case, func
+
+        cutoff = datetime.now(UTC) - timedelta(days=7)
+        result = await db.execute(
+            select(
+                func.count().label("total"),
+                func.sum(
+                    case((WorkshopInstance.launched_at >= cutoff, 1), else_=0)
+                ).label("last_7_days"),
+            )
+        )
+        row = result.one()
+        return InstanceSummary(
+            total_launches=row.total or 0,
+            launched_last_7_days=row.last_7_days or 0,
         )
 
     async def get_bulk_launch_counts(
