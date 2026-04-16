@@ -47,6 +47,7 @@ pids/
 *.pid.lock
 tmp/
 temp/
+.playwright-mcp/
 .eslintcache
 .pytest_cache/
 .tox/

@@ -3,6 +3,7 @@ import starlight from '@astrojs/starlight';
 const googleAnalyticsId = 'G-KLLV1GCF4E';
 
 export default defineConfig({
+  site: 'https://docs.orchestraplatform.org',
   integrations: [
     starlight({
       title: 'Orchestra Platform',
