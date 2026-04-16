@@ -70,7 +70,7 @@ dev-server:
     ORCHESTRA_KUBE_CONTEXT={{ dev_k8s_context }} \
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
     ORCHESTRA_DEV_IDENTITY=dev@example.com \
-    uv run uvicorn main:app --reload --host 0.0.0.0 --port {{ api_port }}
+    uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port {{ api_port }}
 
 # Run the frontend development server
 dev-frontend:
@@ -101,15 +101,15 @@ sidecar-test:
 
 # Apply all pending migrations
 migrate:
-    cd server && uv run alembic upgrade head
+    cd server && uv run python -m alembic upgrade head
 
 # Show migration history
 migrate-history:
-    cd server && uv run alembic history
+    cd server && uv run python -m alembic history
 
 # Generate a new migration (usage: just migration "add foo table")
 migration msg:
-    cd server && uv run alembic revision --autogenerate -m "{{ msg }}"
+    cd server && uv run python -m alembic revision --autogenerate -m "{{ msg }}"
 
 # --- Types & Schema ---
 

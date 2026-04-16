@@ -1,6 +1,7 @@
 """Workshop event handlers for the Orchestra Operator."""
 
 import logging
+import os
 from typing import Any
 
 import kopf
@@ -18,6 +19,12 @@ from resources.service import create_workshop_service
 from utils.time_utils import get_expiration_time
 
 logger = logging.getLogger(__name__)
+
+# When ORCHESTRA_REQUIRE_AUTHENTICATION=false, the sidecar will not enforce 
+# the X-Auth-Request-Email header. Defaults to false in local dev.
+_REQUIRE_AUTH = os.environ.get("ORCHESTRA_REQUIRE_AUTHENTICATION", "").lower() != "false"
+if _LOCAL_ENV and "ORCHESTRA_REQUIRE_AUTHENTICATION" not in os.environ:
+    _REQUIRE_AUTH = False
 
 
 def _ingress_url(ingress: dict[str, Any]) -> str:
@@ -96,7 +103,13 @@ async def workshop_create_handler(
         try:
             owner_email = spec.get("owner", "unknown")
             deployment = create_rstudio_deployment(
-                workshop_name, namespace, image, owner_email, resources, storage
+                workshop_name, 
+                namespace, 
+                image, 
+                owner_email, 
+                resources, 
+                storage,
+                require_auth=_REQUIRE_AUTH
             )
             k8s_apps_v1.create_namespaced_deployment(
                 namespace=namespace, body=deployment

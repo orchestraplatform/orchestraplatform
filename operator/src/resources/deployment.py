@@ -13,7 +13,9 @@ def create_rstudio_deployment(
     resources: dict[str, Any],
     storage: dict[str, Any],
     sidecar_image: str = "seandavi/orchestra-sidecar:latest",
+    require_auth: bool = True,
 ) -> k8s.V1Deployment:
+    print(f"DEBUG: Creating deployment for {workshop_name} with sidecar {sidecar_image}")
     """
     Create a Kubernetes Deployment for an RStudio workshop instance with an auth sidecar.
 
@@ -57,11 +59,13 @@ def create_rstudio_deployment(
     sidecar_container = k8s.V1Container(
         name="orchestra-sidecar",
         image=sidecar_image,
+        image_pull_policy="Never",
         ports=[k8s.V1ContainerPort(container_port=8080, name="http-proxy")],
         env=[
             k8s.V1EnvVar(name="ORCHESTRA_TARGET_URL", value="http://localhost:8787"),
             k8s.V1EnvVar(name="ORCHESTRA_OWNER_EMAIL", value=owner_email),
             k8s.V1EnvVar(name="ORCHESTRA_LISTEN_ADDR", value=":8080"),
+            k8s.V1EnvVar(name="ORCHESTRA_REQUIRE_AUTHENTICATION", value="true" if require_auth else "false"),
         ],
         resources=k8s.V1ResourceRequirements(
             requests={"cpu": "100m", "memory": "64Mi"},
