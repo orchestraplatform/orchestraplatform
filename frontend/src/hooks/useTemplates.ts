@@ -59,6 +59,7 @@ export function useToggleTemplateActive() {
     mutationFn: (templateId: string) =>
       TemplatesService.toggleTemplateActiveTemplatesTemplateIdToggleActivePatch(templateId),
     onSuccess: () => {
+      // Use exact: false (default) to match any query key that starts with TEMPLATES_KEY
       queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
     },
   });

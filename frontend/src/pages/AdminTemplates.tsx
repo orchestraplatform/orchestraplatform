@@ -29,8 +29,10 @@ export function AdminTemplates() {
   const templates = data?.items ?? [];
 
   const handleToggle = async (id: string) => {
+    console.log('Toggling template:', id);
     try {
       await toggleActive.mutateAsync(id);
+      console.log('Toggle successful');
     } catch (err) {
       console.error('Failed to toggle template status:', err);
     }
