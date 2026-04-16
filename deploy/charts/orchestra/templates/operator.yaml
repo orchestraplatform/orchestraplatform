@@ -79,7 +79,7 @@ data:
       metricsPort: 8080
       healthcheckPort: 8080
     workshop:
-      defaultImage: {{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}
+      defaultImage: {{ .Values.operator.defaultWorkshopImage }}
       defaultDuration: "4h"
       defaultResources:
         cpu: "1"

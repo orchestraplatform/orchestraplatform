@@ -35,7 +35,17 @@ spec:
         - name: ORCHESTRA_REQUIRE_AUTHENTICATION
           value: {{ .Values.api.requireAuthentication | quote }}
         - name: ORCHESTRA_ADMIN_EMAILS
-          value: {{ join "," .Values.api.adminEmails | quote }}
+          value: {{ .Values.api.adminEmails | toJson | quote }}
+        {{- if .Values.api.database.existingSecret }}
+        - name: ORCHESTRA_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.api.database.existingSecret }}
+              key: {{ .Values.api.database.secretKey }}
+        {{- else if .Values.api.database.url }}
+        - name: ORCHESTRA_DATABASE_URL
+          value: {{ .Values.api.database.url | quote }}
+        {{- end }}
         {{- if .Values.api.devIdentity }}
         - name: ORCHESTRA_DEV_IDENTITY
           value: {{ .Values.api.devIdentity | quote }}

@@ -22,6 +22,8 @@ operator:
       cpu: 500m
       memory: 512Mi
   logLevel: INFO
+  # Default container image used for new workshop sessions.
+  defaultWorkshopImage: "rocker/rstudio:latest"
 
 # ── API server ───────────────────────────────────────────────────────────────
 api:
@@ -44,6 +46,12 @@ api:
   # dev mode (only effective when requireAuthentication=false).
   devIdentity: null
   requireAuthentication: true
+  # Database connection. Reference an existing Secret that holds the URL, or
+  # set `url` directly (not recommended in production).
+  database:
+    existingSecret: ""
+    secretKey: "database-url"
+    url: ""
 
 # ── Frontend ─────────────────────────────────────────────────────────────────
 frontend:
