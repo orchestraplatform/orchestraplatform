@@ -2,7 +2,7 @@
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,13 +29,18 @@ from api.services.workshop_service import WorkshopService
 logger = logging.getLogger(__name__)
 _k8s = WorkshopService()
 
+# SSE polling configuration — adjust here or promote to settings.py for env-var control.
+SSE_POLL_FAST_S: int = 5    # interval while any session is in a transitional phase
+SSE_POLL_SLOW_S: int = 30   # interval once all sessions have settled
+SSE_JITTER_S: int = 5       # max random offset applied to startup delay and each tick
+
 _ACTIVE_PHASES = {"Ready", "Running"}
 
 
 def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
     """Compute time-in-phase breakdown from a row's pre-loaded events."""
     events = sorted(row.events, key=lambda e: e.recorded_at)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     endpoint = row.terminated_at or now
 
     phase_seconds: dict[str, int] = {}
@@ -133,7 +138,7 @@ class WorkshopInstanceService:
             owner_email=owner_email,
             phase="Pending",
             duration_requested=duration,
-            launched_at=datetime.now(timezone.utc),
+            launched_at=datetime.now(UTC),
         )
         db.add(row)
         await db.flush()  # get the id before appending event
@@ -166,6 +171,7 @@ class WorkshopInstanceService:
             query = query.where(WorkshopInstance.owner_email == owner_email)
 
         from sqlalchemy import func
+
         total_result = await db.execute(
             select(func.count()).select_from(query.subquery())
         )
@@ -176,12 +182,10 @@ class WorkshopInstanceService:
         rows = result.scalars().all()
 
         # Sync from k8s for instances that haven't settled yet, or have expired.
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         _TRANSITIONAL = {"Pending", "Creating"}
         for row in rows:
-            if row.phase in _TRANSITIONAL or (
-                row.expires_at and row.expires_at <= now
-            ):
+            if row.phase in _TRANSITIONAL or (row.expires_at and row.expires_at <= now):
                 await self._sync_from_k8s(db, row)
 
         items = [_to_response(r, workshop_name=r.workshop.name) for r in rows]
@@ -228,7 +232,7 @@ class WorkshopInstanceService:
             if e.status != 404:
                 raise
 
-        row.terminated_at = datetime.now(timezone.utc)
+        row.terminated_at = datetime.now(UTC)
         row.phase = "Terminating"
         db.add(InstanceEvent(instance_id=row.id, phase="Terminating"))
         await db.commit()
@@ -295,7 +299,9 @@ class WorkshopInstanceService:
                 func.sum(
                     case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)
                 ).label("active"),
-                func.count(distinct(WorkshopInstance.owner_email)).label("unique_users"),
+                func.count(distinct(WorkshopInstance.owner_email)).label(
+                    "unique_users"
+                ),
             ).where(WorkshopInstance.workshop_id == template_id)
         )
         counts = agg_result.one()
@@ -319,6 +325,33 @@ class WorkshopInstanceService:
             unique_users=counts.unique_users or 0,
         )
 
+    async def get_bulk_launch_counts(
+        self, db: AsyncSession
+    ) -> list[TemplateStats]:
+        """Return total_launches per template in a single grouped query."""
+        from sqlalchemy import case, distinct, func
+
+        result = await db.execute(
+            select(
+                WorkshopInstance.workshop_id,
+                func.count().label("total"),
+                func.sum(
+                    case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)
+                ).label("active"),
+                func.count(distinct(WorkshopInstance.owner_email)).label("unique_users"),
+            ).group_by(WorkshopInstance.workshop_id)
+        )
+        return [
+            TemplateStats(
+                template_id=row.workshop_id,
+                total_launches=row.total or 0,
+                active_instances=row.active or 0,
+                total_active_seconds=0,
+                unique_users=row.unique_users or 0,
+            )
+            for row in result.all()
+        ]
+
     async def _sync_from_k8s(self, db: AsyncSession, row: WorkshopInstance) -> None:
         """Pull phase/url/expiresAt from the live k8s CRD and update DB if changed."""
         try:
@@ -329,14 +362,16 @@ class WorkshopInstanceService:
         if k8s_workshop is None:
             # CRD is gone — mark as terminated if not already
             if row.terminated_at is None:
-                row.terminated_at = datetime.now(timezone.utc)
+                row.terminated_at = datetime.now(UTC)
                 row.phase = "Terminated"
                 db.add(InstanceEvent(instance_id=row.id, phase="Terminated"))
                 await db.commit()
             return
 
         changed = False
-        new_phase = k8s_workshop.status.phase.value if k8s_workshop.status else row.phase
+        new_phase = (
+            k8s_workshop.status.phase.value if k8s_workshop.status else row.phase
+        )
         new_url = k8s_workshop.status.url if k8s_workshop.status else row.url
         new_expires = (
             k8s_workshop.status.expires_at if k8s_workshop.status else row.expires_at
@@ -356,26 +391,35 @@ class WorkshopInstanceService:
         if changed:
             await db.commit()
 
-
     async def events(
         self,
         db: AsyncSession,
         *,
         owner_email: str | None = None,
-        interval: int = 5,
     ):
-        """Generator for SSE events that yields the current instance list."""
-        import asyncio
-        import json
+        """Generator for SSE events that yields the current instance list.
 
-        from api.models.schemas.workshop_instance import WorkshopInstanceList
+        Polls fast (5 s) while any session is transitional, slow (15 s) when
+        all are settled.  A random jitter of ±2 s is added to each sleep to
+        spread load across connections that started at the same time.
+        """
+        import asyncio
+        import random
+
+        _TRANSITIONAL = {"Pending", "Creating"}
+
+        # Stagger connection startups so a mass-join doesn't produce a
+        # synchronised thundering herd on the very first tick.
+        await asyncio.sleep(random.uniform(0, SSE_JITTER_S))
 
         while True:
             items, total = await self.list_instances(db, owner_email=owner_email)
             data = WorkshopInstanceList(items=items, total=total)
-            # We use model_dump_json for Pydantic v2 compatibility
-            yield data.model_dump_json()
-            await asyncio.sleep(interval)
+            yield data.model_dump_json(by_alias=True)
+
+            has_transitional = any(i.phase in _TRANSITIONAL for i in items)
+            base = SSE_POLL_FAST_S if has_transitional else SSE_POLL_SLOW_S
+            await asyncio.sleep(base + random.uniform(-SSE_JITTER_S, SSE_JITTER_S))
 
 
 def get_instance_service() -> WorkshopInstanceService:

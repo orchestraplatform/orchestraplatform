@@ -20,6 +20,8 @@ def get_engine():
             settings.database_url,
             echo=settings.debug,
             pool_pre_ping=True,
+            pool_size=20,
+            max_overflow=75,
         )
     return _engine
 
@@ -35,7 +37,7 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession]:
     """FastAPI dependency that yields a database session."""
     async with get_session_factory()() as session:
         yield session

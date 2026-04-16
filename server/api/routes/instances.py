@@ -1,11 +1,10 @@
 """WorkshopInstance routes (list, get, delete, status, utilization)."""
 
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, status
-from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 
 from api.core.auth import CurrentUser, get_current_user
 from api.core.database import get_db
@@ -42,8 +41,24 @@ async def list_instances(
     Regular users see only their own. Admins see all.
     """
     owner_filter = None if current_user.is_admin else current_user.email
-    items, total = await svc.list_instances(db, owner_email=owner_filter, page=page, size=size)
+    items, total = await svc.list_instances(
+        db, owner_email=owner_filter, page=page, size=size
+    )
     return WorkshopInstanceList(items=items, total=total, page=page, size=size)
+
+
+@router.get("/events")
+async def instance_events(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
+):
+    """Stream workshop instance updates for the current user."""
+    owner_filter = None if current_user.is_admin else current_user.email
+    return EventSourceResponse(
+        svc.events(db, owner_email=owner_filter),
+    )
 
 
 @router.get("/{k8s_name}", response_model=WorkshopInstanceResponse)
@@ -80,7 +95,6 @@ async def terminate_instance(
             detail=f"Instance {k8s_name} not found",
         )
     await svc.terminate(db, k8s_name, namespace)
-    return None
 
 
 @router.get("/{k8s_name}/utilization", response_model=InstanceUtilization)
@@ -129,17 +143,3 @@ async def get_instance_status(
             detail=f"Instance {k8s_name} not found",
         )
     return instance_status
-
-
-@router.get("/events")
-async def instance_events(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
-    svc: WorkshopInstanceService = Depends(get_instance_service),
-):
-    """Stream workshop instance updates for the current user."""
-    owner_filter = None if current_user.is_admin else current_user.email
-    return EventSourceResponse(
-        svc.events(db, owner_email=owner_filter),
-    )

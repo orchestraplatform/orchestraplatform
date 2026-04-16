@@ -40,6 +40,7 @@ def _random_suffix(length: int = 6) -> str:
 # Template endpoints (GET open to all; mutating endpoints require admin)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/", response_model=WorkshopTemplateList)
 async def list_templates(
     page: int = Query(default=1, ge=1),
@@ -51,7 +52,9 @@ async def list_templates(
 ):
     """List workshop templates. Inactive templates are hidden unless admin requests them."""
     show_inactive = include_inactive and current_user.is_admin
-    items, total = await svc.list_templates(db, include_inactive=show_inactive, page=page, size=size)
+    items, total = await svc.list_templates(
+        db, include_inactive=show_inactive, page=page, size=size
+    )
     return WorkshopTemplateList(items=items, total=total, page=page, size=size)
 
 
@@ -77,6 +80,16 @@ async def create_template(
     return await svc.create_template(db, data, created_by=current_user.email)
 
 
+@router.get("/stats", response_model=list[TemplateStats])
+async def list_template_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
+):
+    """Launch counts for all templates (available to all authenticated users)."""
+    return await svc.get_bulk_launch_counts(db)
+
+
 @router.get("/{template_id}", response_model=WorkshopTemplateResponse)
 async def get_template(
     template_id: uuid.UUID = Path(...),
@@ -87,7 +100,9 @@ async def get_template(
     """Get a workshop template by ID."""
     template = await svc.get_template(db, template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
     return template
 
 
@@ -105,7 +120,9 @@ async def update_template(
     """Update a workshop template (admin only)."""
     template = await svc.update_template(db, template_id, data)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
     return template
 
 
@@ -120,14 +137,15 @@ async def delete_template(
     db: AsyncSession = Depends(get_db),
     svc: WorkshopTemplateService = Depends(get_template_service),
 ):
-    """Archive a workshop template (admin only). 
-    
+    """Archive a workshop template (admin only).
+
     Defaults to soft-delete (isActive=False). Use ?hard=true for permanent removal.
     """
     found = await svc.archive_template(db, template_id, hard_delete=hard)
     if not found:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return None
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
 
 
 @router.patch(
@@ -143,8 +161,10 @@ async def toggle_template_active(
     """Toggle a template's isActive status (admin only)."""
     template = await svc.get_template(db, template_id)
     if not template:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
+
     updated = await svc.update_template(
         db, template_id, WorkshopTemplateUpdate(isActive=not template.is_active)
     )
@@ -152,8 +172,9 @@ async def toggle_template_active(
 
 
 # ---------------------------------------------------------------------------
-# Template stats endpoint (admin only)
+# Template stats endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.get(
     "/{template_id}/stats",
@@ -168,13 +189,16 @@ async def get_template_stats(
     """Aggregate launch and utilization statistics for a template (admin only)."""
     stats = await svc.get_template_stats(db, template_id)
     if not stats:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
     return stats
 
 
 # ---------------------------------------------------------------------------
 # Launch endpoint — creates a WorkshopInstance from a template
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/{template_id}/launch",
