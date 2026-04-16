@@ -3,9 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Workshop resource requirements.
+ * Default resource limits/requests for a workshop template.
  */
-export type WorkshopResources = {
+export type WorkshopResourceDefaults = {
     /**
      * CPU limit
      */

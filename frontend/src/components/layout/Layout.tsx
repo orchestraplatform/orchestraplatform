@@ -20,13 +20,13 @@ export function Layout({ children }: LayoutProps) {
                 href="/"
                 className="transition-colors hover:text-foreground/80 text-foreground"
               >
-                Dashboard
+                My Sessions
               </a>
               <a
-                href="/create"
+                href="/templates"
                 className="transition-colors hover:text-foreground/80 text-foreground/60"
               >
-                Create Workshop
+                Templates
               </a>
             </nav>
           </div>

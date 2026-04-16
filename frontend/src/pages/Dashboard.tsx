@@ -1,19 +1,19 @@
 import React from 'react';
-import { useWorkshops } from '../hooks/useWorkshops';
+import { useInstances } from '../hooks/useInstances';
 import { WorkshopCard } from '../components/workshop/WorkshopCard';
 import { Button } from '../components/ui/Button';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export function Dashboard() {
-  const { data: workshopsData, isLoading, error, refetch } = useWorkshops();
+  const { data: instancesData, isLoading, error, refetch } = useInstances();
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center space-x-2">
           <RefreshCw className="h-4 w-4 animate-spin" />
-          <span>Loading workshops...</span>
+          <span>Loading sessions...</span>
         </div>
       </div>
     );
@@ -23,7 +23,7 @@ export function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="text-center">
-          <h2 className="text-lg font-semibold text-destructive">Failed to load workshops</h2>
+          <h2 className="text-lg font-semibold text-destructive">Failed to load sessions</h2>
           <p className="text-muted-foreground mt-2">
             {error instanceof Error ? error.message : 'Unknown error occurred'}
           </p>
@@ -39,15 +39,15 @@ export function Dashboard() {
     );
   }
 
-  const workshops = workshopsData?.items || [];
+  const instances = instancesData?.items || [];
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Workshop Dashboard</h1>
+          <h1 className="text-3xl font-bold">My Sessions</h1>
           <p className="text-muted-foreground mt-2">
-            Manage your RStudio workshops
+            Your active workshop sessions
           </p>
         </div>
         <div className="flex items-center space-x-2">
@@ -55,40 +55,40 @@ export function Dashboard() {
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
-          <Link to="/create">
+          <Link to="/templates">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              Create Workshop
+              New Session
             </Button>
           </Link>
         </div>
       </div>
 
-      {workshops.length === 0 ? (
+      {instances.length === 0 ? (
         <div className="text-center py-12">
           <div className="mx-auto max-w-md">
-            <h3 className="text-lg font-semibold">No workshops found</h3>
+            <h3 className="text-lg font-semibold">No active sessions</h3>
             <p className="text-muted-foreground mt-2">
-              Get started by creating your first workshop
+              Browse available workshop templates to launch a session
             </p>
-            <Link to="/create">
+            <Link to="/templates">
               <Button className="mt-4">
                 <Plus className="h-4 w-4 mr-2" />
-                Create Your First Workshop
+                Browse Templates
               </Button>
             </Link>
           </div>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {workshops.map((workshop) => (
-            <WorkshopCard key={workshop.name} workshop={workshop} />
+          {instances.map((instance) => (
+            <WorkshopCard key={instance.k8sName} instance={instance} />
           ))}
         </div>
       )}
 
       <div className="text-sm text-muted-foreground">
-        Total workshops: {workshops.length}
+        Total sessions: {instances.length}
       </div>
     </div>
   );
