@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { WorkshopInstanceResponse } from '../api/generated';
 
 // Configurable thresholds — adjust here or promote to app config.
@@ -17,15 +17,24 @@ export function minutesRemaining(expiresAt: string | null | undefined): number {
  * Fires desktop notifications when sessions approach expiry.
  * Tracks already-notified sessions to avoid repeating on every SSE tick.
  */
+const CHECK_INTERVAL_MS = 30_000;
+
 export function useExpiryNotifications(instances: WorkshopInstanceResponse[]) {
-  // Sets of k8sName values that have already received each notification level.
   const notifiedWarn = useRef<Set<string>>(new Set());
   const notifiedCritical = useRef<Set<string>>(new Set());
+  const instancesRef = useRef(instances);
 
+  // Request permission once on first render if not yet decided.
   useEffect(() => {
-    if (Notification.permission !== 'granted') return;
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
 
-    for (const inst of instances) {
+  const check = useCallback(() => {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+    for (const inst of instancesRef.current) {
       const mins = minutesRemaining(inst.expiresAt);
       const name = inst.k8sName;
       const label = inst.workshopName ?? name;
@@ -36,10 +45,7 @@ export function useExpiryNotifications(instances: WorkshopInstanceResponse[]) {
           body: `Your session expires in ${Math.ceil(mins)} minute${Math.ceil(mins) === 1 ? '' : 's'}.`,
           tag: `expiry-critical-${name}`,
         });
-        n.onclick = () => {
-          window.focus();
-          n.close();
-        };
+        n.onclick = () => { window.focus(); n.close(); };
       } else if (
         mins <= EXPIRY_WARN_MINUTES &&
         mins > EXPIRY_CRITICAL_MINUTES &&
@@ -50,10 +56,7 @@ export function useExpiryNotifications(instances: WorkshopInstanceResponse[]) {
           body: `Your session expires in ${Math.ceil(mins)} minutes. Visit My Sessions to extend or save your work.`,
           tag: `expiry-warn-${name}`,
         });
-        n.onclick = () => {
-          window.focus();
-          n.close();
-        };
+        n.onclick = () => { window.focus(); n.close(); };
       }
 
       // Clear tracking when a session is no longer near expiry
@@ -63,5 +66,17 @@ export function useExpiryNotifications(instances: WorkshopInstanceResponse[]) {
         notifiedCritical.current.delete(name);
       }
     }
-  }, [instances]);
+  }, []);
+
+  // Update ref and check immediately whenever instances change.
+  useEffect(() => {
+    instancesRef.current = instances;
+    check();
+  }, [instances, check]);
+
+  // Also check on a timer in case the user stays on the page without new SSE data.
+  useEffect(() => {
+    const id = setInterval(check, CHECK_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [check]);
 }

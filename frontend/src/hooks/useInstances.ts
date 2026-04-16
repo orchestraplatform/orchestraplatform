@@ -11,27 +11,41 @@ export function useInstances(namespace = 'default', page = 1, size = 50) {
   const queryClient = useQueryClient();
   const queryKey = [...INSTANCES_KEY, namespace, page, size];
 
-  // SSE for real-time updates
+  // SSE for real-time updates with exponential-backoff reconnect
   useEffect(() => {
-    const url = new URL(`${OpenAPI.BASE}/instances/events`, window.location.origin);
-    const eventSource = new EventSource(url.toString(), { withCredentials: true });
+    let es: EventSource;
+    let retryTimer: ReturnType<typeof setTimeout>;
+    let delay = 1_000;
+    const MAX_DELAY = 30_000;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data: WorkshopInstanceList = JSON.parse(event.data);
-        queryClient.setQueryData(queryKey, data);
-      } catch (err) {
-        console.error('Failed to parse instance events:', err);
-      }
+    const connect = () => {
+      const url = new URL(`${OpenAPI.BASE}/instances/events`, window.location.origin);
+      es = new EventSource(url.toString(), { withCredentials: true });
+
+      es.onmessage = (event) => {
+        delay = 1_000; // reset backoff on successful message
+        try {
+          const data: WorkshopInstanceList = JSON.parse(event.data);
+          queryClient.setQueryData(queryKey, data);
+        } catch (err) {
+          console.error('Failed to parse instance events:', err);
+        }
+      };
+
+      es.onerror = () => {
+        es.close();
+        retryTimer = setTimeout(() => {
+          delay = Math.min(delay * 2, MAX_DELAY);
+          connect();
+        }, delay);
+      };
     };
 
-    eventSource.onerror = (err) => {
-      console.error('EventSource failed:', err);
-      eventSource.close();
-    };
+    connect();
 
     return () => {
-      eventSource.close();
+      clearTimeout(retryTimer);
+      es?.close();
     };
   }, [queryClient, queryKey]);
 
