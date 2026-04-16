@@ -4,11 +4,11 @@ import type { WorkshopLaunchRequest } from '../api/generated';
 
 const TEMPLATES_KEY = ['templates'] as const;
 
-export function useTemplates(page = 1, size = 50) {
+export function useTemplates(page = 1, size = 50, includeInactive = false) {
   return useQuery({
-    queryKey: [...TEMPLATES_KEY, page, size],
+    queryKey: [...TEMPLATES_KEY, page, size, includeInactive],
     queryFn: () =>
-      TemplatesService.listTemplatesTemplatesGet(page, size, false),
+      TemplatesService.listTemplatesTemplatesGet(page, size, includeInactive),
   });
 }
 
@@ -27,6 +27,28 @@ export function useLaunchTemplate(templateId: string) {
       TemplatesService.launchWorkshopTemplatesTemplateIdLaunchPost(templateId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['instances'] });
+    },
+  });
+}
+
+export function useToggleTemplateActive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      TemplatesService.toggleTemplateActiveTemplatesTemplateIdToggleActivePatch(templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
+    },
+  });
+}
+
+export function useDeleteTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, hard = false }: { id: string; hard?: boolean }) =>
+      TemplatesService.deleteTemplateTemplatesTemplateIdDelete(id, hard),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
     },
   });
 }

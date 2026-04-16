@@ -107,18 +107,46 @@ export class TemplatesService {
         });
     }
     /**
-     * Archive Template
-     * Archive a workshop template (admin only). Sets is_active=False; does not hard-delete.
+     * Delete Template
+     * Archive a workshop template (admin only).
+     *
+     * Defaults to soft-delete (isActive=False). Use ?hard=true for permanent removal.
      * @param templateId
+     * @param hard
      * @returns void
      * @throws ApiError
      */
-    public static archiveTemplateTemplatesTemplateIdDelete(
+    public static deleteTemplateTemplatesTemplateIdDelete(
         templateId: string,
+        hard: boolean = false,
     ): CancelablePromise<void> {
         return __request(OpenAPI, {
             method: 'DELETE',
             url: '/templates/{template_id}',
+            path: {
+                'template_id': templateId,
+            },
+            query: {
+                'hard': hard,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Toggle Template Active
+     * Toggle a template's isActive status (admin only).
+     * @param templateId
+     * @returns WorkshopTemplateResponse Successful Response
+     * @throws ApiError
+     */
+    public static toggleTemplateActiveTemplatesTemplateIdToggleActivePatch(
+        templateId: string,
+    ): CancelablePromise<WorkshopTemplateResponse> {
+        return __request(OpenAPI, {
+            method: 'PATCH',
+            url: '/templates/{template_id}/toggle-active',
             path: {
                 'template_id': templateId,
             },

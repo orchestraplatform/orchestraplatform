@@ -3,7 +3,7 @@
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
@@ -193,12 +193,19 @@ def test_update_template_as_non_admin_returns_403(client):
     assert response.status_code == 403
 
 
-# ── Archive (admin only) ──────────────────────────────────────────────────────
+# ── Delete (admin only) ───────────────────────────────────────────────────────
 
-def test_archive_template_as_admin_returns_204(admin_client):
-    with _override_template_svc():
+def test_archive_template_soft_by_default(admin_client):
+    with _override_template_svc(archive_template=AsyncMock(return_value=True)):
         response = admin_client.delete(f"/templates/{TEMPLATE_ID}")
     assert response.status_code == 204
+
+
+def test_archive_template_hard(admin_client):
+    with _override_template_svc() as svc:
+        response = admin_client.delete(f"/templates/{TEMPLATE_ID}?hard=true")
+    assert response.status_code == 204
+    svc.archive_template.assert_called_once_with(ANY, TEMPLATE_ID, hard_delete=True)
 
 
 def test_archive_template_as_non_admin_returns_403(client):

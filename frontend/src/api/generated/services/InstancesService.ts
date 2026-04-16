@@ -143,4 +143,16 @@ export class InstancesService {
             },
         });
     }
+    /**
+     * Instance Events
+     * Stream workshop instance updates for the current user.
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static instanceEventsInstancesEventsGet(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/instances/events',
+        });
+    }
 }

@@ -46,6 +46,18 @@ export function Layout({ children }: LayoutProps) {
               >
                 Templates
               </NavLink>
+              {user?.is_admin && (
+                <NavLink
+                  to="/admin/templates"
+                  className={({ isActive }) =>
+                    `transition-colors hover:text-foreground/80 ${
+                      isActive ? 'text-foreground' : 'text-foreground/60'
+                    }`
+                  }
+                >
+                  Admin
+                </NavLink>
+              )}
             </nav>
           </div>
 

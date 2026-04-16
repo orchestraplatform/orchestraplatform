@@ -114,16 +114,41 @@ async def update_template(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Depends(require_admin)],
 )
-async def archive_template(
+async def delete_template(
+    template_id: uuid.UUID = Path(...),
+    hard: bool = Query(default=False),
+    db: AsyncSession = Depends(get_db),
+    svc: WorkshopTemplateService = Depends(get_template_service),
+):
+    """Archive a workshop template (admin only). 
+    
+    Defaults to soft-delete (isActive=False). Use ?hard=true for permanent removal.
+    """
+    found = await svc.archive_template(db, template_id, hard_delete=hard)
+    if not found:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+    return None
+
+
+@router.patch(
+    "/{template_id}/toggle-active",
+    response_model=WorkshopTemplateResponse,
+    dependencies=[Depends(require_admin)],
+)
+async def toggle_template_active(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
     svc: WorkshopTemplateService = Depends(get_template_service),
 ):
-    """Archive a workshop template (admin only). Sets is_active=False; does not hard-delete."""
-    found = await svc.archive_template(db, template_id)
-    if not found:
+    """Toggle a template's isActive status (admin only)."""
+    template = await svc.get_template(db, template_id)
+    if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
-    return None
+    
+    updated = await svc.update_template(
+        db, template_id, WorkshopTemplateUpdate(isActive=not template.is_active)
+    )
+    return updated
 
 
 # ---------------------------------------------------------------------------

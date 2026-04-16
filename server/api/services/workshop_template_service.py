@@ -134,16 +134,22 @@ class WorkshopTemplateService:
         return _to_response(row)
 
     async def archive_template(
-        self, db: AsyncSession, template_id: uuid.UUID
+        self, db: AsyncSession, template_id: uuid.UUID, hard_delete: bool = False
     ) -> bool:
-        """Soft-delete by setting is_active=False. Returns False if not found."""
+        """Archive (soft-delete) or permanently delete a template."""
         result = await db.execute(select(Workshop).where(Workshop.id == template_id))
         row = result.scalar_one_or_none()
         if row is None:
             return False
-        row.is_active = False
+        
+        if hard_delete:
+            await db.delete(row)
+            logger.info("Hard-deleted workshop template %s", template_id)
+        else:
+            row.is_active = False
+            logger.info("Archived (soft-deleted) workshop template %s", template_id)
+            
         await db.commit()
-        logger.info("Archived workshop template %s", template_id)
         return True
 
 
