@@ -41,6 +41,9 @@ This will:
 just setup
 ```
 
+This installs frontend/docs packages and syncs Python projects with their dev
+dependency groups, so commands like `just test` work without extra setup.
+
 ### Starting the dev stack
 
 ```bash

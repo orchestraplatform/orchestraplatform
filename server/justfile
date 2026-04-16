@@ -11,7 +11,7 @@ default:
 
 # === Development Setup ===
 
-# Install dependencies
+# Install runtime dependencies only
 install-deps:
     uv sync
 
@@ -22,6 +22,10 @@ install-dev:
 # Sync lock file
 sync:
     uv sync --frozen
+
+# Sync runtime + development dependencies from the lock file
+sync-dev:
+    uv sync --frozen --group dev
 
 # === Running the API ===
 
@@ -63,19 +67,19 @@ migrate-history:
 
 # Run all tests
 test:
-    pytest tests/ -v
+    uv run --group dev python -m pytest tests/ -v
 
 # Run tests with coverage
 test-cov:
-    pytest tests/ --cov=api --cov-report=html --cov-report=term
+    uv run --group dev python -m pytest tests/ --cov=api --cov-report=html --cov-report=term
 
 # Run integration tests (requires ORCHESTRA_INTEGRATION_TESTS=1 and a kind cluster)
 test-integration:
-    ORCHESTRA_INTEGRATION_TESTS=1 pytest tests/integration/ -v -m integration
+    ORCHESTRA_INTEGRATION_TESTS=1 uv run --group dev python -m pytest tests/integration/ -v -m integration
 
 # Run specific test file
 test-file file:
-    pytest {{file}} -v
+    uv run --group dev python -m pytest {{file}} -v
 
 # Run tests in watch mode
 test-watch:
@@ -239,11 +243,12 @@ clear-workshops:
 
 # === Development Workflow ===
 
-# Complete development setup with schema generation
-setup: install-deps generate-schema
+# Complete development setup with test dependencies and schema generation
+setup: install-dev generate-schema
     echo "Orchestra API development environment ready!"
     echo "Run 'just dev' to start the API server"
     echo "Run 'just docs' to open API documentation"
+    echo "Run 'just test' to verify the server test suite"
     echo "Run 'just update-frontend-types' to sync types with frontend"
 
 # Full test suite and quality checks

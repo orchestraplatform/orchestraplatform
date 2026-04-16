@@ -6,19 +6,28 @@ REST API for managing RStudio workshops via the Orchestra Operator.
 
 1. **Install dependencies**:
    ```bash
-   cd api
-   uv sync
+   cd server
+   just setup
    ```
 
 2. **Run the API**:
    ```bash
-   cd api
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   cd server
+   just dev
    ```
 
 3. **View API documentation**:
    - Swagger UI: http://localhost:8000/docs
    - ReDoc: http://localhost:8000/redoc
+
+4. **Run the server test suite**:
+   ```bash
+   cd server
+   just test
+   ```
+
+`just setup` installs the `dev` dependency group with `uv`, so `pytest` is
+available via `uv run` in all of the test recipes.
 
 ## API Endpoints
 

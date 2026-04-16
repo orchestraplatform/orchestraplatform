@@ -9,7 +9,8 @@ default:
 
 # --- One-time setup ---
 
-# Set up all project components (install dependencies)
+# Set up all project components for local contribution and testing.
+# Python services install their dev dependency groups so `just test` works.
 setup: setup-docs setup-frontend setup-operator setup-server
 
 setup-docs:
@@ -19,10 +20,10 @@ setup-frontend:
     cd frontend && npm install
 
 setup-operator:
-    cd operator && uv sync
+    cd operator && uv sync --group dev
 
 setup-server:
-    cd server && uv sync
+    cd server && uv sync --group dev
 
 # --- Local dev cluster setup (run once per machine) ---
 
@@ -158,10 +159,10 @@ quality-docs:
 test: test-frontend test-server
 
 test-frontend:
-    cd frontend && npm test
+    cd frontend && just test
 
 test-server:
-    cd server && uv run pytest
+    cd server && just test
 
 # --- Build ---
 

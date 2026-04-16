@@ -32,7 +32,7 @@ type-check:
 
 # Testing
 test:
-    npm run test
+    npm run test -- --run --passWithNoTests
 
 test-ui:
     npm run test:ui
