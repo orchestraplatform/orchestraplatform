@@ -61,8 +61,10 @@ dev-setup:
 # --- Development Stack ---
 
 # Start the full local dev stack (server + frontend + operator)
-dev:
-    @just -j 3 dev-server dev-frontend dev-operator
+
+[parallel]
+dev: dev-server dev-frontend dev-operator
+
 
 # Run the backend server
 dev-server:
@@ -87,6 +89,16 @@ dev-operator:
 # Run the docs development server
 dev-docs:
     cd docs && npm run dev -- --port {{ docs_port }}
+
+# Stop all running local development processes
+stop:
+    -pkill -f uvicorn
+    -pkill -f "python main.py"
+    -pkill -f vite
+
+# Restart the full local dev stack
+restart: stop dev
+
 
 # --- Sidecar ---
 
