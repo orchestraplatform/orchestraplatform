@@ -2,8 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { useInstances, useTerminateInstance, useInstanceSummary } from '../hooks/useInstances';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { useToast } from '../components/ui/Toast';
 import { RefreshCw, Search, X, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { formatAbsoluteTime, getTimeRemaining } from '../utils';
+import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../hooks/useExpiryNotifications';
 import type { WorkshopInstanceResponse } from '../api/generated';
 
 type SortField = 'ownerEmail' | 'workshopName' | 'k8sName' | 'phase' | 'launchedAt' | 'expiresAt';
@@ -38,7 +41,9 @@ export function AdminDashboard() {
   const { data, isLoading, error, refetch } = useInstances('default', 1, 100);
   const { data: summary } = useInstanceSummary();
   const terminate = useTerminateInstance();
+  const { addToast } = useToast();
 
+  const [pendingTerminate, setPendingTerminate] = useState<WorkshopInstanceResponse | null>(null);
   const [search, setSearch] = useState('');
   const [phaseFilter, setPhaseFilter] = useState('');
   const [sortField, setSortField] = useState<SortField>('launchedAt');
@@ -77,12 +82,16 @@ export function AdminDashboard() {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  const handleTerminate = async (inst: WorkshopInstanceResponse) => {
-    if (!window.confirm(`Terminate session "${inst.k8sName}" for ${inst.ownerEmail}?`)) return;
+  const handleTerminate = (inst: WorkshopInstanceResponse) => setPendingTerminate(inst);
+
+  const handleConfirmTerminate = async () => {
+    if (!pendingTerminate) return;
+    const inst = pendingTerminate;
+    setPendingTerminate(null);
     try {
       await terminate.mutateAsync({ k8sName: inst.k8sName, namespace: inst.namespace });
     } catch {
-      window.alert('Failed to terminate session.');
+      addToast({ type: 'error', message: 'Failed to terminate session.' });
     }
   };
 
@@ -115,6 +124,15 @@ export function AdminDashboard() {
   );
 
   return (
+    <>
+    <ConfirmDialog
+      isOpen={!!pendingTerminate}
+      title="Terminate session?"
+      message={pendingTerminate ? `Terminate "${pendingTerminate.k8sName}" for ${pendingTerminate.ownerEmail}? This cannot be undone.` : ''}
+      confirmLabel="Terminate"
+      onConfirm={handleConfirmTerminate}
+      onCancel={() => setPendingTerminate(null)}
+    />
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -189,8 +207,15 @@ export function AdminDashboard() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filtered.map(inst => (
-                <tr key={inst.k8sName} className="hover:bg-muted/30 transition-colors">
+              {filtered.map(inst => {
+                const mins = minutesRemaining(inst.expiresAt);
+                const rowClass = mins <= EXPIRY_CRITICAL_MINUTES
+                  ? 'bg-red-50 hover:bg-red-100'
+                  : mins <= EXPIRY_WARN_MINUTES
+                  ? 'bg-amber-50 hover:bg-amber-100'
+                  : 'hover:bg-muted/30';
+                return (
+                <tr key={inst.k8sName} className={`transition-colors ${rowClass}`}>
                   <td className="px-3 py-2.5 text-xs text-muted-foreground max-w-[180px] truncate" title={inst.ownerEmail}>
                     {inst.ownerEmail}
                   </td>
@@ -222,11 +247,13 @@ export function AdminDashboard() {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       )}
     </div>
+    </>
   );
 }

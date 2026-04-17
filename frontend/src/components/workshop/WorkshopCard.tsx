@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ExternalLink, Trash2, CalendarClock, AlertTriangle } from 'lucide-react';
 import { WorkshopInstanceResponse } from '../../api/generated';
 import { formatAbsoluteTime, getTimeRemaining } from '../../utils';
 import { useTerminateInstance } from '../../hooks/useInstances';
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
+import { useToast } from '../ui/Toast';
+import { useTick } from '../../hooks/useTick';
 
 interface WorkshopCardProps {
   instance: WorkshopInstanceResponse;
@@ -14,15 +17,18 @@ interface WorkshopCardProps {
 
 export function WorkshopCard({ instance }: WorkshopCardProps) {
   const terminate = useTerminateInstance();
+  const { addToast } = useToast();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const handleTerminate = async () => {
-    if (window.confirm(`Terminate session "${instance.k8sName}"?`)) {
-      try {
-        await terminate.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
-      } catch (error) {
-        console.error('Failed to terminate instance:', error);
-        window.alert(`Failed to terminate session. Please try again.`);
-      }
+  const handleTerminate = () => setConfirmOpen(true);
+
+  const handleConfirmTerminate = async () => {
+    setConfirmOpen(false);
+    try {
+      await terminate.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
+    } catch (error) {
+      console.error('Failed to terminate instance:', error);
+      addToast({ type: 'error', message: 'Failed to terminate session. Please try again.' });
     }
   };
 
@@ -43,12 +49,23 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
     }
   };
 
+  useTick(30_000);
+
   const isOpen = instance.phase === 'Ready' || instance.phase === 'Running';
   const minsLeft = minutesRemaining(instance.expiresAt);
   const isCritical = minsLeft <= EXPIRY_CRITICAL_MINUTES;
   const isWarning = !isCritical && minsLeft <= EXPIRY_WARN_MINUTES;
 
   return (
+    <>
+    <ConfirmDialog
+      isOpen={confirmOpen}
+      title="Terminate session?"
+      message={`This will permanently end session "${instance.k8sName}". Any unsaved work will be lost.`}
+      confirmLabel="Terminate"
+      onConfirm={handleConfirmTerminate}
+      onCancel={() => setConfirmOpen(false)}
+    />
     <Card className={`flex flex-col transition-colors ${
       isCritical ? 'border-red-400 bg-red-50' :
       isWarning  ? 'border-amber-400 bg-amber-50' : ''
@@ -118,5 +135,6 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
         </Button>
       </CardFooter>
     </Card>
+    </>
   );
 }

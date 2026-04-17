@@ -10,6 +10,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { LaunchTemplate } from './pages/LaunchTemplate';
 import { History } from './pages/History';
 import { OpenAPI } from './api/generated';
+import { ToastProvider } from './components/ui/Toast';
 import './index.css';
 
 declare global {
@@ -31,6 +32,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
+    <ToastProvider>
     <QueryClientProvider client={queryClient}>
       <Router>
         <Layout>
@@ -46,6 +48,7 @@ function App() {
       </Router>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
+    </ToastProvider>
   );
 }
 

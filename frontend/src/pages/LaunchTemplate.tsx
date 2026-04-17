@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTemplate, useLaunchTemplate } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
+import { useToast } from '../components/ui/Toast';
 import { ArrowLeft, Play, RefreshCw } from 'lucide-react';
 
 export function LaunchTemplate() {
@@ -11,6 +12,7 @@ export function LaunchTemplate() {
 
   const { data: template, isLoading, error } = useTemplate(templateId ?? '');
   const launch = useLaunchTemplate(templateId ?? '');
+  const { addToast } = useToast();
 
   const [duration, setDuration] = useState('');
   const [namespace, setNamespace] = useState('default');
@@ -54,7 +56,7 @@ export function LaunchTemplate() {
       navigate('/', { state: { launched: instance.k8sName } });
     } catch (err) {
       console.error('Failed to launch workshop:', err);
-      window.alert('Failed to launch session. Please try again.');
+      addToast({ type: 'error', message: 'Failed to launch session. Please try again.' });
     }
   };
 
