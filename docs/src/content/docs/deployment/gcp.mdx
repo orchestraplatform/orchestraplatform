@@ -3,7 +3,7 @@ title: GCP Autopilot Deployment
 description: Deploy Orchestra on a GKE Autopilot cluster with Cloud SQL, Workload Identity, and Traefik.
 ---
 
-import { Aside, Steps } from '@astrojs/starlight/components';
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 This guide covers a complete Orchestra deployment on GKE Autopilot — the
 recommended configuration for teams running on Google Cloud.
@@ -147,7 +147,7 @@ helm install cert-manager jetstack/cert-manager \
   --set global.leaderElection.namespace=cert-manager
 ```
 
-### Wildcard TLS {#wildcard-tls}
+### Wildcard TLS
 
 Wildcard certificates require DNS-01 validation. Your DNS provider does **not**
 need to be Google — the cluster is on GCP, but DNS is often managed separately
