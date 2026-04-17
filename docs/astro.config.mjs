@@ -9,6 +9,9 @@ export default defineConfig({
     starlight({
       title: 'Orchestra Platform',
       description: 'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
+      components: {
+        Head: './src/components/Head.astro',
+      },
       head: [
         // Adding google analytics
         {
@@ -98,7 +101,7 @@ export default defineConfig({
     }),
   ],
   markdown: {
-    rehypePlugins: [rehypeMermaid],
+    rehypePlugins: [[rehypeMermaid, { strategy: 'pre-mermaid' }]],
   },
   vite: {
     server: {
