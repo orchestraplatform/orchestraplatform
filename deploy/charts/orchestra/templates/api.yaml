@@ -18,6 +18,10 @@ spec:
         {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 8 }}
     spec:
       serviceAccountName: orchestra-operator
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

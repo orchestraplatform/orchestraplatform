@@ -1,0 +1,73 @@
+# Production overrides for the Orchestra Helm chart.
+# Apply on top of values.yaml:
+#   helm upgrade --install orchestra . -f values.yaml -f values-prod.yaml
+#
+# Fill in every TODO before deploying.
+
+global:
+  domain: "TODO.example.edu"          # e.g. orchestra.myuni.edu
+  imagePullSecrets: []                 # add if images are in a private registry
+
+api:
+  image:
+    repository: seandavi/orchestra-api
+    tag: "TODO"                        # pin to a specific release tag
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  adminEmails:
+    - "TODO@example.edu"
+  requireAuthentication: true
+  database:
+    existingSecret: "orchestra-db"    # kubectl create secret generic orchestra-db --from-literal=database-url=postgresql+asyncpg://...
+    secretKey: "database-url"
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+operator:
+  image:
+    repository: seandavi/orchestra-operator
+    tag: "TODO"
+    pullPolicy: IfNotPresent
+  defaultWorkshopImage: "rocker/rstudio:latest"
+
+frontend:
+  image:
+    repository: seandavi/orchestra-frontend
+    tag: "TODO"
+    pullPolicy: IfNotPresent
+  replicas: 2
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+ingress:
+  enabled: true
+  className: traefik
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+
+networkPolicy:
+  enabled: true
+
+oauth2Proxy:
+  enabled: true
+  config:
+    clientID: "TODO"                   # GCP OAuth client ID
+    clientSecret: "TODO"               # GCP OAuth client secret
+    cookieSecret: "TODO"               # python3 -c "import secrets; print(secrets.token_hex(16))"
+    allowedDomains:
+      - "example.edu"                  # restrict to your institution's domain
+    allowedEmails: []

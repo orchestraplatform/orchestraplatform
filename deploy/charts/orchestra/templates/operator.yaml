@@ -115,6 +115,10 @@ spec:
         prometheus.io/path: "/metrics"
     spec:
       serviceAccountName: orchestra-operator
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

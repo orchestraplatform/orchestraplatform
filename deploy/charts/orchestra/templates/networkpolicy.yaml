@@ -1,0 +1,44 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+# Allow the API to receive traffic only from the oauth2-proxy and the frontend.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orchestra-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 6 }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: orchestra
+    ports:
+    - protocol: TCP
+      port: 8000
+---
+# Allow the frontend to receive traffic only from the ingress controller.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orchestra-frontend
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 6 }}
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 80
+{{- end }}

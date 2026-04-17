@@ -7,6 +7,8 @@ global:
   #   app.orchestra.example.edu   -> frontend
   #   api.orchestra.example.edu   -> API server
   domain: "orchestra.localhost"
+  # Optional list of imagePullSecret names (must exist in the namespace).
+  imagePullSecrets: []
 
 # ── Operator ────────────────────────────────────────────────────────────────
 operator:
@@ -46,6 +48,9 @@ api:
   # dev mode (only effective when requireAuthentication=false).
   devIdentity: null
   requireAuthentication: true
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
   # Database connection. Reference an existing Secret that holds the URL, or
   # set `url` directly (not recommended in production).
   database:
@@ -81,6 +86,10 @@ ingress:
 # Set oauth2Proxy.enabled=false if you bring your own auth proxy.
 # When disabled, the API still expects X-Auth-Request-Email to be forwarded
 # by whatever proxy sits upstream — see docs/deployment/oauth2-proxy.md.
+networkPolicy:
+  enabled: false
+
+# ── oauth2-proxy (bundled) ───────────────────────────────────────────────────
 oauth2Proxy:
   enabled: true
   # Google OAuth credentials — create these at:

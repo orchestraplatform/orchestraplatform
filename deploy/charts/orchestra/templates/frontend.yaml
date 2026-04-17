@@ -17,6 +17,10 @@ spec:
       labels:
         {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 8 }}
     spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 101  # nginx default user

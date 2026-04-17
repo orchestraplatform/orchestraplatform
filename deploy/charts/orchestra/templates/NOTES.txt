@@ -22,3 +22,37 @@ To check health:
   curl https://api.{{ .Values.global.domain }}/health/
 
 Full documentation: https://{{ .Values.global.domain }}/docs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WILDCARD TLS FOR WORKSHOP SUBDOMAINS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Each launched workshop session is exposed at a unique subdomain:
+  https://<session-name>.{{ .Values.global.domain }}
+
+A standard cert-manager Certificate covers only the hostnames it
+lists. To handle arbitrary session subdomains you need either:
+
+  Option A — Wildcard certificate (recommended)
+    Create a Certificate resource for *.{{ .Values.global.domain }}
+    using a DNS-01 solver (cert-manager + your DNS provider).
+    Example:
+      apiVersion: cert-manager.io/v1
+      kind: Certificate
+      metadata:
+        name: orchestra-wildcard
+        namespace: {{ .Release.Namespace }}
+      spec:
+        secretName: orchestra-wildcard-tls
+        dnsNames:
+          - "*.{{ .Values.global.domain }}"
+        issuerRef:
+          name: letsencrypt-prod
+          kind: ClusterIssuer
+    Then reference this secret in each workshop Ingress created by
+    the operator (configure via operator.wildcardTlsSecret if added).
+
+  Option B — Shared TLS termination at the ingress controller
+    Configure your ingress controller (e.g. Traefik) to terminate
+    TLS using a wildcard cert stored as a default TLS store secret.
+    No per-Ingress TLS block needed in that case.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

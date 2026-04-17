@@ -1,0 +1,16 @@
+{{- if .Values.api.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: orchestra-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+    {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.api.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 6 }}
+{{- end }}
