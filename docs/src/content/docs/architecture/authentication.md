@@ -11,27 +11,28 @@ subsequent request.
 
 ## Login flow
 
-```mermaid
-sequenceDiagram
-    participant B as Browser
-    participant P as oauth2-proxy
-    participant G as Google OIDC
-    participant A as Orchestra API
-
-    B->>P: GET /dashboard (no session cookie)
-    P-->>B: 302 → /oauth2/start?rd=/dashboard
-    B->>P: GET /oauth2/start
-    P-->>B: 302 → accounts.google.com/o/oauth2/auth
-    B->>G: User logs in
-    G-->>B: 302 → /oauth2/callback?code=...
-    B->>P: GET /oauth2/callback?code=...
-    P->>G: Exchange code for ID token
-    G-->>P: ID token (email, sub, ...)
-    P-->>B: 302 → /dashboard (Set-Cookie: _oauth2_proxy=...)
-    B->>P: GET /dashboard (with cookie)
-    P->>A: GET /dashboard (X-Auth-Request-Email: alice@example.com)
-    A-->>P: 200 OK
-    P-->>B: 200 OK
+```
+Browser                  oauth2-proxy             Google OIDC         Orchestra API
+   │                          │                        │                     │
+   │── GET /dashboard ────────►│                        │                     │
+   │   (no session cookie)    │                        │                     │
+   │◄─ 302 /oauth2/start ─────│                        │                     │
+   │                          │                        │                     │
+   │── GET /oauth2/start ─────►│                        │                     │
+   │◄─ 302 accounts.google.com/o/oauth2/auth ──────────│                     │
+   │                          │                        │                     │
+   │── User logs in ──────────────────────────────────►│                     │
+   │◄─ 302 /oauth2/callback?code=... ─────────────────│                     │
+   │                          │                        │                     │
+   │── GET /oauth2/callback?code=... ────────────────►│                     │
+   │                          │── exchange code ──────►│                     │
+   │                          │◄─ ID token (email) ───│                     │
+   │◄─ 302 /dashboard (Set-Cookie: _oauth2_proxy) ────│                     │
+   │                          │                        │                     │
+   │── GET /dashboard (cookie) ──────────────────────►│                     │
+   │                          │── X-Auth-Request-Email: alice@example.com ──►│
+   │                          │◄─────────────────────────────────── 200 OK ──│
+   │◄─ 200 OK ────────────────│                        │                     │
 ```
 
 ## Header trust contract
@@ -71,11 +72,9 @@ When `require_authentication` is `False` **and** `dev_identity` is set, the
 API short-circuits and uses `dev_identity` as the caller's email. No proxy is
 needed. This is the default behaviour of `just dev` and `docker-compose up`.
 
-:::caution
-Never set `ORCHESTRA_DEV_IDENTITY` in production. The bypass only activates
-when `ORCHESTRA_REQUIRE_AUTHENTICATION=false` is also set, but you should
-avoid both settings in production regardless.
-:::
+**Caution:** Never set `ORCHESTRA_DEV_IDENTITY` in production. The bypass only
+activates when `ORCHESTRA_REQUIRE_AUTHENTICATION=false` is also set, but you
+should avoid both settings in production regardless.
 
 ## Adding providers
 
