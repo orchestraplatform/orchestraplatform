@@ -190,8 +190,10 @@ spec:
     kind: ClusterIssuer
 ```
 
-The `ClusterIssuer` must use a DNS-01 solver for your DNS provider. For GCP
-Cloud DNS, see the [GCP guide](./gcp#wildcard-tls).
+The `ClusterIssuer` solver block depends on your DNS provider — your DNS does
+not need to be at the same provider as your cluster. The [GCP Autopilot
+guide](./gcp#wildcard-tls) has tabbed instructions for **Cloudflare**,
+**Google Cloud DNS**, and a pointer to other supported providers.
 
 ### Option B — Default TLS store (Traefik)
 

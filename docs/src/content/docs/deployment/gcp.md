@@ -149,8 +149,50 @@ helm install cert-manager jetstack/cert-manager \
 
 ### Wildcard TLS {#wildcard-tls}
 
-Wildcard certificates require DNS-01 validation. Create a GCP service account
-for cert-manager to manage Cloud DNS:
+Wildcard certificates require DNS-01 validation. Your DNS provider does **not**
+need to be Google — the cluster is on GCP, but DNS is often managed separately
+(Cloudflare is a common choice). Pick the tab that matches your setup.
+
+<Tabs>
+<TabItem label="Cloudflare DNS">
+
+Create a Cloudflare API token with `Zone → DNS → Edit` permission for the
+relevant zone ([Cloudflare dashboard → My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens)).
+
+Store it as a Secret:
+
+```bash
+kubectl create secret generic cloudflare-api-token \
+  --namespace cert-manager \
+  --from-literal=api-token=<YOUR_CLOUDFLARE_API_TOKEN>
+```
+
+Create the `ClusterIssuer`:
+
+```yaml
+# cluster-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.edu
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            name: cloudflare-api-token
+            key: api-token
+```
+
+</TabItem>
+<TabItem label="Google Cloud DNS">
+
+Create a GCP service account and bind it to cert-manager via Workload Identity:
 
 ```bash
 gcloud iam service-accounts create cert-manager-dns \
@@ -161,7 +203,6 @@ gcloud projects add-iam-policy-binding $PROJECT \
   --member "serviceAccount:cert-manager-dns@$PROJECT.iam.gserviceaccount.com" \
   --role roles/dns.admin
 
-# Workload Identity binding for cert-manager
 gcloud iam service-accounts add-iam-policy-binding \
   cert-manager-dns@$PROJECT.iam.gserviceaccount.com \
   --project $PROJECT \
@@ -193,11 +234,23 @@ spec:
           project: my-gcp-project
 ```
 
+</TabItem>
+<TabItem label="Other providers">
+
+cert-manager supports Route53 (AWS), Azure DNS, DigitalOcean, and
+[many others](https://cert-manager.io/docs/configuration/acme/dns01/). The
+`ClusterIssuer` structure is the same — only the `dns01` solver block differs.
+Refer to the [cert-manager DNS01 docs](https://cert-manager.io/docs/configuration/acme/dns01/)
+for your provider's configuration.
+
+</TabItem>
+</Tabs>
+
 ```bash
 kubectl apply -f cluster-issuer.yaml
 ```
 
-Create the wildcard certificate:
+Create the wildcard certificate (same regardless of DNS provider):
 
 ```yaml
 # wildcard-cert.yaml
@@ -218,27 +271,80 @@ spec:
 
 ```bash
 kubectl apply -f wildcard-cert.yaml
-# Watch issuance (takes 1-2 min for DNS propagation)
+# Watch issuance — DNS propagation typically takes 1-2 min with Cloudflare,
+# up to 10 min with slower providers.
 kubectl get certificate -n orchestra-system orchestra-wildcard -w
 ```
 
 ## Step 6 — DNS
 
-Point a wildcard A record at the Traefik LoadBalancer IP:
+<Aside type="note">
+Your DNS does not need to be on Google. Point the wildcard record wherever your
+zone is managed — Cloudflare, Route53, Google Cloud DNS, etc. The record itself
+is always the same: a wildcard `A` pointing at the Traefik LoadBalancer IP.
+</Aside>
 
 ```bash
 TRAEFIK_IP=$(kubectl get svc -n traefik traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+echo "Traefik IP: $TRAEFIK_IP"
+```
 
+<Tabs>
+<TabItem label="Cloudflare">
+
+In the Cloudflare dashboard (or via the API/Terraform):
+
+```
+Type: A
+Name: *.orchestra          (or *.orchestra.example.edu if it's a subdomain zone)
+IPv4: <TRAEFIK_IP>
+Proxy status: DNS only (grey cloud)   ← required; proxied mode breaks wildcard + TLS
+TTL: Auto
+```
+
+<Aside type="caution">
+Set Cloudflare proxy status to **DNS only** (grey cloud) for the wildcard
+record. Proxied mode (orange cloud) intercepts TLS and is incompatible with
+cert-manager's DNS-01 challenge and Traefik's direct TLS termination.
+</Aside>
+
+Optionally add the apex record too:
+
+```
+Type: A   Name: orchestra   IPv4: <TRAEFIK_IP>   Proxy: DNS only
+```
+
+</TabItem>
+<TabItem label="Google Cloud DNS">
+
+```bash
 gcloud dns record-sets create "*.orchestra.example.edu." \
   --zone=my-zone \
   --type=A \
   --ttl=300 \
   --rrdatas=$TRAEFIK_IP
 
-# Optionally also the apex and fixed hostnames
+# Apex hostname (optional)
 gcloud dns record-sets create "orchestra.example.edu." \
   --zone=my-zone --type=A --ttl=300 --rrdatas=$TRAEFIK_IP
 ```
+
+</TabItem>
+<TabItem label="Other providers">
+
+Add an `A` record:
+
+| Field | Value |
+|---|---|
+| Name / Host | `*.orchestra` (or `*` if the zone is already `orchestra.example.edu`) |
+| Type | `A` |
+| Value | `<TRAEFIK_IP>` |
+| TTL | 300 |
+
+Repeat for the apex (`orchestra.example.edu`) if needed.
+
+</TabItem>
+</Tabs>
 
 ## Step 7 — Google OAuth credentials
 
