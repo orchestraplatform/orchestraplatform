@@ -3,110 +3,254 @@ title: Helm Install Guide
 description: Install Orchestra on Kubernetes using Helm.
 ---
 
-Orchestra ships as two Helm charts:
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
-| Chart | Purpose |
-|---|---|
-| `orchestra-crds` | The Workshop `CustomResourceDefinition` — install once, upgrade separately |
-| `orchestra` | Operator, API, frontend, oauth2-proxy, ingress, and Traefik middleware |
+Orchestra ships as a single Helm chart that includes the API server, operator,
+frontend, and an optional bundled oauth2-proxy.
 
 ## Prerequisites
 
-- Kubernetes 1.25+ (CEL validation on CRDs requires 1.25+)
-- Helm 3.12+
-- Traefik ingress controller
-- cert-manager (for TLS; can be disabled for dev)
-- Google OAuth credentials (see [oauth2-proxy setup](./oauth2-proxy))
+| Requirement | Notes |
+|---|---|
+| Kubernetes 1.25+ | CEL validation on CRDs requires 1.25+ |
+| Helm 3.12+ | |
+| Ingress controller | Traefik or nginx-ingress — see [Ingress Guide](./ingress) |
+| cert-manager | For automatic TLS; can be skipped in dev |
+| PostgreSQL | External — see [Database](#database) below |
+| Google OAuth credentials | See [oauth2-proxy Setup](./oauth2-proxy) |
 
-## Install
+## Quick install
 
 ```bash
-# 1. Install CRDs first (separate lifecycle from the app)
-helm install orchestra-crds deploy/charts/orchestra-crds \
-  --namespace orchestra-system \
-  --create-namespace
-
-# 2. Install the platform
 helm install orchestra deploy/charts/orchestra \
   --namespace orchestra-system \
+  --create-namespace \
   --set global.domain=orchestra.example.edu \
-  --set oauth2Proxy.config.clientID=<your-google-client-id> \
-  --set oauth2Proxy.config.clientSecret=<your-google-client-secret> \
-  --set oauth2Proxy.config.cookieSecret=$(python3 -c "import secrets; print(secrets.token_hex(16))") \
+  --set ingress.controller=traefik \
+  --set api.database.existingSecret=orchestra-db \
+  --set oauth2Proxy.config.clientID=<google-client-id> \
+  --set oauth2Proxy.config.clientSecret=<google-client-secret> \
+  --set "oauth2Proxy.config.cookieSecret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')" \
   --set "oauth2Proxy.config.allowedDomains={example.edu}" \
   --set "api.adminEmails={admin@example.edu}"
 ```
 
-## Values reference
+For production, use a values file instead of `--set` flags — see
+[Production deployment](#production-deployment).
 
-| Key | Default | Description |
-|---|---|---|
-| `global.domain` | `orchestra.localhost` | Base domain; produces `app.<domain>` and `api.<domain>` |
-| `operator.image.tag` | `latest` | Operator container image tag |
-| `api.image.tag` | `latest` | API server container image tag |
-| `frontend.image.tag` | `latest` | Frontend container image tag |
-| `api.adminEmails` | `[]` | List of admin email addresses |
-| `api.requireAuthentication` | `true` | Set to `false` with `devIdentity` for dev mode |
-| `api.devIdentity` | `null` | Dev-mode identity bypass email |
-| `ingress.className` | `traefik` | Ingress class |
-| `ingress.tls.enabled` | `true` | Enable TLS via cert-manager |
-| `ingress.tls.clusterIssuer` | `letsencrypt-prod` | cert-manager ClusterIssuer name |
-| `oauth2Proxy.enabled` | `true` | Deploy bundled oauth2-proxy |
-| `oauth2Proxy.config.clientID` | `""` | Google OAuth client ID |
-| `oauth2Proxy.config.clientSecret` | `""` | Google OAuth client secret |
-| `oauth2Proxy.config.cookieSecret` | `""` | 16-byte random hex string |
-| `oauth2Proxy.config.allowedDomains` | `["*"]` | Email domains allowed to log in |
-| `oauth2Proxy.config.allowedEmails` | `[]` | Specific email addresses allowed to log in |
+## Database
+
+Orchestra requires an external PostgreSQL database (version 13+). The operator
+and API share a single database.
+
+### Create the secret
+
+```bash
+kubectl create secret generic orchestra-db \
+  --namespace orchestra-system \
+  --from-literal=database-url='postgresql+asyncpg://orchestra:password@host:5432/orchestra'
+```
+
+Then reference it in your values:
+
+```yaml
+api:
+  database:
+    existingSecret: orchestra-db
+    secretKey: database-url   # default; change if your secret uses a different key
+```
+
+### Direct URL (dev only)
+
+```yaml
+api:
+  database:
+    url: "postgresql+asyncpg://orchestra:orchestra@localhost:5433/orchestra"
+```
+
+<Aside type="caution">
+Direct URLs store credentials in Helm release history. Use `existingSecret` for
+any shared or production environment.
+</Aside>
+
+### Cloud SQL on GCP
+
+The recommended pattern on GKE is the Cloud SQL Auth Proxy sidecar with
+Workload Identity (no password needed). See [GCP Autopilot Guide](./gcp) for a
+complete walkthrough.
+
+## Ingress and auth
+
+Auth is applied at the ingress layer. Set `ingress.controller` to match what's
+installed in your cluster:
+
+```yaml
+ingress:
+  controller: traefik    # "traefik" | "nginx" | "custom"
+  className: traefik
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+```
+
+See the [Ingress Guide](./ingress) for per-controller prerequisites and the full
+auth flow explanation.
+
+<Aside type="danger">
+**GKE native ingress is not supported** for workshop sessions. It provisions a
+new Cloud Load Balancer per `Ingress` resource (2–5 min, ~$20/month each).
+Use Traefik or nginx-ingress on GKE instead.
+</Aside>
+
+## Production deployment
+
+1. Copy `values-prod.yaml` from the chart directory and fill in every `TODO`:
+
+   ```bash
+   cp deploy/charts/orchestra/values-prod.yaml my-values.yaml
+   ```
+
+2. Create the database secret (see above).
+
+3. Install:
+
+   ```bash
+   helm install orchestra deploy/charts/orchestra \
+     --namespace orchestra-system \
+     --create-namespace \
+     -f my-values.yaml
+   ```
 
 ## Upgrading
 
 ```bash
-# Upgrade CRDs (run this before upgrading the main chart)
-helm upgrade orchestra-crds deploy/charts/orchestra-crds \
-  --namespace orchestra-system
-
-# Upgrade the platform
+# Upgrade the chart (runs the Alembic migration Job automatically as a pre-upgrade hook)
 helm upgrade orchestra deploy/charts/orchestra \
   --namespace orchestra-system \
-  -f values-prod.yaml
+  -f my-values.yaml
 ```
 
-:::note
-Helm does not upgrade CRDs in a chart's `crds/` directory. Orchestra places
-the CRD in `templates/` specifically so `helm upgrade` applies schema changes.
-Always upgrade `orchestra-crds` before `orchestra` when the CRD schema has
-changed.
-:::
+The chart runs `alembic upgrade head` as a `pre-install,pre-upgrade` Job before
+the new API pods start. Check Job logs if the upgrade stalls:
+
+```bash
+kubectl logs -n orchestra-system job/orchestra-migrate-<revision>
+```
 
 ## Local dev (kind)
 
-Use the provided `values-dev.yaml` to install without TLS or a real Google
-credential:
-
 ```bash
 kind create cluster
-helm install orchestra-crds deploy/charts/orchestra-crds
 helm install orchestra deploy/charts/orchestra \
   --namespace orchestra-system \
   --create-namespace \
-  -f deploy/values-dev.yaml
+  --set api.requireAuthentication=false \
+  --set api.devIdentity=dev@orchestra.localhost \
+  --set ingress.tls.enabled=false \
+  --set oauth2Proxy.enabled=false \
+  --set "api.adminEmails={dev@orchestra.localhost}"
 ```
 
-All API calls will be attributed to `dev@orchestra.localhost`. Admin access
-is also granted to that email.
+All API calls are attributed to `dev@orchestra.localhost`, which is also an
+admin. No Google credentials required.
+
+## Complete values reference
+
+### `global`
+
+| Key | Default | Description |
+|---|---|---|
+| `global.domain` | `orchestra.localhost` | Base domain; produces `app.<domain>` (frontend) and `api.<domain>` (API) |
+| `global.imagePullSecrets` | `[]` | Names of existing imagePullSecrets in the release namespace |
+
+### `api`
+
+| Key | Default | Description |
+|---|---|---|
+| `api.image.repository` | `seandavi/orchestra-api` | |
+| `api.image.tag` | `latest` | Pin to a release tag in production |
+| `api.replicas` | `1` | |
+| `api.adminEmails` | `[]` | Emails with admin access (manage all sessions) |
+| `api.requireAuthentication` | `true` | Set `false` with `devIdentity` for local dev |
+| `api.devIdentity` | `null` | Identity bypass email; never set in production |
+| `api.database.existingSecret` | `""` | Name of Secret containing `database-url` key |
+| `api.database.secretKey` | `database-url` | Key name within the Secret |
+| `api.database.url` | `""` | Direct URL fallback; use Secret in production |
+| `api.podDisruptionBudget.enabled` | `false` | Enable PDB (set `true` with replicas ≥ 2) |
+| `api.podDisruptionBudget.minAvailable` | `1` | |
+| `api.podSecurityContext` | `{runAsNonRoot: true, runAsUser: 1000}` | Override for OpenShift (set `runAsUser: null`) |
+| `api.containerSecurityContext` | `{allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}` | |
+| `api.extraEnv` | `[]` | Extra env vars injected into the API container |
+| `api.extraContainers` | `[]` | Extra sidecar containers (e.g. Cloud SQL Auth Proxy) |
+| `api.extraVolumes` | `[]` | Extra volumes |
+| `api.extraVolumeMounts` | `[]` | Extra volume mounts on the API container |
+
+### `operator`
+
+| Key | Default | Description |
+|---|---|---|
+| `operator.image.tag` | `latest` | |
+| `operator.defaultWorkshopImage` | `rocker/rstudio:latest` | Default container image for new workshop sessions |
+| `operator.logLevel` | `INFO` | |
+
+### `frontend`
+
+| Key | Default | Description |
+|---|---|---|
+| `frontend.image.tag` | `latest` | |
+| `frontend.replicas` | `1` | |
+
+### `persistence`
+
+| Key | Default | Description |
+|---|---|---|
+| `persistence.storageClass` | `""` | Storage class for session PVCs; `""` = cluster default |
+| `persistence.size` | `10Gi` | PVC size per workshop session |
+
+### `ingress`
+
+| Key | Default | Description |
+|---|---|---|
+| `ingress.enabled` | `true` | |
+| `ingress.controller` | `traefik` | `traefik` \| `nginx` \| `custom` — see [Ingress Guide](./ingress) |
+| `ingress.className` | `traefik` | Kubernetes `ingressClassName`; `""` = cluster default |
+| `ingress.tls.enabled` | `true` | |
+| `ingress.tls.clusterIssuer` | `letsencrypt-prod` | cert-manager ClusterIssuer; `""` to manage TLS yourself |
+| `ingress.annotations` | `{}` | Extra annotations merged onto every Ingress; sole annotations when `controller=custom` |
+
+### `networkPolicy`
+
+| Key | Default | Description |
+|---|---|---|
+| `networkPolicy.enabled` | `false` | Requires a CNI with NetworkPolicy support (Calico, Cilium, GKE Dataplane V2) |
+
+### `oauth2Proxy`
+
+| Key | Default | Description |
+|---|---|---|
+| `oauth2Proxy.enabled` | `true` | Deploy bundled oauth2-proxy |
+| `oauth2Proxy.config.clientID` | `""` | Google OAuth client ID |
+| `oauth2Proxy.config.clientSecret` | `""` | Google OAuth client secret |
+| `oauth2Proxy.config.cookieSecret` | `""` | Random 16-byte hex string |
+| `oauth2Proxy.config.allowedDomains` | `["*"]` | Email domains allowed to log in |
+| `oauth2Proxy.config.allowedEmails` | `[]` | Specific emails allowed regardless of domain |
+| `oauth2Proxy.config.githubOrg` | `""` | Restrict to a GitHub org (single-provider GitHub mode) |
 
 ## Disabling the bundled oauth2-proxy
 
-If your cluster already has a proxy (corporate oauth2-proxy fleet, Istio
-RequestAuthentication, etc.) you can disable the subchart:
+If your cluster already has an auth proxy (Cloudflare Access, corporate
+oauth2-proxy fleet, GKE IAP, etc.):
 
 ```yaml
 oauth2Proxy:
   enabled: false
-api:
-  requireAuthentication: true
+ingress:
+  controller: custom
+  annotations:
+    # Add whatever annotations your proxy requires
+    example.com/auth: "true"
 ```
 
-Your proxy must forward `X-Auth-Request-Email: <user-email>` to the API.
-The Orchestra `orchestra-auth-headers` Traefik Middleware will still strip any
-inbound versions of that header before your proxy re-sets it.
+Your proxy **must** forward `X-Auth-Request-Email: <user@domain>` to the API.
+Orchestra uses this header to identify the caller and enforce ownership; it does
+not have its own login UI.

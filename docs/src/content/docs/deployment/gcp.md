@@ -1,0 +1,370 @@
+---
+title: GCP Autopilot Deployment
+description: Deploy Orchestra on a GKE Autopilot cluster with Cloud SQL, Workload Identity, and Traefik.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This guide covers a complete Orchestra deployment on GKE Autopilot — the
+recommended configuration for teams running on Google Cloud.
+
+## Architecture overview
+
+```
+Cloud DNS wildcard *.orchestra.example.edu
+         │
+         ▼
+   Network LB (Traefik)
+         │
+    ┌────┴──────────────────────────────────┐
+    │          GKE Autopilot cluster        │
+    │                                       │
+    │  Traefik ──► oauth2-proxy             │
+    │            ──► orchestra-frontend     │
+    │            ──► orchestra-api ──► Cloud SQL Auth Proxy ──► Cloud SQL
+    │            ──► <session>.<domain> ──► workshop pods
+    └───────────────────────────────────────┘
+```
+
+Key choices:
+- **Traefik** instead of GKE native ingress (per-session Ingress compatibility)
+- **Cloud SQL** for PostgreSQL (managed, no in-cluster DB pod)
+- **Cloud SQL Auth Proxy sidecar** + Workload Identity (no password in Secrets)
+- **cert-manager with Cloud DNS** for wildcard TLS
+
+## Prerequisites
+
+- `gcloud` CLI authenticated with a project
+- `kubectl` and `helm` installed
+- A domain you control with Cloud DNS managing it
+
+## Step 1 — Create the Autopilot cluster
+
+```bash
+PROJECT=my-gcp-project
+REGION=us-central1
+CLUSTER=orchestra
+
+gcloud container clusters create-auto $CLUSTER \
+  --project $PROJECT \
+  --region $REGION \
+  --release-channel regular
+
+gcloud container clusters get-credentials $CLUSTER \
+  --project $PROJECT \
+  --region $REGION
+```
+
+## Step 2 — Create the Cloud SQL instance
+
+```bash
+gcloud sql instances create orchestra-db \
+  --project $PROJECT \
+  --region $REGION \
+  --database-version POSTGRES_15 \
+  --tier db-g1-small \
+  --storage-auto-increase
+
+gcloud sql databases create orchestra --instance orchestra-db --project $PROJECT
+
+# Note the instance connection name (used later for the proxy sidecar)
+gcloud sql instances describe orchestra-db \
+  --project $PROJECT \
+  --format="value(connectionName)"
+# → my-gcp-project:us-central1:orchestra-db
+```
+
+## Step 3 — Workload Identity for Cloud SQL
+
+Workload Identity lets the API pod authenticate to Cloud SQL without a service
+account key file.
+
+```bash
+# Create GCP service account
+gcloud iam service-accounts create orchestra-api \
+  --project $PROJECT \
+  --display-name "Orchestra API"
+
+# Grant Cloud SQL client role
+gcloud projects add-iam-policy-binding $PROJECT \
+  --member "serviceAccount:orchestra-api@$PROJECT.iam.gserviceaccount.com" \
+  --role roles/cloudsql.client
+
+# Create the release namespace first
+kubectl create namespace orchestra-system
+
+# Bind the GCP SA to the Kubernetes SA that the API pod uses
+gcloud iam service-accounts add-iam-policy-binding \
+  orchestra-api@$PROJECT.iam.gserviceaccount.com \
+  --project $PROJECT \
+  --role roles/iam.workloadIdentityUser \
+  --member "serviceAccount:$PROJECT.svc.id.goog[orchestra-system/orchestra-operator]"
+
+# Annotate the Kubernetes SA (created by the chart) after install, or pre-create it:
+kubectl annotate serviceaccount orchestra-operator \
+  --namespace orchestra-system \
+  iam.gke.io/gcp-service-account=orchestra-api@$PROJECT.iam.gserviceaccount.com
+```
+
+<Aside type="note">
+The chart uses `orchestra-operator` as the ServiceAccount name for both the
+operator and API pods (they share the same SA). You can pre-create it before
+`helm install`, or annotate it immediately after.
+</Aside>
+
+## Step 4 — Install Traefik
+
+```bash
+helm repo add traefik https://helm.traefik.io/traefik && helm repo update
+
+helm install traefik traefik/traefik \
+  --namespace traefik \
+  --create-namespace \
+  --set service.type=LoadBalancer \
+  --set resources.requests.cpu=250m \
+  --set resources.requests.memory=512Mi
+
+# Wait for external IP (1-2 min on Autopilot)
+kubectl get svc -n traefik traefik -w
+```
+
+<Aside type="caution">
+GKE Autopilot enforces a minimum of **250m CPU and 512Mi memory** per pod.
+Traefik's default requests are below this — the values above satisfy the
+minimum. Autopilot will automatically upsize pods that are below the minimum,
+but billing starts at the minimum anyway.
+</Aside>
+
+## Step 5 — Install cert-manager
+
+```bash
+helm repo add jetstack https://charts.jetstack.io && helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set installCRDs=true \
+  --set global.leaderElection.namespace=cert-manager
+```
+
+### Wildcard TLS {#wildcard-tls}
+
+Wildcard certificates require DNS-01 validation. Create a GCP service account
+for cert-manager to manage Cloud DNS:
+
+```bash
+gcloud iam service-accounts create cert-manager-dns \
+  --project $PROJECT \
+  --display-name "cert-manager Cloud DNS"
+
+gcloud projects add-iam-policy-binding $PROJECT \
+  --member "serviceAccount:cert-manager-dns@$PROJECT.iam.gserviceaccount.com" \
+  --role roles/dns.admin
+
+# Workload Identity binding for cert-manager
+gcloud iam service-accounts add-iam-policy-binding \
+  cert-manager-dns@$PROJECT.iam.gserviceaccount.com \
+  --project $PROJECT \
+  --role roles/iam.workloadIdentityUser \
+  --member "serviceAccount:$PROJECT.svc.id.goog[cert-manager/cert-manager]"
+
+kubectl annotate serviceaccount cert-manager \
+  --namespace cert-manager \
+  iam.gke.io/gcp-service-account=cert-manager-dns@$PROJECT.iam.gserviceaccount.com
+```
+
+Create the `ClusterIssuer`:
+
+```yaml
+# cluster-issuer.yaml
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@example.edu
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    solvers:
+    - dns01:
+        cloudDNS:
+          project: my-gcp-project
+```
+
+```bash
+kubectl apply -f cluster-issuer.yaml
+```
+
+Create the wildcard certificate:
+
+```yaml
+# wildcard-cert.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: orchestra-wildcard
+  namespace: orchestra-system
+spec:
+  secretName: orchestra-wildcard-tls
+  dnsNames:
+    - "*.orchestra.example.edu"
+    - "orchestra.example.edu"
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+```
+
+```bash
+kubectl apply -f wildcard-cert.yaml
+# Watch issuance (takes 1-2 min for DNS propagation)
+kubectl get certificate -n orchestra-system orchestra-wildcard -w
+```
+
+## Step 6 — DNS
+
+Point a wildcard A record at the Traefik LoadBalancer IP:
+
+```bash
+TRAEFIK_IP=$(kubectl get svc -n traefik traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+gcloud dns record-sets create "*.orchestra.example.edu." \
+  --zone=my-zone \
+  --type=A \
+  --ttl=300 \
+  --rrdatas=$TRAEFIK_IP
+
+# Optionally also the apex and fixed hostnames
+gcloud dns record-sets create "orchestra.example.edu." \
+  --zone=my-zone --type=A --ttl=300 --rrdatas=$TRAEFIK_IP
+```
+
+## Step 7 — Google OAuth credentials
+
+1. Go to [Google Cloud Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Create an OAuth 2.0 Client ID (Web application)
+3. Add authorized redirect URI: `https://app.orchestra.example.edu/oauth2/callback`
+4. Copy the Client ID and Client Secret
+
+## Step 8 — Install Orchestra
+
+Create `my-values.yaml` (start from `values-prod.yaml` in the chart):
+
+```yaml
+global:
+  domain: "orchestra.example.edu"
+
+api:
+  image:
+    tag: "v0.1.0"           # pin to a release
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m             # Autopilot minimum
+      memory: 512Mi
+  adminEmails:
+    - "admin@example.edu"
+  # No database.existingSecret needed — Cloud SQL proxy handles auth
+  extraContainers:
+    - name: cloud-sql-proxy
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2
+      args:
+        - "--auto-iam-authn"
+        - "my-gcp-project:us-central1:orchestra-db"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+  extraEnv:
+    - name: ORCHESTRA_DATABASE_URL
+      value: "postgresql+asyncpg://orchestra@localhost:5432/orchestra"
+
+operator:
+  image:
+    tag: "v0.1.0"
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+frontend:
+  image:
+    tag: "v0.1.0"
+  replicas: 2
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+persistence:
+  storageClass: "standard-rwo"   # GKE default ReadWriteOnce class
+
+ingress:
+  controller: traefik
+  className: traefik
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+
+networkPolicy:
+  enabled: true
+
+oauth2Proxy:
+  enabled: true
+  config:
+    clientID: "YOUR_CLIENT_ID"
+    clientSecret: "YOUR_CLIENT_SECRET"
+    cookieSecret: "YOUR_COOKIE_SECRET"
+    allowedDomains:
+      - "example.edu"
+```
+
+Install:
+
+```bash
+helm install orchestra deploy/charts/orchestra \
+  --namespace orchestra-system \
+  --create-namespace \
+  -f my-values.yaml
+```
+
+After install, annotate the ServiceAccount for Workload Identity (if not done
+in step 3):
+
+```bash
+kubectl annotate serviceaccount orchestra-operator \
+  --namespace orchestra-system \
+  iam.gke.io/gcp-service-account=orchestra-api@$PROJECT.iam.gserviceaccount.com
+```
+
+Restart the API pod to pick up the annotation:
+
+```bash
+kubectl rollout restart deployment/orchestra-api -n orchestra-system
+```
+
+## Verify
+
+```bash
+# All pods running?
+kubectl get pods -n orchestra-system
+
+# TLS certificate issued?
+kubectl get certificate -n orchestra-system orchestra-wildcard
+
+# API health check
+curl https://api.orchestra.example.edu/health/ready
+```
+
+## Autopilot-specific notes
+
+| Issue | Fix |
+|---|---|
+| Pod stuck in `Pending` with resource violation | Increase `resources.requests.cpu` to 250m and `memory` to 512Mi |
+| `readOnlyRootFilesystem` errors at startup | Add an `emptyDir` volume mounted at the path that needs writes (e.g. `/tmp`) |
+| `hostPath` volumes rejected | Use `emptyDir` instead — Autopilot blocks hostPath |
+| Node selector `kubernetes.io/os: linux` — harmless, all Autopilot nodes are Linux | No action needed |

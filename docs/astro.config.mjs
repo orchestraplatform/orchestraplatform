@@ -71,6 +71,8 @@ export default defineConfig({
           label: 'Deployment',
           items: [
             { label: 'Helm Install', link: '/deployment/helm/' },
+            { label: 'Ingress Controller Guide', link: '/deployment/ingress/' },
+            { label: 'GCP Autopilot', link: '/deployment/gcp/' },
             { label: 'oauth2-proxy Setup', link: '/deployment/oauth2-proxy/' },
           ],
         },
