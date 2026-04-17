@@ -87,7 +87,10 @@ data:
         cpuRequest: "500m"
         memoryRequest: "1Gi"
       defaultStorage:
-        size: "10Gi"
+        size: {{ .Values.persistence.size | quote }}
+        {{- if .Values.persistence.storageClass }}
+        storageClass: {{ .Values.persistence.storageClass | quote }}
+        {{- end }}
     cleanup:
       checkInterval: 300
       gracePeriod: 60

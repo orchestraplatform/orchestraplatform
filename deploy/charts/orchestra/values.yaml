@@ -1,16 +1,14 @@
-# Orchestra Helm chart values
+# Orchestra Helm chart — default values.
 # See docs/deployment/helm.md for a full reference and quickstart examples.
 
 global:
-  # Base domain for all Orchestra ingress hostnames.
-  # e.g. "orchestra.example.edu" produces:
-  #   app.orchestra.example.edu   -> frontend
-  #   api.orchestra.example.edu   -> API server
+  # Base domain. Produces app.<domain> (frontend) and api.<domain> (API).
   domain: "orchestra.localhost"
-  # Optional list of imagePullSecret names (must exist in the namespace).
+  # Names of pre-existing imagePullSecrets in the release namespace.
+  # Required when images are in a private registry.
   imagePullSecrets: []
 
-# ── Operator ────────────────────────────────────────────────────────────────
+# ── Operator ─────────────────────────────────────────────────────────────────
 operator:
   image:
     repository: seandavi/orchestra-operator
@@ -24,10 +22,11 @@ operator:
       cpu: 500m
       memory: 512Mi
   logLevel: INFO
-  # Default container image used for new workshop sessions.
+  # Default container image for newly launched workshop sessions.
+  # Override per-template via the WorkshopTemplate spec.image field.
   defaultWorkshopImage: "rocker/rstudio:latest"
 
-# ── API server ───────────────────────────────────────────────────────────────
+# ── API server ────────────────────────────────────────────────────────────────
 api:
   image:
     repository: seandavi/orchestra-api
@@ -41,24 +40,59 @@ api:
     limits:
       cpu: 500m
       memory: 512Mi
-  # Comma-separated list of admin email addresses.
-  # Admins can list/get/delete all workshops regardless of owner.
+  # Email addresses that have admin privileges (can manage all sessions).
   adminEmails: []
-  # Dev identity bypass: set to an email address to skip the auth proxy in
-  # dev mode (only effective when requireAuthentication=false).
+  # Dev-mode identity bypass — set to an email to skip the auth proxy.
+  # Only effective when requireAuthentication=false. Never set in production.
   devIdentity: null
   requireAuthentication: true
-  podDisruptionBudget:
-    enabled: false
-    minAvailable: 1
-  # Database connection. Reference an existing Secret that holds the URL, or
-  # set `url` directly (not recommended in production).
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  # Preferred: reference an existing Secret that contains the database URL.
+  #   kubectl create secret generic orchestra-db \
+  #     --from-literal=database-url='postgresql+asyncpg://user:pass@host:5432/db'
+  # Fallback: set url directly (not recommended in production).
   database:
     existingSecret: ""
     secretKey: "database-url"
     url: ""
 
-# ── Frontend ─────────────────────────────────────────────────────────────────
+  # ── PodDisruptionBudget ───────────────────────────────────────────────────
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+
+  # ── Security contexts ─────────────────────────────────────────────────────
+  # Override per-platform:
+  #   OpenShift: set runAsUser: null (platform assigns UID from namespace range)
+  #   GKE Autopilot: raise cpu/memory requests to platform minimums (250m/512Mi)
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]
+
+  # ── Escape hatches ────────────────────────────────────────────────────────
+  # Inject platform-specific sidecars (Cloud SQL Auth Proxy, Vault agent, etc.)
+  # or extra environment variables without forking the chart.
+  #
+  # Example — Cloud SQL Auth Proxy sidecar (GCP):
+  #   extraContainers:
+  #     - name: cloud-sql-proxy
+  #       image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2
+  #       args: ["--auto-iam-authn", "project:region:instance"]
+  #   extraEnv:
+  #     - name: ORCHESTRA_DATABASE_URL
+  #       value: "postgresql+asyncpg://orchestra@localhost:5432/orchestra"
+  extraEnv: []
+  extraVolumeMounts: []
+  extraVolumes: []
+  extraContainers: []
+
+# ── Frontend ──────────────────────────────────────────────────────────────────
 frontend:
   image:
     repository: seandavi/orchestra-frontend
@@ -73,42 +107,81 @@ frontend:
       cpu: 200m
       memory: 128Mi
 
-# ── Ingress ──────────────────────────────────────────────────────────────────
+# ── Workshop session persistence ──────────────────────────────────────────────
+# Applies to all PersistentVolumeClaims created by the operator for sessions.
+persistence:
+  # Storage class for session PVCs. Leave "" to use the cluster default.
+  # Common values: "standard-rwo" (GKE), "gp3" (EKS), "managed-premium" (AKS)
+  storageClass: ""
+  size: "10Gi"
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
 ingress:
   enabled: true
+
+  # Ingress controller preset. Determines which auth annotations are applied to
+  # the frontend, API, and per-session workshop Ingress resources.
+  #
+  #   traefik  Traefik v2/v3 with ForwardAuth Middleware CRDs (recommended).
+  #            When oauth2Proxy.enabled=true the chart creates the Middleware
+  #            objects automatically. Per-session Ingress resources created by
+  #            the operator also need these annotations — configure the operator
+  #            with the same middleware name (orchestra-auth).
+  #
+  #            ⚠  GKE's native ingress controller (class "gce") is NOT
+  #            compatible with per-session workshops: it provisions a new Cloud
+  #            Load Balancer per Ingress (2-5 min, ~$20/mo each). Use Traefik
+  #            or nginx-ingress on GKE instead.
+  #
+  #   nginx    ingress-nginx with auth-url subrequest annotations.
+  #            oauth2-proxy handles auth; nginx calls it per request.
+  #            Install ingress-nginx before deploying Orchestra.
+  #
+  #   custom   No auth annotations are added by the chart. Populate
+  #            ingress.annotations with whatever your controller needs.
+  #            Set oauth2Proxy.enabled=false if you bring your own proxy.
+  #
+  controller: traefik
+
+  # Kubernetes ingressClassName. Leave "" to use the cluster default.
   className: traefik
+
   tls:
     enabled: true
-    # cert-manager cluster issuer name.
+    # cert-manager ClusterIssuer name. Leave "" to manage TLS yourself
+    # (e.g. cloud-native managed certs, pre-existing wildcard secret).
     clusterIssuer: letsencrypt-prod
 
-# ── oauth2-proxy (bundled) ───────────────────────────────────────────────────
-# Set oauth2Proxy.enabled=false if you bring your own auth proxy.
-# When disabled, the API still expects X-Auth-Request-Email to be forwarded
-# by whatever proxy sits upstream — see docs/deployment/oauth2-proxy.md.
+  # Extra annotations merged onto every Ingress resource regardless of
+  # controller. Use for cloud LB config, nginx snippets, etc.
+  # When controller=custom these are the sole annotations (plus cert-manager).
+  annotations: {}
+
+# ── NetworkPolicy ─────────────────────────────────────────────────────────────
 networkPolicy:
+  # Requires a CNI that supports NetworkPolicy (Calico, Cilium, GKE Dataplane V2).
   enabled: false
 
-# ── oauth2-proxy (bundled) ───────────────────────────────────────────────────
+# ── oauth2-proxy (bundled) ────────────────────────────────────────────────────
+# Set enabled=false if you bring your own auth proxy (corporate fleet, Cloudflare
+# Access, GKE IAP, etc.). Your proxy must forward X-Auth-Request-Email to the API.
 oauth2Proxy:
   enabled: true
-  # Google OAuth credentials — create these at:
-  # https://console.cloud.google.com/apis/credentials
   config:
+    # Google OAuth credentials — https://console.cloud.google.com/apis/credentials
     clientID: ""
     clientSecret: ""
-    # Generate with: python3 -c "import secrets; print(secrets.token_hex(16))"
+    # Generate: python3 -c "import secrets; print(secrets.token_hex(16))"
     cookieSecret: ""
-    # Restrict login to one or more email domains.
-    # Use "*" to allow any authenticated Google account.
+    # Restrict login to one or more email domains. Use "*" for any Google account.
     allowedDomains:
       - "*"
-    # Optional: restrict to specific email addresses in addition to domain check.
+    # Optionally restrict to specific addresses regardless of domain.
     allowedEmails: []
-    # Optional: add GitHub as a second provider (leave empty to use Google only).
+    # Set to a GitHub org name to accept GitHub logins (single-provider).
     githubOrg: ""
 
-  # Values forwarded to the oauth2-proxy subchart.
+  # Values passed through to the oauth2-proxy subchart.
   # Full reference: https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
   "oauth2-proxy":
     replicaCount: 1

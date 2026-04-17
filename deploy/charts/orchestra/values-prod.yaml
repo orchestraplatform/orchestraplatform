@@ -2,16 +2,25 @@
 # Apply on top of values.yaml:
 #   helm upgrade --install orchestra . -f values.yaml -f values-prod.yaml
 #
-# Fill in every TODO before deploying.
+# Fill in every TODO before deploying. See docs/deployment/helm.md for details.
 
 global:
-  domain: "TODO.example.edu"          # e.g. orchestra.myuni.edu
-  imagePullSecrets: []                 # add if images are in a private registry
+  domain: "TODO.example.edu"         # e.g. orchestra.myuni.edu
+  imagePullSecrets: []               # add if images live in a private registry
 
+# ── Operator ──────────────────────────────────────────────────────────────────
+operator:
+  image:
+    repository: seandavi/orchestra-operator
+    tag: "TODO"                       # pin to a specific release tag
+    pullPolicy: IfNotPresent
+  defaultWorkshopImage: "rocker/rstudio:latest"
+
+# ── API server ────────────────────────────────────────────────────────────────
 api:
   image:
     repository: seandavi/orchestra-api
-    tag: "TODO"                        # pin to a specific release tag
+    tag: "TODO"
     pullPolicy: IfNotPresent
   replicas: 2
   resources:
@@ -25,35 +34,42 @@ api:
     - "TODO@example.edu"
   requireAuthentication: true
   database:
-    existingSecret: "orchestra-db"    # kubectl create secret generic orchestra-db --from-literal=database-url=postgresql+asyncpg://...
+    existingSecret: "orchestra-db"   # see docs/deployment/helm.md#database
     secretKey: "database-url"
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
 
-operator:
-  image:
-    repository: seandavi/orchestra-operator
-    tag: "TODO"
-    pullPolicy: IfNotPresent
-  defaultWorkshopImage: "rocker/rstudio:latest"
+  # GCP / Cloud SQL Auth Proxy example (uncomment and adjust):
+  # extraContainers:
+  #   - name: cloud-sql-proxy
+  #     image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2
+  #     args: ["--auto-iam-authn", "project:region:instance"]
+  #     securityContext:
+  #       runAsNonRoot: true
+  #       runAsUser: 65532
+  # extraEnv:
+  #   - name: ORCHESTRA_DATABASE_URL
+  #     value: "postgresql+asyncpg://orchestra@localhost:5432/orchestra"
 
+# ── Frontend ──────────────────────────────────────────────────────────────────
 frontend:
   image:
     repository: seandavi/orchestra-frontend
     tag: "TODO"
     pullPolicy: IfNotPresent
   replicas: 2
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 500m
-      memory: 256Mi
 
+# ── Workshop persistence ──────────────────────────────────────────────────────
+persistence:
+  storageClass: ""                   # "" = cluster default; "standard-rwo" on GKE
+  size: "10Gi"
+
+# ── Ingress ───────────────────────────────────────────────────────────────────
+# See docs/deployment/ingress.md for Traefik vs nginx-ingress setup.
 ingress:
   enabled: true
+  controller: traefik                # "traefik" | "nginx" | "custom"
   className: traefik
   tls:
     enabled: true
@@ -62,12 +78,14 @@ ingress:
 networkPolicy:
   enabled: true
 
+# ── oauth2-proxy ──────────────────────────────────────────────────────────────
+# See docs/deployment/oauth2-proxy.md for credential setup.
 oauth2Proxy:
   enabled: true
   config:
-    clientID: "TODO"                   # GCP OAuth client ID
-    clientSecret: "TODO"               # GCP OAuth client secret
-    cookieSecret: "TODO"               # python3 -c "import secrets; print(secrets.token_hex(16))"
+    clientID: "TODO"                 # GCP OAuth client ID
+    clientSecret: "TODO"             # GCP OAuth client secret
+    cookieSecret: "TODO"             # python3 -c "import secrets; print(secrets.token_hex(16))"
     allowedDomains:
-      - "example.edu"                  # restrict to your institution's domain
+      - "example.edu"                # restrict to your institution's email domain
     allowedEmails: []

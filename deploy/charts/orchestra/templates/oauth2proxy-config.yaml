@@ -1,7 +1,7 @@
 {{- if .Values.oauth2Proxy.enabled }}
 {{- $cfg := .Values.oauth2Proxy.config }}
 ---
-# Secret holding the oauth2-proxy credentials.
+# Credentials for the bundled oauth2-proxy. Passed as env vars into the subchart.
 # These are passed as environment variables into the subchart's Deployment
 # via the oauth2-proxy chart's standard envFrom / extraEnv mechanism.
 apiVersion: v1
@@ -16,10 +16,14 @@ stringData:
   OAUTH2_PROXY_CLIENT_ID: {{ $cfg.clientID | quote }}
   OAUTH2_PROXY_CLIENT_SECRET: {{ $cfg.clientSecret | quote }}
   OAUTH2_PROXY_COOKIE_SECRET: {{ $cfg.cookieSecret | quote }}
+{{- if eq .Values.ingress.controller "traefik" }}
 ---
-# Traefik ForwardAuth middleware — delegates auth decisions to oauth2-proxy.
-# oauth2-proxy validates the session cookie and sets X-Auth-Request-Email
+# ForwardAuth middleware — delegates auth decisions to oauth2-proxy.
+# oauth2-proxy validates the session cookie and injects X-Auth-Request-Email,
 # which the Orchestra API reads to identify the caller.
+#
+# Only created when ingress.controller=traefik. For nginx-ingress, auth is
+# wired via nginx.ingress.kubernetes.io/auth-url annotations instead.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -37,8 +41,8 @@ spec:
       - X-Auth-Request-Access-Token
       - Set-Cookie
 ---
-# Strip and re-apply the auth headers so upstream services never receive
-# spoofed X-Auth-Request-* headers from the internet.
+# Header-strip middleware — clears X-Auth-Request-* before the ForwardAuth
+# middleware re-sets them. Prevents clients from forging identity headers.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -49,9 +53,8 @@ metadata:
 spec:
   headers:
     customRequestHeaders:
-      # These are cleared on ingress so that clients cannot forge identities.
-      # oauth2-proxy re-sets them via the ForwardAuth response headers above.
       X-Auth-Request-User: ""
       X-Auth-Request-Email: ""
       X-Auth-Request-Access-Token: ""
+{{- end }}
 {{- end }}

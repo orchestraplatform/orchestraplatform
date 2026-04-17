@@ -1,8 +1,11 @@
 {{- if .Values.ingress.enabled }}
 {{- $domain := .Values.global.domain }}
 {{- $tlsEnabled := .Values.ingress.tls.enabled }}
+{{- $clusterIssuer := .Values.ingress.tls.clusterIssuer }}
+{{- $controller := .Values.ingress.controller }}
 ---
-# Frontend ingress — protected by oauth2-proxy ForwardAuth
+# Frontend ingress — protected by the auth proxy configured via ingress.controller.
+# See docs/deployment/ingress.md for per-controller prerequisites and auth flow.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -11,13 +14,27 @@ metadata:
   labels:
     {{- include "orchestra.labels" . | nindent 4 }}
   annotations:
-    {{- if eq .Values.ingress.className "traefik" }}
+    {{- if and $tlsEnabled $clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $clusterIssuer | quote }}
+    {{- end }}
+    {{- if eq $controller "traefik" }}
+    # Traefik: ForwardAuth delegates to oauth2-proxy, which validates the
+    # session cookie and injects X-Auth-Request-Email. The second middleware
+    # strips any client-supplied X-Auth-Request-* headers before the proxy
+    # re-sets them, preventing identity spoofing.
     traefik.ingress.kubernetes.io/router.middlewares: >-
       {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
       {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+    {{- else if eq $controller "nginx" }}
+    # nginx-ingress: auth-url sends a subrequest to oauth2-proxy before
+    # forwarding the request. auth-response-headers copies the validated
+    # identity headers onto the upstream request.
+    nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-Email,X-Auth-Request-User,X-Auth-Request-Access-Token"
     {{- end }}
-    {{- if and $tlsEnabled .Values.ingress.tls.clusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className | quote }}
@@ -38,7 +55,7 @@ spec:
             name: orchestra-frontend
             port:
               name: http
-      # oauth2-proxy callback and static routes handled by the proxy itself
+      # oauth2-proxy callback path — must be on the same host as the frontend.
       - path: /oauth2
         pathType: Prefix
         backend:
@@ -47,7 +64,7 @@ spec:
             port:
               number: 4180
 ---
-# API ingress — also behind ForwardAuth so X-Auth-Request-Email is forwarded
+# API ingress — also behind the auth proxy so X-Auth-Request-Email is forwarded.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -56,13 +73,20 @@ metadata:
   labels:
     {{- include "orchestra.labels" . | nindent 4 }}
   annotations:
-    {{- if eq .Values.ingress.className "traefik" }}
+    {{- if and $tlsEnabled $clusterIssuer }}
+    cert-manager.io/cluster-issuer: {{ $clusterIssuer | quote }}
+    {{- end }}
+    {{- if eq $controller "traefik" }}
     traefik.ingress.kubernetes.io/router.middlewares: >-
       {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
       {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+    {{- else if eq $controller "nginx" }}
+    nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
+    nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-Email,X-Auth-Request-User,X-Auth-Request-Access-Token"
     {{- end }}
-    {{- if and $tlsEnabled .Values.ingress.tls.clusterIssuer }}
-    cert-manager.io/cluster-issuer: {{ .Values.ingress.tls.clusterIssuer | quote }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
   ingressClassName: {{ .Values.ingress.className | quote }}
