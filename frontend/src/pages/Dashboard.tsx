@@ -4,6 +4,7 @@ import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import { WorkshopCard } from '../components/workshop/WorkshopCard';
 import { NotificationBanner } from '../components/ui/NotificationBanner';
 import { Button } from '../components/ui/Button';
+import { TickProvider } from '../contexts/TickContext';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -84,11 +85,13 @@ export function Dashboard() {
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {instances.map((instance) => (
-            <WorkshopCard key={instance.k8sName} instance={instance} />
-          ))}
-        </div>
+        <TickProvider intervalMs={30_000}>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {instances.map((instance) => (
+              <WorkshopCard key={instance.k8sName} instance={instance} />
+            ))}
+          </div>
+        </TickProvider>
       )}
 
       <div className="text-sm text-muted-foreground">

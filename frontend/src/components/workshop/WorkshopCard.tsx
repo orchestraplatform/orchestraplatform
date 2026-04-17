@@ -9,7 +9,7 @@ import { formatAbsoluteTime, getTimeRemaining } from '../../utils';
 import { useTerminateInstance } from '../../hooks/useInstances';
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
 import { useToast } from '../ui/Toast';
-import { useTick } from '../../hooks/useTick';
+import { useTick } from '../../contexts/TickContext';
 
 interface WorkshopCardProps {
   instance: WorkshopInstanceResponse;
@@ -49,7 +49,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
     }
   };
 
-  useTick(30_000);
+  useTick();
 
   const isOpen = instance.phase === 'Ready' || instance.phase === 'Running';
   const minsLeft = minutesRemaining(instance.expiresAt);
