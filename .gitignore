@@ -54,4 +54,3 @@ temp/
 
 # Project Specific
 .netlify/
-.dockerignore
