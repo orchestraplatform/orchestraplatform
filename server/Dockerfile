@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy requirements first for better caching
 COPY pyproject.toml uv.lock ./
-RUN pip install uv && uv sync --frozen
+RUN pip install uv && uv sync --frozen && chown -R 1000:1000 /app/.venv
 
 # Copy source code
 COPY . .
