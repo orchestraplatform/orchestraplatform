@@ -102,6 +102,14 @@ restart: stop dev
 
 # --- Sidecar ---
 
+# Build and push all images to Artifact Registry (cross-compiled for linux/amd64)
+# Usage: just build-push
+#        just build-push registry=us-central1-docker.pkg.dev/my-project/orchestra
+build-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-api:latest --push server/
+    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-operator:latest --push operator/
+    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-frontend:latest --push frontend/
+
 # Build the sidecar Docker image
 sidecar-build tag="seandavi/orchestra-sidecar:latest":
     cd sidecar && docker build -t {{ tag }} .

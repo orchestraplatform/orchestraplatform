@@ -45,6 +45,10 @@ PROJECT=my-gcp-project
 REGION=us-central1
 CLUSTER=orchestra
 
+gcloud services enable container.googleapis.com \
+  sqladmin.googleapis.com \
+  iamcredentials.googleapis.com
+
 gcloud container clusters create-auto $CLUSTER \
   --project $PROJECT \
   --region $REGION \
@@ -61,7 +65,7 @@ gcloud container clusters get-credentials $CLUSTER \
 gcloud sql instances create orchestra-db \
   --project $PROJECT \
   --region $REGION \
-  --database-version POSTGRES_15 \
+  --database-version POSTGRES_18 \
   --tier db-g1-small \
   --storage-auto-increase
 
@@ -98,7 +102,7 @@ gcloud iam service-accounts add-iam-policy-binding \
   orchestra-api@$PROJECT.iam.gserviceaccount.com \
   --project $PROJECT \
   --role roles/iam.workloadIdentityUser \
-  --member "serviceAccount:$PROJECT.svc.id.goog[orchestra-system/orchestra-operator]"
+  --member "serviceAccount:$PROJECT.svc.id.goog[orchestra-system/default]"
 
 # Annotate the Kubernetes SA (created by the chart) after install, or pre-create it:
 kubectl annotate serviceaccount orchestra-operator \
@@ -143,7 +147,7 @@ helm repo add jetstack https://charts.jetstack.io && helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager \
   --create-namespace \
-  --set installCRDs=true \
+  --set crds.enabled=true \
   --set global.leaderElection.namespace=cert-manager
 ```
 

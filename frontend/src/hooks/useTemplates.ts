@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TemplatesService, InstancesService } from '../api/generated';
-import type { WorkshopLaunchRequest, TemplateStats } from '../api/generated';
+import type { WorkshopLaunchRequest, TemplateStats, WorkshopTemplateCreate, WorkshopTemplateUpdate } from '../api/generated';
 import { OpenAPI } from '../api/generated/core/OpenAPI';
 import { request as __request } from '../api/generated/core/request';
 
