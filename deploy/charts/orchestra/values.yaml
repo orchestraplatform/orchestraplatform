@@ -151,6 +151,10 @@ ingress:
     # cert-manager ClusterIssuer name. Leave "" to manage TLS yourself
     # (e.g. cloud-native managed certs, pre-existing wildcard secret).
     clusterIssuer: letsencrypt-prod
+    # Use a pre-existing wildcard TLS secret instead of issuing per-host
+    # certificates. When set, cert-manager annotations are omitted and
+    # both ingresses reference this secret.
+    existingSecret: ""
 
   # Extra annotations merged onto every Ingress resource regardless of
   # controller. Use for cloud LB config, nginx snippets, etc.
@@ -167,6 +171,19 @@ networkPolicy:
 # Access, GKE IAP, etc.). Your proxy must forward X-Auth-Request-Email to the API.
 oauth2Proxy:
   enabled: true
+
+  # fullProxy=true: oauth2-proxy sits in front of the frontend, proxying authenticated
+  # requests to it and redirecting unauthenticated users to Google. The frontend ingress
+  # routes to oauth2-proxy instead of directly to the frontend service. The API ingress
+  # still uses ForwardAuth with oauth2-proxy for identity injection.
+  #
+  # fullProxy=false (default): standard ForwardAuth mode — the ingress middleware calls
+  # oauth2-proxy's /oauth2/auth to validate the session before forwarding to the backend.
+  # Note: Traefik v3 errors middleware does not emit a proper 302 on auth failure, so
+  # unauthenticated browser requests receive a 401 with a Location header instead of a
+  # transparent redirect. fullProxy=true is recommended for Traefik deployments.
+  fullProxy: false
+
   config:
     # Google OAuth credentials — https://console.cloud.google.com/apis/credentials
     clientID: ""
@@ -180,6 +197,13 @@ oauth2Proxy:
     allowedEmails: []
     # Set to a GitHub org name to accept GitHub logins (single-provider).
     githubOrg: ""
+    # Required for fullProxy=true: the external callback URL oauth2-proxy advertises to
+    # the OAuth provider. Must match a registered redirect URI in your OAuth app.
+    redirectURL: ""
+    # Cookie domain for cross-subdomain session sharing (e.g. ".app.example.com").
+    # Required when the frontend and API are on different subdomains and both need
+    # to read the session cookie. Leave "" to scope the cookie to the request host.
+    cookieDomain: ""
 
   # Values passed through to the oauth2-proxy subchart.
   # Full reference: https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy

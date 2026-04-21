@@ -44,7 +44,7 @@ app.kubernetes.io/instance: {{ .context.Release.Name }}
 oauth2-proxy service URL used by the Traefik ForwardAuth middleware.
 */}}
 {{- define "orchestra.oauth2ProxyAuthURL" -}}
-{{- printf "http://%s-oauth2-proxy.%s.svc.cluster.local:4180/oauth2/auth" .Release.Name .Release.Namespace }}
+{{- printf "http://%s-oauth2-proxy.%s.svc.cluster.local:80/oauth2/auth" .Release.Name .Release.Namespace }}
 {{- end }}
 
 {{/*

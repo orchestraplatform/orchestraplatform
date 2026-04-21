@@ -2,10 +2,15 @@
 {{- $domain := .Values.global.domain }}
 {{- $tlsEnabled := .Values.ingress.tls.enabled }}
 {{- $clusterIssuer := .Values.ingress.tls.clusterIssuer }}
+{{- $existingSecret := .Values.ingress.tls.existingSecret }}
 {{- $controller := .Values.ingress.controller }}
+{{- $fullProxy := and .Values.oauth2Proxy.enabled .Values.oauth2Proxy.fullProxy }}
 ---
-# Frontend ingress — protected by the auth proxy configured via ingress.controller.
-# See docs/deployment/ingress.md for per-controller prerequisites and auth flow.
+# Frontend ingress.
+# fullProxy=true: all traffic goes to oauth2-proxy, which handles auth and proxies
+#   authenticated requests to the frontend. No auth annotations needed.
+# fullProxy=false: traffic goes directly to the frontend; auth is enforced via
+#   ForwardAuth middleware annotations (Traefik) or auth-url subrequest (nginx).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -14,24 +19,20 @@ metadata:
   labels:
     {{- include "orchestra.labels" . | nindent 4 }}
   annotations:
-    {{- if and $tlsEnabled $clusterIssuer }}
+    {{- if and $tlsEnabled $clusterIssuer (not $existingSecret) }}
     cert-manager.io/cluster-issuer: {{ $clusterIssuer | quote }}
     {{- end }}
+    {{- if not $fullProxy }}
     {{- if eq $controller "traefik" }}
-    # Traefik: ForwardAuth delegates to oauth2-proxy, which validates the
-    # session cookie and injects X-Auth-Request-Email. The second middleware
-    # strips any client-supplied X-Auth-Request-* headers before the proxy
-    # re-sets them, preventing identity spoofing.
     traefik.ingress.kubernetes.io/router.middlewares: >-
-      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+      {{ .Release.Namespace }}-orchestra-auth-signin@kubernetescrd,
+      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,
+      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd
     {{- else if eq $controller "nginx" }}
-    # nginx-ingress: auth-url sends a subrequest to oauth2-proxy before
-    # forwarding the request. auth-response-headers copies the validated
-    # identity headers onto the upstream request.
     nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"
     nginx.ingress.kubernetes.io/auth-response-headers: "X-Auth-Request-Email,X-Auth-Request-User,X-Auth-Request-Access-Token"
+    {{- end }}
     {{- end }}
     {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
@@ -42,12 +43,23 @@ spec:
   tls:
   - hosts:
     - "app.{{ $domain }}"
-    secretName: orchestra-frontend-tls
+    secretName: {{ default "orchestra-frontend-tls" $existingSecret }}
   {{- end }}
   rules:
   - host: "app.{{ $domain }}"
     http:
       paths:
+      {{- if $fullProxy }}
+      # Full proxy mode: all requests go to oauth2-proxy, which handles auth and
+      # proxies to the frontend. The /oauth2/ callbacks are handled internally.
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: {{ .Release.Name }}-oauth2-proxy
+            port:
+              number: 80
+      {{- else }}
       - path: /
         pathType: Prefix
         backend:
@@ -62,9 +74,12 @@ spec:
           service:
             name: {{ .Release.Name }}-oauth2-proxy
             port:
-              number: 4180
+              number: 80
+      {{- end }}
 ---
-# API ingress — also behind the auth proxy so X-Auth-Request-Email is forwarded.
+# API ingress — ForwardAuth ensures X-Auth-Request-Email is always forwarded.
+# The API returns 401 for unauthenticated requests; the frontend JS handles
+# the redirect to /oauth2/start when it receives a 401 from the API.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -73,13 +88,13 @@ metadata:
   labels:
     {{- include "orchestra.labels" . | nindent 4 }}
   annotations:
-    {{- if and $tlsEnabled $clusterIssuer }}
+    {{- if and $tlsEnabled $clusterIssuer (not $existingSecret) }}
     cert-manager.io/cluster-issuer: {{ $clusterIssuer | quote }}
     {{- end }}
     {{- if eq $controller "traefik" }}
     traefik.ingress.kubernetes.io/router.middlewares: >-
-      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd
+      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,
+      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd
     {{- else if eq $controller "nginx" }}
     nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"
@@ -94,7 +109,7 @@ spec:
   tls:
   - hosts:
     - "api.{{ $domain }}"
-    secretName: orchestra-api-tls
+    secretName: {{ default "orchestra-api-tls" $existingSecret }}
   {{- end }}
   rules:
   - host: "api.{{ $domain }}"

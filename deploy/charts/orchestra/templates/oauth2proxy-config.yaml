@@ -1,29 +1,12 @@
 {{- if .Values.oauth2Proxy.enabled }}
-{{- $cfg := .Values.oauth2Proxy.config }}
----
-# Credentials for the bundled oauth2-proxy. Passed as env vars into the subchart.
-# These are passed as environment variables into the subchart's Deployment
-# via the oauth2-proxy chart's standard envFrom / extraEnv mechanism.
-apiVersion: v1
-kind: Secret
-metadata:
-  name: orchestra-oauth2-proxy-creds
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "orchestra.labels" . | nindent 4 }}
-type: Opaque
-stringData:
-  OAUTH2_PROXY_CLIENT_ID: {{ $cfg.clientID | quote }}
-  OAUTH2_PROXY_CLIENT_SECRET: {{ $cfg.clientSecret | quote }}
-  OAUTH2_PROXY_COOKIE_SECRET: {{ $cfg.cookieSecret | quote }}
 {{- if eq .Values.ingress.controller "traefik" }}
 ---
 # ForwardAuth middleware — delegates auth decisions to oauth2-proxy.
 # oauth2-proxy validates the session cookie and injects X-Auth-Request-Email,
 # which the Orchestra API reads to identify the caller.
 #
-# Only created when ingress.controller=traefik. For nginx-ingress, auth is
-# wired via nginx.ingress.kubernetes.io/auth-url annotations instead.
+# In fullProxy mode this middleware is only applied to the API ingress.
+# In forwardAuth mode it is applied to both the frontend and API ingresses.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -40,6 +23,28 @@ spec:
       - X-Auth-Request-Email
       - X-Auth-Request-Access-Token
       - Set-Cookie
+{{- if not .Values.oauth2Proxy.fullProxy }}
+---
+# Redirect-on-401 errors middleware (forwardAuth mode only).
+# Note: Traefik v3 errors middleware copies headers from the inner service but
+# keeps the original error status code, so this produces a 401 + Location header
+# rather than a true 302. Use fullProxy=true for a seamless browser redirect.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: orchestra-auth-signin
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  errors:
+    status:
+      - "401-403"
+    service:
+      name: {{ .Release.Name }}-oauth2-proxy
+      port: 80
+    query: "/oauth2/start?rd={url}"
+{{- end }}
 ---
 # Header-strip middleware — clears X-Auth-Request-* before the ForwardAuth
 # middleware re-sets them. Prevents clients from forging identity headers.
