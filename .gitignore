@@ -54,3 +54,4 @@ temp/
 
 # Project Specific
 .netlify/
+.claude
