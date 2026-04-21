@@ -24,6 +24,7 @@ openapi.json
 .env
 .env.*
 !.env.example
+deploy/gcp-values-secrets.yaml
 
 # IDEs and OS
 .vscode/
