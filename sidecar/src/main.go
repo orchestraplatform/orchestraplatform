@@ -77,8 +77,20 @@ func main() {
 
 	// Internal Telemetry/Health endpoints
 	http.HandleFunc("/orchestra/health", func(w http.ResponseWriter, r *http.Request) {
-		// Simple health check: can we reach the target?
-		// In a real scenario, we might want to do a lightweight HEAD request
+		// Readiness check: verify the target application is actually responding.
+		// Kubernetes uses this endpoint for the readiness probe, so we must
+		// return a non-2xx status until the backend is truly ready.
+		client := &http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(targetURL.String())
+		if err != nil {
+			http.Error(w, "Target not ready: "+err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		resp.Body.Close()
+		if resp.StatusCode >= 500 {
+			http.Error(w, fmt.Sprintf("Target returned %d", resp.StatusCode), http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "OK")
 	})

@@ -1,5 +1,6 @@
 """Workshop event handlers for the Orchestra Operator."""
 
+import asyncio
 import logging
 import os
 from typing import Any
@@ -43,6 +44,46 @@ def _ingress_url(ingress: dict[str, Any]) -> str:
     host = ingress["metadata"]["annotations"].get("orchestra.io/host", "")
     port_suffix = f":{_LOCAL_INGRESS_PORT}" if _LOCAL_ENV and _LOCAL_INGRESS_PORT else ""
     return f"{scheme}://{host}{port_suffix}"
+
+
+_DEPLOYMENT_READY_TIMEOUT_S: int = int(
+    os.environ.get("ORCHESTRA_DEPLOYMENT_READY_TIMEOUT", "300")
+)
+_DEPLOYMENT_READY_POLL_S: int = 5
+
+
+async def _wait_for_deployment_ready(
+    k8s_apps_v1: k8s_client.AppsV1Api,
+    deployment_name: str,
+    namespace: str,
+    timeout: int = _DEPLOYMENT_READY_TIMEOUT_S,
+    poll_interval: int = _DEPLOYMENT_READY_POLL_S,
+) -> bool:
+    """Poll until the named Deployment has at least one available replica.
+
+    Returns True when ready, False if the timeout is reached first.
+    Kubernetes API calls are dispatched to a thread-pool executor so that the
+    asyncio event loop is not blocked between polls.
+    """
+    loop = asyncio.get_running_loop()
+    elapsed = 0
+    while elapsed < timeout:
+        try:
+            dep = await loop.run_in_executor(
+                None,
+                lambda: k8s_apps_v1.read_namespaced_deployment(
+                    name=deployment_name, namespace=namespace
+                ),
+            )
+            if (dep.status.available_replicas or 0) >= 1:
+                return True
+        except ApiException as e:
+            logger.warning(
+                "Error reading deployment %s status: %s", deployment_name, e
+            )
+        await asyncio.sleep(poll_interval)
+        elapsed += poll_interval
+    return False
 
 
 def register_workshop_handlers() -> None:
@@ -207,8 +248,41 @@ async def workshop_create_handler(
                 raise
 
         logger.info(f"Workshop {workshop_name} created successfully")
-        
-        # Finally, the Ready status will be returned by the handler via patch
+
+        # Wait for the deployment pod to become ready before marking the
+        # workshop as Ready.  This prevents the UI from showing a clickable
+        # link before the pod is actually serving traffic.
+        await update_workshop_status(
+            namespace, name, "Creating", "Waiting for pod to become ready", reason="PodPending"
+        )
+        pod_ready = await _wait_for_deployment_ready(
+            k8s_apps_v1, f"{workshop_name}-deployment", namespace
+        )
+        if not pod_ready:
+            logger.warning(
+                f"Deployment {workshop_name}-deployment did not become ready within "
+                f"{_DEPLOYMENT_READY_TIMEOUT_S}s; marking workshop as Failed"
+            )
+            patch["status"] = {
+                "phase": "Failed",
+                "url": workshop_url,
+                "createdAt": meta.get("creationTimestamp", ""),
+                "expiresAt": expiration_time.isoformat(),
+                "conditions": [
+                    {
+                        "type": "Ready",
+                        "status": "False",
+                        "reason": "PodNotReady",
+                        "message": (
+                            f"Deployment did not become ready within "
+                            f"{_DEPLOYMENT_READY_TIMEOUT_S} seconds"
+                        ),
+                    }
+                ],
+            }
+            return
+
+        # The pod is ready — mark the workshop as Ready
         status_return = {
             "phase": "Ready",
             "url": workshop_url,
@@ -218,8 +292,8 @@ async def workshop_create_handler(
                 {
                     "type": "Ready",
                     "status": "True",
-                    "reason": "WorkshopCreated",
-                    "message": "Workshop resources created successfully",
+                    "reason": "WorkshopReady",
+                    "message": "Workshop pod is ready and accepting traffic",
                 }
             ],
         }
