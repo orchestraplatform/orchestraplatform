@@ -86,8 +86,8 @@ def main() -> None:
 
     # Run the operator
     kopf.run(
-        clusterwide=False,  # Namespace-scoped for security
-        namespace=None,  # Watch all namespaces the operator has access to
+        clusterwide=True,
+        namespace=None,  # Watch all namespaces
     )
 
 

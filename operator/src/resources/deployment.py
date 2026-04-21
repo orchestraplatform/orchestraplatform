@@ -1,5 +1,6 @@
 """RStudio Deployment creation for workshops."""
 
+import os
 from typing import Any
 
 import kubernetes.client as k8s
@@ -15,7 +16,6 @@ def create_rstudio_deployment(
     sidecar_image: str = "seandavi/orchestra-sidecar:latest",
     require_auth: bool = True,
 ) -> k8s.V1Deployment:
-    print(f"DEBUG: Creating deployment for {workshop_name} with sidecar {sidecar_image}")
     """
     Create a Kubernetes Deployment for an RStudio workshop instance with an auth sidecar.
 
@@ -56,10 +56,12 @@ def create_rstudio_deployment(
     )
 
     # 2. Orchestra Sidecar Proxy
+    sidecar_pull_policy = os.environ.get("ORCHESTRA_SIDECAR_PULL_POLICY", "Always")
+    
     sidecar_container = k8s.V1Container(
         name="orchestra-sidecar",
-        image=sidecar_image,
-        image_pull_policy="Never",
+        image=os.environ.get("ORCHESTRA_SIDECAR_IMAGE", sidecar_image),
+        image_pull_policy=sidecar_pull_policy,
         ports=[k8s.V1ContainerPort(container_port=8080, name="http-proxy")],
         env=[
             k8s.V1EnvVar(name="ORCHESTRA_TARGET_URL", value="http://localhost:8787"),

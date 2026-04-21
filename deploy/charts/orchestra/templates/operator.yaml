@@ -34,6 +34,9 @@ rules:
 - apiGroups: ["networking.k8s.io"]
   resources: ["ingresses"]
   verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["traefik.io"]
+  resources: ["ingressroutes", "middlewares"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create", "patch"]
@@ -152,6 +155,14 @@ spec:
           value: "/app"
         - name: USER
           value: "orchestra-operator"
+        - name: ORCHESTRA_SIDECAR_IMAGE
+          value: "{{ .Values.operator.sidecar.image.repository }}:{{ .Values.operator.sidecar.image.tag }}"
+        - name: ORCHESTRA_SIDECAR_PULL_POLICY
+          value: {{ .Values.operator.sidecar.image.pullPolicy | quote }}
+        - name: ORCHESTRA_AUTH_MIDDLEWARE
+          value: "{{ .Release.Namespace }}-orchestra-auth@kubernetescrd"
+        - name: ORCHESTRA_OAUTH2_PROXY_AUTH_URL
+          value: {{ include "orchestra.oauth2ProxyAuthURL" . | quote }}
         resources:
           {{- toYaml .Values.operator.resources | nindent 10 }}
         securityContext:

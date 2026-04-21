@@ -25,6 +25,12 @@ operator:
   # Default container image for newly launched workshop sessions.
   # Override per-template via the WorkshopTemplate spec.image field.
   defaultWorkshopImage: "rocker/rstudio:latest"
+  # Sidecar proxy configuration for workshop sessions.
+  sidecar:
+    image:
+      repository: seandavi/orchestra-sidecar
+      tag: latest
+      pullPolicy: Always
 
 # ── API server ────────────────────────────────────────────────────────────────
 api:

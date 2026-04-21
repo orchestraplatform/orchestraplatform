@@ -114,6 +114,10 @@ build-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra"
 sidecar-build tag="seandavi/orchestra-sidecar:latest":
     cd sidecar && docker build -t {{ tag }} .
 
+# Build and push the sidecar image to Artifact Registry
+sidecar-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-sidecar:latest --push sidecar/
+
 # Run sidecar tests
 sidecar-test:
     cd sidecar && go test ./... -v

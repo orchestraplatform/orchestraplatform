@@ -14,6 +14,7 @@ from resources.ingress import (
     _LOCAL_INGRESS_PORT,
     create_workshop_ingress,
 )
+from resources.middleware import create_auth_middleware
 from resources.pvc import create_workshop_pvc
 from resources.service import create_workshop_service
 from utils.time_utils import get_expiration_time
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 _REQUIRE_AUTH = os.environ.get("ORCHESTRA_REQUIRE_AUTHENTICATION", "").lower() != "false"
 if _LOCAL_ENV and "ORCHESTRA_REQUIRE_AUTHENTICATION" not in os.environ:
     _REQUIRE_AUTH = False
+
+# The system-wide oauth2-proxy URL used for ForwardAuth.
+_OAUTH2_PROXY_AUTH_URL = os.environ.get("ORCHESTRA_OAUTH2_PROXY_AUTH_URL", "")
 
 
 def _ingress_url(ingress: dict[str, Any]) -> str:
@@ -141,7 +145,36 @@ async def workshop_create_handler(
         # Create Ingress
         workshop_url = None
         try:
-            ingress = create_workshop_ingress(workshop_name, namespace, ingress_config)
+            # 1. Create local auth middleware if needed
+            if _OAUTH2_PROXY_AUTH_URL and not _LOCAL_ENV:
+                try:
+                    middleware = create_auth_middleware(
+                        workshop_name, namespace, _OAUTH2_PROXY_AUTH_URL
+                    )
+                    k8s_custom_objects_v1.create_namespaced_custom_object(
+                        group="traefik.io",
+                        version="v1alpha1",
+                        namespace=namespace,
+                        plural="middlewares",
+                        body=middleware,
+                    )
+                    logger.info(f"Created auth middleware for workshop {workshop_name}")
+                except ApiException as e:
+                    if e.status == 409:
+                        logger.info(f"Auth middleware for workshop {workshop_name} already exists")
+                    else:
+                        raise
+
+            # 2. Create the IngressRoute
+            # Use local middleware if it was created
+            local_auth_middleware = f"{workshop_name}-auth" if _OAUTH2_PROXY_AUTH_URL and not _LOCAL_ENV else None
+            
+            ingress = create_workshop_ingress(
+                workshop_name, 
+                namespace, 
+                ingress_config,
+                auth_middleware_override=local_auth_middleware
+            )
             k8s_custom_objects_v1.create_namespaced_custom_object(
                 group="traefik.io",
                 version="v1alpha1",
@@ -159,7 +192,13 @@ async def workshop_create_handler(
         except ApiException as e:
             if e.status == 409:  # Already exists
                 # Reconstruct the URL from the ingress we would have created
-                ingress = create_workshop_ingress(workshop_name, namespace, ingress_config)
+                local_auth_middleware = f"{workshop_name}-auth" if _OAUTH2_PROXY_AUTH_URL and not _LOCAL_ENV else None
+                ingress = create_workshop_ingress(
+                    workshop_name, 
+                    namespace, 
+                    ingress_config,
+                    auth_middleware_override=local_auth_middleware
+                )
                 workshop_url = _ingress_url(ingress)
                 logger.info(
                     f"Ingress route for workshop {workshop_name} already exists at {workshop_url}"
@@ -250,6 +289,20 @@ async def workshop_delete_handler(
             if e.status != 404:  # Ignore not found errors
                 logger.warning(f"Failed to delete ingress route: {e}")
 
+        # Delete Auth Middleware
+        try:
+            k8s_custom_objects_v1.delete_namespaced_custom_object(
+                group="traefik.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="middlewares",
+                name=f"{workshop_name}-auth",
+            )
+            logger.info(f"Deleted auth middleware for workshop {workshop_name}")
+        except ApiException as e:
+            if e.status != 404:
+                logger.warning(f"Failed to delete auth middleware: {e}")
+
         # Delete Service
         try:
             k8s_core_v1.delete_namespaced_service(
@@ -297,26 +350,6 @@ async def update_workshop_status(
     """Update the status of a Workshop resource immediately via API."""
     custom_api = k8s_client.CustomObjectsApi()
     
-    # Fetch current status to preserve other fields (like url, expiresAt)
-    try:
-        current = custom_api.get_namespaced_custom_object(
-            group="orchestra.io",
-            version="v1",
-            namespace=namespace,
-            plural="workshops",
-            name=name,
-        )
-        status = current.get("status", {})
-    except ApiException as e:
-        logger.error(f"Failed to fetch workshop {name} for status update: {e}")
-        status = {}
-
-    status.update({
-        "phase": phase,
-    })
-    
-    # Update or add the condition
-    conditions = status.get("conditions", [])
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     
@@ -328,17 +361,14 @@ async def update_workshop_status(
         "lastTransitionTime": now
     }
     
-    # Replace existing condition of same type or append
-    updated = False
-    for i, c in enumerate(conditions):
-        if c.get("type") == condition_type:
-            conditions[i] = new_condition
-            updated = True
-            break
-    if not updated:
-        conditions.append(new_condition)
-    
-    status["conditions"] = conditions
+    # We use patch instead of get+patch to be more robust against race conditions
+    # and to reduce API calls.
+    status_patch = {
+        "status": {
+            "phase": phase,
+            "conditions": [new_condition]
+        }
+    }
 
     try:
         custom_api.patch_namespaced_custom_object_status(
@@ -347,8 +377,11 @@ async def update_workshop_status(
             namespace=namespace,
             plural="workshops",
             name=name,
-            body={"status": status},
+            body=status_patch,
         )
         logger.info(f"Updated workshop {name} status: {phase} - {message}")
     except ApiException as e:
-        logger.error(f"Failed to patch workshop {name} status: {e}")
+        if e.status == 404:
+            logger.warning(f"Could not update status: workshop {name} not found (might have been deleted)")
+        else:
+            logger.error(f"Failed to patch workshop {name} status: {e}")

@@ -47,10 +47,15 @@ spec:
 {{- end }}
 ---
 # CORS middleware for the API ingress.
-# Traefik's headers middleware automatically intercepts OPTIONS preflight
-# requests and returns 200 with the appropriate CORS headers, so ForwardAuth
-# never sees the OPTIONS request. Actual requests pass through to ForwardAuth
-# and on to the API, which also sets CORS headers on the response.
+# Traefik's headers middleware automatically intercepts OPTIONS preflight requests
+# and returns 200 with the CORS headers WITHOUT forwarding to ForwardAuth.
+# This is essential because browsers strip cookies from preflight requests, so
+# ForwardAuth would always return 401 for OPTIONS — blocking all cross-origin
+# mutating requests (PATCH, DELETE, PUT, POST).
+#
+# For non-OPTIONS requests Traefik adds CORS response headers. FastAPI's own
+# CORSMiddleware is intentionally disabled in production (ORCHESTRA_CORS_ORIGINS=[])
+# to prevent duplicate Access-Control-Allow-Origin headers, which browsers reject.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -70,7 +75,11 @@ spec:
       - DELETE
       - OPTIONS
     accessControlAllowHeaders:
-      - "*"
+      - "Content-Type"
+      - "Authorization"
+      - "X-Auth-Request-Email"
+      - "X-Auth-Request-User"
+      - "X-Auth-Request-Access-Token"
     accessControlAllowCredentials: true
     accessControlMaxAge: 300
     addVaryHeader: true

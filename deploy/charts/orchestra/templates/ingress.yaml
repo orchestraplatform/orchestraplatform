@@ -24,10 +24,7 @@ metadata:
     {{- end }}
     {{- if not $fullProxy }}
     {{- if eq $controller "traefik" }}
-    traefik.ingress.kubernetes.io/router.middlewares: >-
-      {{ .Release.Namespace }}-orchestra-auth-signin@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-orchestra-auth-signin@kubernetescrd,{{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,{{ .Release.Namespace }}-orchestra-auth@kubernetescrd
     {{- else if eq $controller "nginx" }}
     nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"
@@ -92,10 +89,7 @@ metadata:
     cert-manager.io/cluster-issuer: {{ $clusterIssuer | quote }}
     {{- end }}
     {{- if eq $controller "traefik" }}
-    traefik.ingress.kubernetes.io/router.middlewares: >-
-      {{ .Release.Namespace }}-orchestra-api-cors@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,
-      {{ .Release.Namespace }}-orchestra-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.middlewares: {{ .Release.Namespace }}-orchestra-api-cors@kubernetescrd,{{ .Release.Namespace }}-orchestra-auth-headers@kubernetescrd,{{ .Release.Namespace }}-orchestra-auth@kubernetescrd
     {{- else if eq $controller "nginx" }}
     nginx.ingress.kubernetes.io/auth-url: "http://{{ .Release.Name }}-oauth2-proxy.{{ .Release.Namespace }}.svc.cluster.local:4180/oauth2/auth"
     nginx.ingress.kubernetes.io/auth-signin: "https://app.{{ $domain }}/oauth2/start?rd=$escaped_request_uri"

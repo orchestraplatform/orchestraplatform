@@ -15,6 +15,10 @@ _LOCAL_BASE_DOMAIN = os.environ.get("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localho
 # Empty string means no port suffix (i.e. standard 80/443).
 _LOCAL_INGRESS_PORT = os.environ.get("ORCHESTRA_LOCAL_INGRESS_PORT", "30080")
 
+# Default middleware used for authentication (system-wide).
+# Should be in format: "namespace-name@kubernetescrd"
+_AUTH_MIDDLEWARE = os.environ.get("ORCHESTRA_AUTH_MIDDLEWARE", "")
+
 
 def _default_host(workshop_name: str) -> str:
     """Return the default hostname for a workshop based on the environment."""
@@ -30,7 +34,10 @@ def _default_entry_points() -> list[str]:
 
 
 def create_workshop_ingress(
-    workshop_name: str, namespace: str, ingress_config: dict[str, Any]
+    workshop_name: str,
+    namespace: str,
+    ingress_config: dict[str, Any],
+    auth_middleware_override: str | None = None,
 ) -> dict[str, Any]:
     """
     Create a Traefik IngressRoute for a workshop.
@@ -39,6 +46,7 @@ def create_workshop_ingress(
         workshop_name: Name of the workshop
         namespace: Kubernetes namespace
         ingress_config: Ingress configuration from workshop spec
+        auth_middleware_override: Optional local middleware name to use instead of the system default
 
     Returns:
         IngressRoute manifest as a dictionary ready to be created
@@ -51,6 +59,19 @@ def create_workshop_ingress(
     # Store the resolved host as an annotation so callers can retrieve it
     # without re-parsing the Traefik match expression.
     meta_annotations = {**annotations, "orchestra.io/host": host}
+
+    routes = [
+        {
+            "match": f"Host(`{host}`)",
+            "kind": "Rule",
+            "services": [{"name": f"{workshop_name}-service", "port": 80}],
+        }
+    ]
+
+    # Add authentication middleware if configured and not in local dev
+    middleware_name = auth_middleware_override or _AUTH_MIDDLEWARE
+    if middleware_name and not _LOCAL_ENV:
+        routes[0]["middlewares"] = [{"name": middleware_name}]
 
     ingress_route = {
         "apiVersion": "traefik.io/v1alpha1",
@@ -67,13 +88,7 @@ def create_workshop_ingress(
         },
         "spec": {
             "entryPoints": entry_points,
-            "routes": [
-                {
-                    "match": f"Host(`{host}`)",
-                    "kind": "Rule",
-                    "services": [{"name": f"{workshop_name}-service", "port": 80}],
-                }
-            ],
+            "routes": routes,
         },
     }
 
