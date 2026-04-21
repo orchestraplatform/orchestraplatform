@@ -1,7 +1,9 @@
 """Workshop event handlers for the Orchestra Operator."""
 
+import asyncio
 import logging
 import os
+import random
 from typing import Any
 
 import kopf
@@ -206,10 +208,31 @@ async def workshop_create_handler(
             else:
                 raise
 
-        logger.info(f"Workshop {workshop_name} created successfully")
-        
-        # Finally, the Ready status will be returned by the handler via patch
-        status_return = {
+        # All K8s resources exist — poll until the pod is actually ready.
+        await update_workshop_status(
+            namespace, name, "Starting",
+            "Waiting for workshop pod to become ready",
+            reason="PodStarting",
+        )
+        timeout = 600
+        elapsed = 0
+        while elapsed < timeout:
+            deployment = k8s_apps_v1.read_namespaced_deployment(
+                name=f"{workshop_name}-deployment", namespace=namespace
+            )
+            if (deployment.status.ready_replicas or 0) >= 1:
+                break
+            interval = 5 + random.random() * 5
+            await asyncio.sleep(interval)
+            elapsed += interval
+        else:
+            raise kopf.PermanentError(
+                f"Workshop pod did not become ready within {timeout}s"
+            )
+
+        logger.info(f"Workshop {workshop_name} created and ready")
+
+        patch["status"] = {
             "phase": "Ready",
             "url": workshop_url,
             "createdAt": meta.get("creationTimestamp", ""),
@@ -218,14 +241,14 @@ async def workshop_create_handler(
                 {
                     "type": "Ready",
                     "status": "True",
-                    "reason": "WorkshopCreated",
-                    "message": "Workshop resources created successfully",
+                    "reason": "WorkshopReady",
+                    "message": "Workshop pod is running and ready",
                 }
             ],
         }
-        logger.info(f"Workshop {workshop_name} status updated: {status_return}")
-        patch["status"] = status_return
 
+    except kopf.PermanentError:
+        raise
     except Exception as e:
         logger.error(f"Failed to create workshop {name}: {e}")
         patch["status"] = {
