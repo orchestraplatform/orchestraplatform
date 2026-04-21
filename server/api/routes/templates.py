@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.auth import CurrentUser, get_current_user, require_admin
+from api.core.config import get_settings
 from api.core.database import get_db
 from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
 from api.models.schemas.workshop_template import (
@@ -210,6 +211,7 @@ async def launch_workshop(
     template_id: uuid.UUID = Path(...),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    settings=Depends(get_settings),
     template_svc: WorkshopTemplateService = Depends(get_template_service),
     instance_svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
@@ -227,13 +229,14 @@ async def launch_workshop(
 
     k8s_name = f"{template.slug}-{_random_suffix()}"
     duration = body.duration or template.default_duration
+    namespace = body.namespace or settings.default_namespace
 
     try:
         instance = await instance_svc.launch(
             db,
             template=template,
             k8s_name=k8s_name,
-            namespace=body.namespace,
+            namespace=namespace,
             owner_email=current_user.email,
             duration=duration,
         )

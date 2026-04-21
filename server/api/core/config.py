@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     kubeconfig_path: str | None = None
     kube_context: str | None = None
     in_cluster: bool = False
+    default_namespace: str = "default"
 
     # Workshop defaults
     default_workshop_image: str = "rocker/rstudio:latest"

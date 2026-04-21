@@ -120,4 +120,4 @@ class WorkshopLaunchRequest(BaseModel):
         description="Override the template's default duration (e.g. '2h'). "
         "If omitted, the template default is used.",
     )
-    namespace: str = Field(default="default", description="Kubernetes namespace")
+    namespace: str | None = Field(default=None, description="Kubernetes namespace")

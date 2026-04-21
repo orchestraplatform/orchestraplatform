@@ -35,6 +35,8 @@ spec:
         env:
         - name: ORCHESTRA_IN_CLUSTER
           value: "true"
+        - name: ORCHESTRA_DEFAULT_NAMESPACE
+          value: {{ .Values.global.defaultNamespace | quote }}
         - name: ORCHESTRA_REQUIRE_AUTHENTICATION
           value: {{ .Values.api.requireAuthentication | quote }}
         - name: ORCHESTRA_ADMIN_EMAILS

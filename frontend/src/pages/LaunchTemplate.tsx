@@ -15,7 +15,6 @@ export function LaunchTemplate() {
   const { addToast } = useToast();
 
   const [duration, setDuration] = useState('');
-  const [namespace, setNamespace] = useState('default');
 
   if (isLoading) {
     return (
@@ -51,7 +50,6 @@ export function LaunchTemplate() {
     try {
       const instance = await launch.mutateAsync({
         duration: duration.trim() || null,
-        namespace: namespace.trim() || 'default',
       });
       navigate('/', { state: { launched: instance.k8sName } });
     } catch (err) {
@@ -93,19 +91,6 @@ export function LaunchTemplate() {
               Leave blank to use the template default ({template.defaultDuration}).
               Examples: 1h, 2h30m, 4h.
             </p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm font-medium" htmlFor="namespace">
-              Namespace
-            </label>
-            <input
-              id="namespace"
-              type="text"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              value={namespace}
-              onChange={(e) => setNamespace(e.target.value)}
-            />
           </div>
 
           <div className="pt-2">

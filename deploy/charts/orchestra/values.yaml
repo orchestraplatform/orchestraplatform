@@ -4,6 +4,8 @@
 global:
   # Base domain. Produces app.<domain> (frontend) and api.<domain> (API).
   domain: "orchestra.localhost"
+  # Default Kubernetes namespace for launching workshop sessions.
+  defaultNamespace: "default"
   # Names of pre-existing imagePullSecrets in the release namespace.
   # Required when images are in a private registry.
   imagePullSecrets: []
