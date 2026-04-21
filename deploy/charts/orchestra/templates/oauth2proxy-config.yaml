@@ -46,6 +46,35 @@ spec:
     query: "/oauth2/start?rd={url}"
 {{- end }}
 ---
+# CORS middleware for the API ingress.
+# Traefik's headers middleware automatically intercepts OPTIONS preflight
+# requests and returns 200 with the appropriate CORS headers, so ForwardAuth
+# never sees the OPTIONS request. Actual requests pass through to ForwardAuth
+# and on to the API, which also sets CORS headers on the response.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: orchestra-api-cors
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+spec:
+  headers:
+    accessControlAllowOriginList:
+      - "https://app.{{ .Values.global.domain }}"
+    accessControlAllowMethods:
+      - GET
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowCredentials: true
+    accessControlMaxAge: 300
+    addVaryHeader: true
+---
 # Header-strip middleware — clears X-Auth-Request-* before the ForwardAuth
 # middleware re-sets them. Prevents clients from forging identity headers.
 apiVersion: traefik.io/v1alpha1
