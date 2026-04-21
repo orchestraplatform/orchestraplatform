@@ -1,6 +1,5 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import rehypeMermaid from 'rehype-mermaid';
 const googleAnalyticsId = 'G-KLLV1GCF4E';
 
 export default defineConfig({
@@ -9,9 +8,6 @@ export default defineConfig({
     starlight({
       title: 'Orchestra Platform',
       description: 'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
-      components: {
-        Head: './src/components/Head.astro',
-      },
       head: [
         // Adding google analytics
         {
@@ -100,9 +96,6 @@ export default defineConfig({
       ],
     }),
   ],
-  markdown: {
-    rehypePlugins: [[rehypeMermaid, { strategy: 'pre-mermaid' }]],
-  },
   vite: {
     server: {
       host: true,

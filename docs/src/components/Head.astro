@@ -1,9 +1,0 @@
----
-import StarlightHead from '@astrojs/starlight/components/Head.astro';
----
-<StarlightHead {...Astro.props} />
-<script>
-  import mermaid from 'mermaid';
-  mermaid.initialize({ startOnLoad: false, theme: 'neutral' });
-  document.addEventListener('DOMContentLoaded', () => mermaid.run());
-</script>
