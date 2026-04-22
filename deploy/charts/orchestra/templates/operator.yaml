@@ -155,6 +155,10 @@ spec:
           value: "/app"
         - name: USER
           value: "orchestra-operator"
+        - name: ORCHESTRA_BASE_DOMAIN
+          value: {{ .Values.global.domain | quote }}
+        - name: ORCHESTRA_INGRESS_ENTRY_POINTS
+          value: '["websecure"]'
         - name: ORCHESTRA_SIDECAR_IMAGE
           value: "{{ .Values.operator.sidecar.image.repository }}:{{ .Values.operator.sidecar.image.tag }}"
         - name: ORCHESTRA_SIDECAR_PULL_POLICY

@@ -1,36 +1,13 @@
 """Ingress creation for workshops."""
 
-import os
 from typing import Any
 
-# When ORCHESTRA_ENVIRONMENT=local, workshops are reachable at
-# {name}.127.0.0.1.nip.io — no DNS config required on Docker Desktop.
-# In any other environment the hostname follows the production convention.
-_LOCAL_ENV = os.environ.get("ORCHESTRA_ENVIRONMENT", "").lower() == "local"
-_PROD_BASE_DOMAIN = os.environ.get("ORCHESTRA_BASE_DOMAIN", "orchestraplatform.org")
-# Local dev domain — resolved by dnsmasq (*.orchestra.localhost → 127.0.0.1).
-# See docs/dev-setup for dnsmasq configuration instructions.
-_LOCAL_BASE_DOMAIN = os.environ.get("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
-# NodePort used by Traefik in local dev (helm install sets ports.web.nodePort=30080).
-# Empty string means no port suffix (i.e. standard 80/443).
-_LOCAL_INGRESS_PORT = os.environ.get("ORCHESTRA_LOCAL_INGRESS_PORT", "30080")
-
-# Default middleware used for authentication (system-wide).
-# Should be in format: "namespace-name@kubernetescrd"
-_AUTH_MIDDLEWARE = os.environ.get("ORCHESTRA_AUTH_MIDDLEWARE", "")
+from config import get_settings
 
 
 def _default_host(workshop_name: str) -> str:
-    """Return the default hostname for a workshop based on the environment."""
-    if _LOCAL_ENV:
-        return f"{workshop_name}.{_LOCAL_BASE_DOMAIN}"
-    return f"{workshop_name}.{_PROD_BASE_DOMAIN}"
-
-
-def _default_entry_points() -> list[str]:
-    """Return Traefik entry points appropriate for the environment."""
-    # Local dev uses plain HTTP; production uses TLS.
-    return ["web"] if _LOCAL_ENV else ["websecure"]
+    """Return the default hostname for a workshop."""
+    return f"{workshop_name}.{get_settings().base_domain}"
 
 
 def create_workshop_ingress(
@@ -39,25 +16,22 @@ def create_workshop_ingress(
     ingress_config: dict[str, Any],
     auth_middleware_override: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Create a Traefik IngressRoute for a workshop.
+    """Create a Traefik IngressRoute for a workshop.
 
     Args:
         workshop_name: Name of the workshop
         namespace: Kubernetes namespace
         ingress_config: Ingress configuration from workshop spec
-        auth_middleware_override: Optional local middleware name to use instead of the system default
-
-    Returns:
-        IngressRoute manifest as a dictionary ready to be created
+        auth_middleware_override: Local per-workshop middleware name (production
+            only; overrides the system-wide auth_middleware from settings)
     """
-    # Explicit host in the spec always wins; otherwise derive from environment.
+    settings = get_settings()
+
     host = ingress_config.get("host") or _default_host(workshop_name)
-    entry_points = ingress_config.get("entryPoints") or _default_entry_points()
+    entry_points = ingress_config.get("entryPoints") or settings.ingress_entry_points
     annotations = ingress_config.get("annotations", {})
 
-    # Store the resolved host as an annotation so callers can retrieve it
-    # without re-parsing the Traefik match expression.
+    # Store the resolved host as an annotation for easy URL reconstruction.
     meta_annotations = {**annotations, "orchestra.io/host": host}
 
     routes = [
@@ -68,12 +42,11 @@ def create_workshop_ingress(
         }
     ]
 
-    # Add authentication middleware if configured and not in local dev
-    middleware_name = auth_middleware_override or _AUTH_MIDDLEWARE
-    if middleware_name and not _LOCAL_ENV:
+    middleware_name = auth_middleware_override or settings.auth_middleware
+    if middleware_name:
         routes[0]["middlewares"] = [{"name": middleware_name}]
 
-    ingress_route = {
+    return {
         "apiVersion": "traefik.io/v1alpha1",
         "kind": "IngressRoute",
         "metadata": {
@@ -91,5 +64,3 @@ def create_workshop_ingress(
             "routes": routes,
         },
     }
-
-    return ingress_route

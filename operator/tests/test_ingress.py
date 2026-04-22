@@ -1,46 +1,32 @@
 """Tests for ingress resource creation and URL derivation."""
 
-import os
-
 import pytest
 
-from resources.ingress import _default_entry_points, _default_host, create_workshop_ingress
+from resources.ingress import _default_host, create_workshop_ingress
 from handlers.workshop import _ingress_url
 
 
+@pytest.fixture(autouse=True)
+def clear_settings_cache():
+    """Clear the lru_cache on get_settings between tests."""
+    from config import get_settings
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 class TestDefaultHost:
-    def test_local_env_uses_local_domain(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_ENVIRONMENT", "local")
-        monkeypatch.setenv("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
-        # Re-import to pick up env changes (module-level constants are set at import time)
-        import importlib
-        import resources.ingress as ingress_mod
-        importlib.reload(ingress_mod)
-        assert ingress_mod._default_host("my-workshop") == "my-workshop.orchestra.localhost"
+    def test_uses_configured_base_domain(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_BASE_DOMAIN", "orchestra.localhost")
+        from config import get_settings
+        get_settings.cache_clear()
+        assert _default_host("my-workshop") == "my-workshop.orchestra.localhost"
 
-    def test_prod_env_uses_prod_domain(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_ENVIRONMENT", "production")
+    def test_uses_prod_base_domain(self, monkeypatch):
         monkeypatch.setenv("ORCHESTRA_BASE_DOMAIN", "orchestraplatform.org")
-        import importlib
-        import resources.ingress as ingress_mod
-        importlib.reload(ingress_mod)
-        assert ingress_mod._default_host("my-workshop") == "my-workshop.orchestraplatform.org"
-
-
-class TestDefaultEntryPoints:
-    def test_local_env_returns_web(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_ENVIRONMENT", "local")
-        import importlib
-        import resources.ingress as ingress_mod
-        importlib.reload(ingress_mod)
-        assert ingress_mod._default_entry_points() == ["web"]
-
-    def test_prod_env_returns_websecure(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_ENVIRONMENT", "production")
-        import importlib
-        import resources.ingress as ingress_mod
-        importlib.reload(ingress_mod)
-        assert ingress_mod._default_entry_points() == ["websecure"]
+        from config import get_settings
+        get_settings.cache_clear()
+        assert _default_host("my-workshop") == "my-workshop.orchestraplatform.org"
 
 
 class TestCreateWorkshopIngress:
@@ -61,12 +47,18 @@ class TestCreateWorkshopIngress:
         )
         assert ingress["spec"]["entryPoints"] == ["websecure"]
 
+    def test_default_entry_points_from_settings(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_INGRESS_ENTRY_POINTS", '["web"]')
+        from config import get_settings
+        get_settings.cache_clear()
+        ingress = create_workshop_ingress("test-ws", "default", {})
+        assert ingress["spec"]["entryPoints"] == ["web"]
+
     def test_user_annotations_are_preserved(self):
         ingress = create_workshop_ingress(
             "test-ws", "default", {"annotations": {"traefik.io/foo": "bar"}}
         )
         assert ingress["metadata"]["annotations"]["traefik.io/foo"] == "bar"
-        # orchestra.io/host must also be present
         assert "orchestra.io/host" in ingress["metadata"]["annotations"]
 
     def test_service_name_matches_workshop(self):
@@ -77,6 +69,31 @@ class TestCreateWorkshopIngress:
         ingress = create_workshop_ingress("my-ws", "ns1", {})
         assert ingress["metadata"]["name"] == "my-ws-ingress"
         assert ingress["metadata"]["namespace"] == "ns1"
+
+    def test_no_middleware_when_none_configured(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_AUTH_MIDDLEWARE", "")
+        from config import get_settings
+        get_settings.cache_clear()
+        ingress = create_workshop_ingress("test-ws", "default", {})
+        assert "middlewares" not in ingress["spec"]["routes"][0]
+
+    def test_middleware_applied_from_settings(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_AUTH_MIDDLEWARE", "kube-system-auth@kubernetescrd")
+        from config import get_settings
+        get_settings.cache_clear()
+        ingress = create_workshop_ingress("test-ws", "default", {})
+        assert ingress["spec"]["routes"][0]["middlewares"] == [
+            {"name": "kube-system-auth@kubernetescrd"}
+        ]
+
+    def test_middleware_override_takes_precedence(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_AUTH_MIDDLEWARE", "global-auth@kubernetescrd")
+        from config import get_settings
+        get_settings.cache_clear()
+        ingress = create_workshop_ingress(
+            "test-ws", "default", {}, auth_middleware_override="test-ws-auth"
+        )
+        assert ingress["spec"]["routes"][0]["middlewares"] == [{"name": "test-ws-auth"}]
 
 
 class TestIngressUrl:
@@ -101,14 +118,24 @@ class TestIngressUrl:
         }
         assert _ingress_url(ingress) == "http://ws.example.com"
 
+    def test_port_suffix_appended_when_configured(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_INGRESS_PORT", "30080")
+        from config import get_settings
+        get_settings.cache_clear()
+        ingress = {
+            "spec": {"entryPoints": ["web"]},
+            "metadata": {"annotations": {"orchestra.io/host": "ws.localhost"}},
+        }
+        assert _ingress_url(ingress) == "http://ws.localhost:30080"
+
     def test_round_trip_with_create_ingress(self, monkeypatch):
         """URL derived from a created ingress should match the host annotation."""
-        monkeypatch.setenv("ORCHESTRA_ENVIRONMENT", "local")
-        monkeypatch.setenv("ORCHESTRA_LOCAL_DOMAIN", "orchestra.localhost")
-        import importlib
-        import resources.ingress as ingress_mod
-        importlib.reload(ingress_mod)
+        monkeypatch.setenv("ORCHESTRA_BASE_DOMAIN", "orchestra.localhost")
+        monkeypatch.setenv("ORCHESTRA_INGRESS_ENTRY_POINTS", '["web"]')
+        monkeypatch.setenv("ORCHESTRA_INGRESS_PORT", "")
+        from config import get_settings
+        get_settings.cache_clear()
 
-        ingress = ingress_mod.create_workshop_ingress("roundtrip", "default", {})
+        ingress = create_workshop_ingress("roundtrip", "default", {})
         url = _ingress_url(ingress)
         assert url == "http://roundtrip.orchestra.localhost"

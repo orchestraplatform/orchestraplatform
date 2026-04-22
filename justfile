@@ -82,7 +82,9 @@ dev-frontend:
 # Run the operator locally
 dev-operator:
     cd operator/src && \
-    ORCHESTRA_ENVIRONMENT=local \
+    ORCHESTRA_BASE_DOMAIN=orchestra.localhost \
+    ORCHESTRA_INGRESS_ENTRY_POINTS='["web"]' \
+    ORCHESTRA_INGRESS_PORT=30080 \
     KUBE_CONTEXT={{ dev_k8s_context }} \
     uv run python main.py
 
