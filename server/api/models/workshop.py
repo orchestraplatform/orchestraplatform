@@ -98,13 +98,6 @@ class WorkshopCreate(BaseModel):
         return v
 
 
-class WorkshopUpdate(BaseModel):
-    """Request model for updating a workshop."""
-
-    duration: str | None = None
-    resources: WorkshopResources | None = None
-
-
 class WorkshopCondition(BaseModel):
     """Workshop status condition."""
 
@@ -145,18 +138,3 @@ class WorkshopResponse(BaseModel):
     updated_at: datetime | None = None
 
 
-class WorkshopList(BaseModel):
-    """Response model for workshop list."""
-
-    items: list[WorkshopResponse]
-    total: int
-    page: int = 1
-    size: int = 50
-
-
-class ErrorResponse(BaseModel):
-    """Error response model."""
-
-    detail: str
-    error_code: str | None = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))

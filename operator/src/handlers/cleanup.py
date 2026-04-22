@@ -11,11 +11,6 @@ from kubernetes.client.rest import ApiException
 logger = logging.getLogger(__name__)
 
 
-def register_cleanup_handlers() -> None:
-    """Register cleanup-related Kopf handlers."""
-    pass
-
-
 @kopf.timer("orchestra.io", "v1", "workshops", interval=30, idle=10)  # type: ignore
 async def workshop_expiration_timer(
     spec: dict, status: dict, namespace: str, name: str, **kwargs: Any

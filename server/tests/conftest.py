@@ -12,20 +12,6 @@ from api.core.database import get_db
 TEST_USER = CurrentUser(email="alice@test.example.com", is_admin=False)
 TEST_ADMIN = CurrentUser(email="admin@test.example.com", is_admin=True)
 
-# A minimal mock Workshop CRD returned by the k8s API
-MOCK_WORKSHOP_CRD = {
-    "apiVersion": "orchestra.io/v1",
-    "kind": "Workshop",
-    "metadata": {"name": "test-workshop", "namespace": "default"},
-    "spec": {
-        "name": "test-workshop",
-        "owner": "alice@test.example.com",
-        "duration": "4h",
-        "image": "rocker/rstudio:latest",
-    },
-    "status": {},
-}
-
 
 @pytest.fixture(autouse=True)
 def _mock_k8s_startup():

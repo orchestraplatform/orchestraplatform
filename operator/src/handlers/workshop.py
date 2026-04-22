@@ -47,12 +47,6 @@ def _ingress_url(ingress: dict[str, Any]) -> str:
     return f"{scheme}://{host}{port_suffix}"
 
 
-def register_workshop_handlers() -> None:
-    """Register all workshop-related Kopf handlers."""
-    # Handlers are registered via decorators below
-    pass
-
-
 @kopf.on.create("orchestra.io", "v1", "workshops")
 async def workshop_create_handler(
     spec: dict[str, Any],

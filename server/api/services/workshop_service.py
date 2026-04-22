@@ -1,6 +1,5 @@
 """Workshop service layer for Kubernetes integration."""
 
-import hashlib
 import logging
 from datetime import datetime
 from typing import Any
@@ -23,14 +22,6 @@ logger = logging.getLogger(__name__)
 GROUP = "orchestra.io"
 VERSION = "v1"
 PLURAL = "workshops"
-
-# Label key used for server-side owner filtering (label values can't contain '@')
-OWNER_HASH_LABEL = "orchestra.io/owner-hash"
-
-
-def _owner_label_value(email: str) -> str:
-    """Return a k8s-safe label value derived from an owner email address."""
-    return hashlib.sha256(email.lower().encode()).hexdigest()[:63]
 
 
 class WorkshopService:
@@ -85,39 +76,6 @@ class WorkshopService:
             logger.error(f"Failed to get workshop {name}: {e}")
             raise
 
-    async def list_workshops(
-        self,
-        namespace: str = "default",
-        owner_email: str | None = None,
-        label_selector: str | None = None,
-    ) -> list[WorkshopResponse]:
-        """List workshops, optionally filtered to a specific owner."""
-        if owner_email is not None:
-            owner_selector = f"{OWNER_HASH_LABEL}={_owner_label_value(owner_email)}"
-            label_selector = (
-                f"{label_selector},{owner_selector}"
-                if label_selector
-                else owner_selector
-            )
-        try:
-            result = self.custom_api.list_namespaced_custom_object(
-                group=GROUP,
-                version=VERSION,
-                namespace=namespace,
-                plural=PLURAL,
-                label_selector=label_selector,
-            )
-
-            workshops = []
-            for item in result.get("items", []):
-                workshops.append(self._from_kubernetes_crd(item))
-
-            return workshops
-
-        except ApiException as e:
-            logger.error(f"Failed to list workshops: {e}")
-            raise
-
     async def delete_workshop(self, name: str, namespace: str = "default") -> bool:
         """Delete a workshop."""
         try:
@@ -150,7 +108,6 @@ class WorkshopService:
                 "labels": {
                     "app": "orchestra-operator",
                     "managed-by": "orchestra-api",
-                    OWNER_HASH_LABEL: _owner_label_value(owner_email),
                 },
             },
             "spec": {

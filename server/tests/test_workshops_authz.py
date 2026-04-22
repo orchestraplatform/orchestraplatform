@@ -191,6 +191,7 @@ class TestUnauthenticatedRequests:
     def anon_client(self, _mock_k8s_startup):
         from unittest.mock import AsyncMock, MagicMock
 
+        from api.core.config import Settings, get_settings
         from api.core.database import get_db
         from main import app
 
@@ -199,9 +200,15 @@ class TestUnauthenticatedRequests:
         mock_db.__aexit__ = AsyncMock(return_value=False)
         app.dependency_overrides.pop(get_current_user, None)
         app.dependency_overrides[get_db] = lambda: mock_db
+        app.dependency_overrides[get_settings] = lambda: Settings(
+            require_authentication=True,
+            trusted_auth_header="X-Auth-Request-Email",
+            dev_identity=None,
+        )
         with TestClient(app, raise_server_exceptions=False) as c:
             yield c
         app.dependency_overrides.pop(get_db, None)
+        app.dependency_overrides.pop(get_settings, None)
 
     def test_list_without_auth_returns_401(self, anon_client):
         assert anon_client.get("/instances/").status_code == 401

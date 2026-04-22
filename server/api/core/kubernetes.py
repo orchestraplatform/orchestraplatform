@@ -2,12 +2,8 @@
 
 import logging
 
-try:
-    import kubernetes
-    from kubernetes.client.rest import ApiException
-except ImportError:
-    kubernetes = None
-    ApiException = Exception
+import kubernetes
+from kubernetes.client.rest import ApiException
 
 from api.core.config import get_settings
 
@@ -16,9 +12,6 @@ logger = logging.getLogger(__name__)
 
 def get_k8s_client():
     """Get Kubernetes client."""
-    if not kubernetes:
-        raise ImportError("kubernetes package not installed")
-
     settings = get_settings()
 
     try:

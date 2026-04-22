@@ -37,7 +37,7 @@ dev-setup:
         --set service.type=NodePort \
         --wait
     @echo "==> Applying Orchestra CRDs"
-    kubectl apply -f operator/config/crd/
+    kubectl apply -f deploy/charts/orchestra-crds/templates/
     @echo "==> Configuring dnsmasq for *.orchestra.localhost → 127.0.0.1"
     @grep -q "orchestra.localhost" /opt/homebrew/etc/dnsmasq.conf 2>/dev/null || \
         (echo "address=/.orchestra.localhost/127.0.0.1" >> /opt/homebrew/etc/dnsmasq.conf && \

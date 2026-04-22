@@ -16,8 +16,8 @@ from typing import Any
 import kopf
 import kubernetes
 
-from handlers.cleanup import register_cleanup_handlers
-from handlers.workshop import register_workshop_handlers
+import handlers.cleanup  # noqa: F401 — registers kopf handlers via decorators
+import handlers.workshop  # noqa: F401 — registers kopf handlers via decorators
 
 
 def setup_logging() -> None:
@@ -77,10 +77,6 @@ async def cleanup_handler(**kwargs: Any) -> None:
 def main() -> None:
     """Main entry point for the operator."""
     setup_logging()
-
-    # Register all handlers
-    register_workshop_handlers()
-    register_cleanup_handlers()
 
     logging.info("Starting Orchestra Operator...")
 

@@ -4,19 +4,31 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.core.auth import get_current_user
-from api.core.config import Settings
+from api.core.config import Settings, get_settings
+
+_PROD_SETTINGS = Settings(
+    require_authentication=True,
+    trusted_auth_header="X-Auth-Request-Email",
+    admin_emails=["admin@example.com"],
+    dev_identity=None,
+)
 
 
 @pytest.fixture
 def raw_client(_mock_k8s_startup):
-    """Test client with NO dependency override — exercises the real auth logic."""
+    """Test client with NO auth override — exercises the real auth logic.
+
+    Overrides get_settings with production-like values so the local .env
+    dev bypass (ORCHESTRA_REQUIRE_AUTHENTICATION=false) doesn't interfere.
+    """
     from main import app
 
-    # Remove any override set by the shared `client` fixture
     app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides[get_settings] = lambda: _PROD_SETTINGS
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides.pop(get_settings, None)
 
 
 @pytest.fixture

@@ -285,11 +285,9 @@ uv run pytest tests/ --cov=src --cov-report=html
    docker push your-registry/orchestra-operator:v1.0.0
    ```
 
-2. **Deploy to cluster**
+2. **Deploy to cluster** (use the Helm chart in `deploy/charts/orchestra`)
    ```bash
-   kubectl apply -f config/crd/
-   kubectl apply -f config/rbac/
-   kubectl apply -f config/deploy/
+   helm upgrade --install orchestra deploy/charts/orchestra -f deploy/gcp-values.yaml
    ```
 
 ## 🤝 Contributing
