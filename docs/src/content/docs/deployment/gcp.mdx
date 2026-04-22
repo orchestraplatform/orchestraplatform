@@ -357,6 +357,20 @@ Repeat for the apex (`orchestra.example.edu`) if needed.
 3. Add authorized redirect URI: `https://app.orchestra.example.edu/oauth2/callback`
 4. Copy the Client ID and Client Secret
 
+### Create the OAuth Secret
+
+Store your OAuth credentials in a Kubernetes Secret. This is the recommended
+way to manage sensitive information and avoids hardcoding secrets in your
+values file.
+
+```bash
+kubectl create secret generic orchestra-oauth-secrets \
+  --namespace orchestra-system \
+  --from-literal=client-id="YOUR_CLIENT_ID" \
+  --from-literal=client-secret="YOUR_CLIENT_SECRET" \
+  --from-literal=cookie-secret="$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+```
+
 ## Step 8 — Install Orchestra
 
 Create `my-values.yaml` (start from `values-prod.yaml` in the chart):
@@ -364,6 +378,9 @@ Create `my-values.yaml` (start from `values-prod.yaml` in the chart):
 ```yaml
 global:
   domain: "orchestra.example.edu"
+  # All workshop sessions will be launched in this namespace.
+  # The UI no longer provides a namespace selection field.
+  defaultNamespace: "default"
 
 api:
   image:
@@ -425,10 +442,10 @@ networkPolicy:
 
 oauth2Proxy:
   enabled: true
-  config:
-    clientID: "YOUR_CLIENT_ID"
-    clientSecret: "YOUR_CLIENT_SECRET"
-    cookieSecret: "YOUR_COOKIE_SECRET"
+  "oauth2-proxy":
+    config:
+      # Use the secret created in Step 7
+      existingSecret: "orchestra-oauth-secrets"
     allowedDomains:
       - "example.edu"
 ```

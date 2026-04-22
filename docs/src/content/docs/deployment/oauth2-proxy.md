@@ -17,14 +17,22 @@ page walks you through creating the required credentials.
 
 3. Copy the **Client ID** and **Client secret**.
 
-4. Pass them to Helm:
+4. Store them in a Kubernetes Secret (recommended):
+
+```bash
+kubectl create secret generic orchestra-oauth-secrets \
+  --namespace orchestra-system \
+  --from-literal=client-id=<google-client-id> \
+  --from-literal=client-secret=<google-client-secret> \
+  --from-literal="cookie-secret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+```
+
+5. Pass the secret name to Helm:
 
 ```bash
 helm install orchestra deploy/charts/orchestra \
   --set global.domain=orchestra.example.edu \
-  --set oauth2Proxy.config.clientID=<client-id> \
-  --set oauth2Proxy.config.clientSecret=<client-secret> \
-  --set oauth2Proxy.config.cookieSecret=$(python3 -c "import secrets; print(secrets.token_hex(16))") \
+  --set oauth2Proxy.config.existingSecret=orchestra-oauth-secrets \
   --set "oauth2Proxy.config.allowedDomains={example.edu}"
 ```
 

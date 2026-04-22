@@ -21,16 +21,27 @@ frontend, and an optional bundled oauth2-proxy.
 
 ## Quick install
 
+1. **Create the OAuth secret:**
+
+```bash
+kubectl create secret generic orchestra-oauth-secrets \
+  --namespace orchestra-system \
+  --from-literal=client-id=<google-client-id> \
+  --from-literal=client-secret=<google-client-secret> \
+  --from-literal="cookie-secret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+```
+
+2. **Install the chart:**
+
 ```bash
 helm install orchestra deploy/charts/orchestra \
   --namespace orchestra-system \
   --create-namespace \
   --set global.domain=orchestra.example.edu \
+  --set global.defaultNamespace=default \
   --set ingress.controller=traefik \
   --set api.database.existingSecret=orchestra-db \
-  --set oauth2Proxy.config.clientID=<google-client-id> \
-  --set oauth2Proxy.config.clientSecret=<google-client-secret> \
-  --set "oauth2Proxy.config.cookieSecret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')" \
+  --set oauth2Proxy.config.existingSecret=orchestra-oauth-secrets \
   --set "oauth2Proxy.config.allowedDomains={example.edu}" \
   --set "api.adminEmails={admin@example.edu}"
 ```
@@ -161,6 +172,7 @@ admin. No Google credentials required.
 | Key | Default | Description |
 |---|---|---|
 | `global.domain` | `orchestra.localhost` | Base domain; produces `app.<domain>` (frontend) and `api.<domain>` (API) |
+| `global.defaultNamespace` | `default` | Default Kubernetes namespace for workshop sessions |
 | `global.imagePullSecrets` | `[]` | Names of existing imagePullSecrets in the release namespace |
 
 ### `api`
@@ -229,6 +241,7 @@ admin. No Google credentials required.
 | Key | Default | Description |
 |---|---|---|
 | `oauth2Proxy.enabled` | `true` | Deploy bundled oauth2-proxy |
+| `oauth2Proxy.config.existingSecret` | `""` | Name of existing Secret for OAuth credentials |
 | `oauth2Proxy.config.clientID` | `""` | Google OAuth client ID |
 | `oauth2Proxy.config.clientSecret` | `""` | Google OAuth client secret |
 | `oauth2Proxy.config.cookieSecret` | `""` | Random 16-byte hex string |
