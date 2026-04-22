@@ -1,6 +1,7 @@
 """Kubernetes client configuration."""
 
 import logging
+import os
 
 import kubernetes
 from kubernetes.client.rest import ApiException
@@ -11,27 +12,28 @@ logger = logging.getLogger(__name__)
 
 
 def get_k8s_client():
-    """Get Kubernetes client."""
+    """Configure the kubernetes client, returning the client module.
+
+    Auto-detects in-cluster via KUBERNETES_SERVICE_HOST (set by k8s itself).
+    Falls back to local kubeconfig using ORCHESTRA_KUBE_CONTEXT if set.
+    """
     settings = get_settings()
 
-    try:
-        # Try in-cluster config first
-        if settings.in_cluster:
-            kubernetes.config.load_incluster_config()
-            logger.info("Loaded in-cluster Kubernetes configuration")
-        else:
-            raise kubernetes.config.ConfigException("Not in-cluster")
-    except kubernetes.config.ConfigException:
-        # Fall back to local kubeconfig
+    if os.environ.get("KUBERNETES_SERVICE_HOST"):
+        kubernetes.config.load_incluster_config()
+        logger.info("Loaded in-cluster Kubernetes configuration")
+    else:
         try:
             kubernetes.config.load_kube_config(
-                config_file=settings.kubeconfig_path, context=settings.kube_context
+                config_file=settings.kubeconfig_path,
+                context=settings.kube_context,
             )
             logger.info(
-                f"Loaded local Kubernetes configuration (context: {settings.kube_context or 'default'})"
+                "Loaded local Kubernetes configuration (context: %s)",
+                settings.kube_context or "default",
             )
         except Exception as e:
-            logger.error(f"Failed to load local Kubernetes configuration: {e}")
+            logger.error("Failed to load local Kubernetes configuration: %s", e)
             raise
 
     return kubernetes.client

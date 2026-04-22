@@ -26,7 +26,6 @@ class Settings(BaseSettings):
     # Kubernetes settings
     kubeconfig_path: str | None = None
     kube_context: str | None = None
-    in_cluster: bool = False
     default_namespace: str = "default"
 
     # Workshop defaults

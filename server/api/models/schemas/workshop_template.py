@@ -6,33 +6,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from api.models.workshop import WorkshopResources, WorkshopStorage
+
 _K8S_SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
-
-
-class WorkshopResourceDefaults(BaseModel):
-    """Default resource limits/requests for a workshop template."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    cpu: str = Field(default="1", description="CPU limit")
-    memory: str = Field(default="2Gi", description="Memory limit")
-    cpu_request: str = Field(
-        default="500m", alias="cpuRequest", description="CPU request"
-    )
-    memory_request: str = Field(
-        default="1Gi", alias="memoryRequest", description="Memory request"
-    )
-
-
-class WorkshopStorageDefaults(BaseModel):
-    """Default storage configuration for a workshop template."""
-
-    size: str = Field(default="10Gi", description="PVC size")
-    storage_class: str | None = Field(
-        default=None, alias="storageClass", description="Storage class name"
-    )
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class WorkshopTemplateCreate(BaseModel):
@@ -50,10 +26,10 @@ class WorkshopTemplateCreate(BaseModel):
     default_duration: str = Field(
         default="4h", alias="defaultDuration", description="Default session duration"
     )
-    resources: WorkshopResourceDefaults = Field(
-        default_factory=WorkshopResourceDefaults
+    resources: WorkshopResources = Field(
+        default_factory=WorkshopResources
     )
-    storage: WorkshopStorageDefaults | None = Field(default=None)
+    storage: WorkshopStorage | None = Field(default=None)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -77,8 +53,8 @@ class WorkshopTemplateUpdate(BaseModel):
     description: str | None = None
     image: str | None = None
     default_duration: str | None = Field(default=None, alias="defaultDuration")
-    resources: WorkshopResourceDefaults | None = None
-    storage: WorkshopStorageDefaults | None = None
+    resources: WorkshopResources | None = None
+    storage: WorkshopStorage | None = None
     is_active: bool | None = Field(default=None, alias="isActive")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -95,8 +71,8 @@ class WorkshopTemplateResponse(BaseModel):
     description: str | None = None
     image: str
     default_duration: str = Field(alias="defaultDuration")
-    resources: WorkshopResourceDefaults
-    storage: WorkshopStorageDefaults | None = None
+    resources: WorkshopResources
+    storage: WorkshopStorage | None = None
     is_active: bool = Field(alias="isActive")
     created_by: str = Field(alias="createdBy")
     created_at: datetime = Field(alias="createdAt")

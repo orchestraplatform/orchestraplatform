@@ -33,8 +33,6 @@ spec:
           name: http
           protocol: TCP
         env:
-        - name: ORCHESTRA_IN_CLUSTER
-          value: "true"
         - name: ORCHESTRA_DEFAULT_NAMESPACE
           value: {{ .Values.global.defaultNamespace | quote }}
         - name: ORCHESTRA_REQUIRE_AUTHENTICATION

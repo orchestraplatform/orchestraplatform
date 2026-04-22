@@ -6,9 +6,9 @@ from datetime import UTC, datetime
 from unittest.mock import ANY, AsyncMock, MagicMock
 
 from api.models.schemas.workshop_template import (
-    WorkshopResourceDefaults,
     WorkshopTemplateResponse,
 )
+from api.models.workshop import WorkshopResources
 from api.services.workshop_template_service import get_template_service
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ MOCK_TEMPLATE = WorkshopTemplateResponse(
     description="Default RStudio environment",
     image="rocker/rstudio:latest",
     defaultDuration="4h",
-    resources=WorkshopResourceDefaults(),
+    resources=WorkshopResources(),
     storage=None,
     isActive=True,
     createdBy="admin@test.example.com",
@@ -242,7 +242,7 @@ class TestPagination:
                 description=None,
                 image="rocker/rstudio:latest",
                 defaultDuration="4h",
-                resources=WorkshopResourceDefaults(),
+                resources=WorkshopResources(),
                 storage=None,
                 isActive=True,
                 createdBy="admin@test.example.com",
