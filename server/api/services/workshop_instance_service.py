@@ -1,14 +1,17 @@
 """Service layer for WorkshopInstance (DB records + k8s CRD lifecycle)."""
 
+import asyncio
 import logging
+import random
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import case, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from api.core.kubernetes import ApiException
+from api.models.db.workshop import Workshop
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_instance import (
     InstanceSummary,
@@ -36,6 +39,7 @@ SSE_POLL_SLOW_S: int = 30   # interval once all sessions have settled
 SSE_JITTER_S: int = 5       # max random offset applied to startup delay and each tick
 
 _ACTIVE_PHASES = {"Ready", "Running"}
+_TRANSITIONAL_PHASES = {"Pending", "Creating"}
 
 
 def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
@@ -171,8 +175,6 @@ class WorkshopInstanceService:
         if owner_email:
             query = query.where(WorkshopInstance.owner_email == owner_email)
 
-        from sqlalchemy import func
-
         total_result = await db.execute(
             select(func.count()).select_from(query.subquery())
         )
@@ -184,9 +186,10 @@ class WorkshopInstanceService:
 
         # Sync from k8s for instances that haven't settled yet, or have expired.
         now = datetime.now(UTC)
-        _TRANSITIONAL = {"Pending", "Creating"}
         for row in rows:
-            if row.phase in _TRANSITIONAL or (row.expires_at and row.expires_at <= now):
+            if row.phase in _TRANSITIONAL_PHASES or (
+                row.expires_at and row.expires_at <= now
+            ):
                 await self._sync_from_k8s(db, row)
 
         items = [_to_response(r, workshop_name=r.workshop.name) for r in rows]
@@ -280,13 +283,9 @@ class WorkshopInstanceService:
         return _compute_utilization(row)
 
     async def get_template_stats(
-        self, db: AsyncSession, template_id: "uuid.UUID"
+        self, db: AsyncSession, template_id: uuid.UUID
     ) -> TemplateStats | None:
         """Return aggregate launch and utilization stats for a template."""
-        from sqlalchemy import case, distinct, func
-
-        from api.models.db.workshop import Workshop
-
         # Verify template exists
         tpl_result = await db.execute(
             select(Workshop).where(Workshop.id == template_id)
@@ -328,9 +327,6 @@ class WorkshopInstanceService:
 
     async def get_instance_summary(self, db: AsyncSession) -> InstanceSummary:
         """Total launches all-time and within the last 7 days."""
-        from datetime import timedelta
-        from sqlalchemy import case, func
-
         cutoff = datetime.now(UTC) - timedelta(days=7)
         result = await db.execute(
             select(
@@ -350,8 +346,6 @@ class WorkshopInstanceService:
         self, db: AsyncSession
     ) -> list[TemplateStats]:
         """Return total_launches per template in a single grouped query."""
-        from sqlalchemy import case, distinct, func
-
         result = await db.execute(
             select(
                 WorkshopInstance.workshop_id,
@@ -424,11 +418,6 @@ class WorkshopInstanceService:
         all are settled.  A random jitter of ±2 s is added to each sleep to
         spread load across connections that started at the same time.
         """
-        import asyncio
-        import random
-
-        _TRANSITIONAL = {"Pending", "Creating"}
-
         # Stagger connection startups so a mass-join doesn't produce a
         # synchronised thundering herd on the very first tick.
         await asyncio.sleep(random.uniform(0, SSE_JITTER_S))
@@ -438,7 +427,7 @@ class WorkshopInstanceService:
             data = WorkshopInstanceList(items=items, total=total)
             yield data.model_dump_json(by_alias=True)
 
-            has_transitional = any(i.phase in _TRANSITIONAL for i in items)
+            has_transitional = any(i.phase in _TRANSITIONAL_PHASES for i in items)
             base = SSE_POLL_FAST_S if has_transitional else SSE_POLL_SLOW_S
             await asyncio.sleep(base + random.uniform(-SSE_JITTER_S, SSE_JITTER_S))
 
