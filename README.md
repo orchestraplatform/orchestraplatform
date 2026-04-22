@@ -61,7 +61,7 @@ This starts the server, frontend, and operator in parallel as local processes (w
 
 > **Note:** Ports 8000 and 8001 are occupied by Docker Desktop on Mac; 8080 is used instead.
 
-Workshops created via the UI will be reachable at `http://<name>.orchestra.localhost:30080`. The `dev-setup` step configures dnsmasq to resolve `*.orchestra.localhost` → `127.0.0.1` automatically.
+Workshops created via the UI will be reachable at `http://<name>.127.0.0.1.nip.io:30080`. No DNS configuration required — `*.127.0.0.1.nip.io` resolves to `127.0.0.1` automatically via the public nip.io service.
 
 ### Development without the operator
 
@@ -81,25 +81,6 @@ frontend/.env.local.example → frontend/.env.local  # VITE_API_URL etc (gitigno
 ```
 
 Edit them as needed after copying.
-
-## Docker Compose
-
-Two compose files are provided:
-
-| File | Use case |
-|------|----------|
-| `docker-compose.yml` | Full image builds, closer to production |
-| `docker-compose.dev.yml` | Volume-mounted source with hot-reload |
-
-```bash
-just docker-dev-up    # dev mode (hot-reload)
-just docker-up        # production-like
-```
-
-Access the components at:
--   **Frontend**: http://localhost:3002
--   **API Server**: http://localhost:8001
--   **Docs**: http://localhost:3003
 
 ## Getting Started
 

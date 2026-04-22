@@ -70,7 +70,7 @@ ORCHESTRA_DEV_IDENTITY=dev@orchestra.localhost
 
 When `require_authentication` is `False` **and** `dev_identity` is set, the
 API short-circuits and uses `dev_identity` as the caller's email. No proxy is
-needed. This is the default behaviour of `just dev` and `docker-compose up`.
+needed. This is the default behaviour of `just dev`.
 
 **Caution:** Never set `ORCHESTRA_DEV_IDENTITY` in production. The bypass only
 activates when `ORCHESTRA_REQUIRE_AUTHENTICATION=false` is also set, but you
