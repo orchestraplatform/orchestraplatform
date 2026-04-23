@@ -10,6 +10,7 @@ import kubernetes.client as k8s_client
 from kubernetes.client.rest import ApiException
 
 from config import get_settings
+from crd import GROUP, PLURAL, VERSION
 from resources.deployment import create_rstudio_deployment
 from resources.ingress import create_workshop_ingress
 from resources.middleware import create_auth_middleware
@@ -41,7 +42,7 @@ def _create_or_ignore(api_call, kind: str, name: str) -> None:
             raise
 
 
-@kopf.on.create("orchestra.io", "v1", "workshops")
+@kopf.on.create(GROUP, VERSION, PLURAL)
 async def workshop_create_handler(
     spec: dict[str, Any],
     meta: dict[str, Any],
@@ -195,7 +196,7 @@ async def workshop_create_handler(
         }
 
 
-@kopf.on.update("orchestra.io", "v1", "workshops")
+@kopf.on.update(GROUP, VERSION, PLURAL)
 async def workshop_update_handler(
     spec: dict[str, Any],
     status: dict[str, Any],
@@ -208,7 +209,7 @@ async def workshop_update_handler(
     return {"phase": status.get("phase", "Ready")}
 
 
-@kopf.on.delete("orchestra.io", "v1", "workshops")
+@kopf.on.delete(GROUP, VERSION, PLURAL)
 async def workshop_delete_handler(
     meta: dict[str, Any], namespace: str, name: str, **kwargs: Any
 ) -> None:
@@ -283,8 +284,8 @@ async def update_workshop_status(
 
     try:
         custom_api.patch_namespaced_custom_object_status(
-            group="orchestra.io", version="v1",
-            namespace=namespace, plural="workshops", name=name,
+            group=GROUP, version=VERSION,
+            namespace=namespace, plural=PLURAL, name=name,
             body={
                 "status": {
                     "phase": phase,

@@ -8,10 +8,12 @@ import kopf
 import kubernetes.client as k8s_client
 from kubernetes.client.rest import ApiException
 
+from crd import GROUP, PLURAL, VERSION
+
 logger = logging.getLogger(__name__)
 
 
-@kopf.timer("orchestra.io", "v1", "workshops", interval=30, idle=10)  # type: ignore
+@kopf.timer(GROUP, VERSION, PLURAL, interval=30, idle=10)  # type: ignore
 async def workshop_expiration_timer(
     spec: dict, status: dict, namespace: str, name: str, **kwargs: Any
 ) -> None:
@@ -37,10 +39,10 @@ async def workshop_expiration_timer(
     try:
         custom_api = k8s_client.CustomObjectsApi()
         custom_api.delete_namespaced_custom_object(
-            group="orchestra.io",
-            version="v1",
+            group=GROUP,
+            version=VERSION,
             namespace=namespace,
-            plural="workshops",
+            plural=PLURAL,
             name=name,
         )
         logger.info("Workshop %s CRD deleted", name)
@@ -51,7 +53,7 @@ async def workshop_expiration_timer(
             logger.error("Failed to delete expired workshop %s: %s", name, e)
 
 
-@kopf.on.field("orchestra.io", "v1", "workshops", field="status.phase")  # type: ignore
+@kopf.on.field(GROUP, VERSION, PLURAL, field="status.phase")  # type: ignore
 async def workshop_phase_change(
     old: str, new: str, namespace: str, name: str, **kwargs: Any
 ) -> None:
