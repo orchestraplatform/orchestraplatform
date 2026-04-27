@@ -42,10 +42,6 @@ api:
   extraEnv:
     - name: UV_CACHE_DIR
       value: /tmp/uv-cache
-    # Bridge: old image uses settings.in_cluster; remove once image is rebuilt
-    # from current code which uses KUBERNETES_SERVICE_HOST instead.
-    - name: ORCHESTRA_IN_CLUSTER
-      value: "true"
 
   extraVolumeMounts:
     - name: tmp
