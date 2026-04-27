@@ -192,35 +192,33 @@ oauth2Proxy:
   # transparent redirect. fullProxy=true is recommended for Traefik deployments.
   fullProxy: false
 
-  config:
-    # Google OAuth credentials — https://console.cloud.google.com/apis/credentials
-    clientID: ""
-    clientSecret: ""
-    # Generate: python3 -c "import secrets; print(secrets.token_hex(16))"
-    cookieSecret: ""
-    # Restrict login to one or more email domains. Use "*" for any Google account.
-    allowedDomains:
-      - "*"
-    # Optionally restrict to specific addresses regardless of domain.
-    allowedEmails: []
-    # Set to a GitHub org name to accept GitHub logins (single-provider).
-    githubOrg: ""
-    # Required for fullProxy=true: the external callback URL oauth2-proxy advertises to
-    # the OAuth provider. Must match a registered redirect URI in your OAuth app.
-    redirectURL: ""
-    # Cookie domain for cross-subdomain session sharing (e.g. ".app.example.com").
-    # Required when the frontend and API are on different subdomains and both need
-    # to read the session cookie. Leave "" to scope the cookie to the request host.
-    cookieDomain: ""
-
-  # Values passed through to the oauth2-proxy subchart.
-  # Full reference: https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
-  "oauth2-proxy":
-    replicaCount: 1
-    resources:
-      requests:
-        cpu: 50m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 128Mi
+# ── oauth2-proxy subchart values ─────────────────────────────────────────────
+# IMPORTANT: these MUST be at the root level (not nested under oauth2Proxy:) so
+# Helm passes them to the bundled subchart. Credentials should never be inlined
+# here — use existingSecret instead (see docs/deployment/oauth2-proxy.md).
+#
+# Minimal example:
+#   "oauth2-proxy":
+#     config:
+#       existingSecret: orchestra-oauth-secrets
+#       configFile: |
+#         email_domains = [ "*" ]
+#         upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
+#     extraArgs:
+#       redirect-url: "https://app.YOUR_DOMAIN/oauth2/callback"
+#       cookie-domain: ".YOUR_DOMAIN"
+#       whitelist-domain: ".YOUR_DOMAIN"
+#       set-xauthrequest: "true"
+#       skip-provider-button: "true"
+#
+# Full subchart reference:
+# https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy
+"oauth2-proxy":
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
