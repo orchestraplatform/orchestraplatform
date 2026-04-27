@@ -27,8 +27,8 @@ class TestParseDuration:
         with pytest.raises(ValueError, match="cannot be empty"):
             parse_duration("")
 
-    def test_no_components_raises(self):
-        with pytest.raises(ValueError, match="No time components"):
+    def test_invalid_format_raises(self):
+        with pytest.raises(ValueError, match="Invalid duration format"):
             parse_duration("xyz")
 
 

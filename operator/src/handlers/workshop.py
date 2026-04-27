@@ -1,8 +1,6 @@
 """Workshop event handlers for the Orchestra Operator."""
 
-import asyncio
 import logging
-import random
 from typing import Any
 
 import kopf
@@ -42,34 +40,60 @@ def _create_or_ignore(api_call, kind: str, name: str) -> None:
             raise
 
 
+def _owner_ref(meta: dict[str, Any]) -> k8s_client.V1OwnerReference:
+    """Build an OwnerReference pointing at the Workshop CRD being handled."""
+    return k8s_client.V1OwnerReference(
+        api_version=f"{GROUP}/{VERSION}",
+        kind="Workshop",
+        name=meta["name"],
+        uid=meta["uid"],
+        block_owner_deletion=True,
+        controller=True,
+    )
+
+
+def _owner_ref_dict(meta: dict[str, Any]) -> dict[str, Any]:
+    """Build an ownerReference dict for raw Traefik custom objects."""
+    return {
+        "apiVersion": f"{GROUP}/{VERSION}",
+        "kind": "Workshop",
+        "name": meta["name"],
+        "uid": meta["uid"],
+        "blockOwnerDeletion": True,
+        "controller": True,
+    }
+
+
 @kopf.on.create(GROUP, VERSION, PLURAL)
 async def workshop_create_handler(
     spec: dict[str, Any],
     meta: dict[str, Any],
     patch,
-    status: dict[str, Any],
     namespace: str,
     name: str,
     **kwargs: Any,
 ) -> None:
-    """Handle Workshop creation events."""
+    """Handle Workshop creation events.
+
+    Resources are created idempotently so kopf can safely retry after a
+    TemporaryError. OwnerReferences on every child resource mean Kubernetes
+    GC cleans them up automatically when the Workshop CRD is deleted.
+    """
     logger.info("Creating workshop %s in namespace %s", name, namespace)
     settings = get_settings()
 
     try:
-        await update_workshop_status(
-            namespace, name, "Creating", "Workshop creation started", reason="Provisioning"
-        )
-
         workshop_name = spec.get("name", name)
         duration = spec.get("duration", "4h")
-        image = spec.get("image", "rocker/rstudio:latest")
+        image = spec.get("image", settings.default_workshop_image)
         resources = spec.get("resources", {})
         storage = spec.get("storage", {})
         ingress_config = spec.get("ingress", {})
         owner_email = spec.get("owner", "unknown")
 
         expiration_time = get_expiration_time(duration)
+        owner_ref = _owner_ref(meta)
+        owner_ref_dict = _owner_ref_dict(meta)
 
         k8s_apps_v1 = k8s_client.AppsV1Api()
         k8s_core_v1 = k8s_client.CoreV1Api()
@@ -77,47 +101,40 @@ async def workshop_create_handler(
 
         if storage:
             pvc = create_workshop_pvc(workshop_name, namespace, storage)
+            pvc.metadata.owner_references = [owner_ref]
             _create_or_ignore(
                 lambda: k8s_core_v1.create_namespaced_persistent_volume_claim(
                     namespace=namespace, body=pvc
                 ),
                 "PVC", workshop_name,
             )
-            await update_workshop_status(
-                namespace, name, "Creating", "Storage provisioned", reason="PVCReady"
-            )
 
-        # require_auth = True whenever an auth middleware is configured.
         require_auth = bool(settings.auth_middleware or settings.oauth2_proxy_auth_url)
         deployment = create_rstudio_deployment(
             workshop_name, namespace, image, owner_email, resources, storage,
             require_auth=require_auth,
         )
+        deployment.metadata.owner_references = [owner_ref]
         _create_or_ignore(
             lambda: k8s_apps_v1.create_namespaced_deployment(
                 namespace=namespace, body=deployment
             ),
             "Deployment", workshop_name,
         )
-        await update_workshop_status(
-            namespace, name, "Creating", "Compute resources created", reason="DeploymentReady"
-        )
 
         service = create_workshop_service(workshop_name, namespace)
+        service.metadata.owner_references = [owner_ref]
         _create_or_ignore(
             lambda: k8s_core_v1.create_namespaced_service(namespace=namespace, body=service),
             "Service", workshop_name,
         )
-        await update_workshop_status(
-            namespace, name, "Creating", "Network service created", reason="ServiceReady"
-        )
 
-        # Per-workshop auth middleware (only when oauth2_proxy_auth_url is set)
         local_auth_middleware: str | None = None
         if settings.oauth2_proxy_auth_url:
             middleware = create_auth_middleware(
                 workshop_name, namespace, settings.oauth2_proxy_auth_url
             )
+            middleware["metadata"]["ownerReferences"] = [owner_ref_dict]
             _create_or_ignore(
                 lambda: k8s_custom_objects_v1.create_namespaced_custom_object(
                     group="traefik.io", version="v1alpha1",
@@ -131,6 +148,7 @@ async def workshop_create_handler(
             workshop_name, namespace, ingress_config,
             auth_middleware_override=local_auth_middleware,
         )
+        ingress["metadata"]["ownerReferences"] = [owner_ref_dict]
         _create_or_ignore(
             lambda: k8s_custom_objects_v1.create_namespaced_custom_object(
                 group="traefik.io", version="v1alpha1",
@@ -139,31 +157,16 @@ async def workshop_create_handler(
             "IngressRoute", workshop_name,
         )
         workshop_url = _ingress_url(ingress)
-        await update_workshop_status(
-            namespace, name, "Creating", "Ingress route configured", reason="IngressReady"
-        )
 
-        await update_workshop_status(
-            namespace, name, "Starting",
-            "Waiting for workshop pod to become ready", reason="PodStarting",
+        # Check readiness — requeue cleanly if the pod isn't up yet.
+        dep = k8s_apps_v1.read_namespaced_deployment(
+            name=f"{workshop_name}-deployment", namespace=namespace
         )
-        timeout = 600
-        elapsed = 0.0
-        while elapsed < timeout:
-            dep = k8s_apps_v1.read_namespaced_deployment(
-                name=f"{workshop_name}-deployment", namespace=namespace
-            )
-            if (dep.status.ready_replicas or 0) >= 1:
-                break
-            interval = 5 + random.random() * 5
-            await asyncio.sleep(interval)
-            elapsed += interval
-        else:
-            raise kopf.PermanentError(
-                f"Workshop pod did not become ready within {timeout}s"
-            )
+        if (dep.status.ready_replicas or 0) < 1:
+            patch["status"] = {"phase": "Starting"}
+            raise kopf.TemporaryError("Workshop pod not yet ready", delay=15)
 
-        logger.info("Workshop %s created and ready", workshop_name)
+        logger.info("Workshop %s is ready", workshop_name)
         patch["status"] = {
             "phase": "Ready",
             "url": workshop_url,
@@ -179,7 +182,7 @@ async def workshop_create_handler(
             ],
         }
 
-    except kopf.PermanentError:
+    except (kopf.PermanentError, kopf.TemporaryError):
         raise
     except Exception as e:
         logger.error("Failed to create workshop %s: %s", name, e)
@@ -194,6 +197,7 @@ async def workshop_create_handler(
                 }
             ],
         }
+        raise kopf.PermanentError(str(e))
 
 
 @kopf.on.update(GROUP, VERSION, PLURAL)
@@ -207,103 +211,3 @@ async def workshop_update_handler(
     """Handle Workshop update events."""
     logger.info("Workshop %s updated (no-op for now)", name)
     return {"phase": status.get("phase", "Ready")}
-
-
-@kopf.on.delete(GROUP, VERSION, PLURAL)
-async def workshop_delete_handler(
-    meta: dict[str, Any], namespace: str, name: str, **kwargs: Any
-) -> None:
-    """Handle Workshop deletion events."""
-    logger.info("Deleting workshop %s in namespace %s", name, namespace)
-
-    try:
-        workshop_name = meta.get("name", name)
-        k8s_apps_v1 = k8s_client.AppsV1Api()
-        k8s_core_v1 = k8s_client.CoreV1Api()
-        k8s_custom_objects_v1 = k8s_client.CustomObjectsApi()
-
-        def _delete_or_warn(delete_fn, kind: str) -> None:
-            try:
-                delete_fn()
-            except ApiException as e:
-                if e.status != 404:
-                    logger.warning("Failed to delete %s for %s: %s", kind, workshop_name, e)
-
-        _delete_or_warn(
-            lambda: k8s_custom_objects_v1.delete_namespaced_custom_object(
-                group="traefik.io", version="v1alpha1", namespace=namespace,
-                plural="ingressroutes", name=f"{workshop_name}-ingress",
-            ),
-            "IngressRoute",
-        )
-        _delete_or_warn(
-            lambda: k8s_custom_objects_v1.delete_namespaced_custom_object(
-                group="traefik.io", version="v1alpha1", namespace=namespace,
-                plural="middlewares", name=f"{workshop_name}-auth",
-            ),
-            "Middleware",
-        )
-        _delete_or_warn(
-            lambda: k8s_core_v1.delete_namespaced_service(
-                name=f"{workshop_name}-service", namespace=namespace
-            ),
-            "Service",
-        )
-        _delete_or_warn(
-            lambda: k8s_apps_v1.delete_namespaced_deployment(
-                name=f"{workshop_name}-deployment", namespace=namespace
-            ),
-            "Deployment",
-        )
-        _delete_or_warn(
-            lambda: k8s_core_v1.delete_namespaced_persistent_volume_claim(
-                name=f"{workshop_name}-pvc", namespace=namespace
-            ),
-            "PVC",
-        )
-
-    except Exception as e:
-        logger.error("Failed to delete workshop %s: %s", name, e)
-        raise kopf.PermanentError(f"Workshop deletion failed: {e}")
-
-
-async def update_workshop_status(
-    namespace: str,
-    name: str,
-    phase: str,
-    message: str,
-    reason: str = "StatusUpdate",
-    condition_type: str = "Ready",
-    condition_status: str = "False",
-) -> None:
-    """Patch the Workshop CRD status subresource."""
-    from datetime import datetime, timezone
-
-    custom_api = k8s_client.CustomObjectsApi()
-    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-    try:
-        custom_api.patch_namespaced_custom_object_status(
-            group=GROUP, version=VERSION,
-            namespace=namespace, plural=PLURAL, name=name,
-            body={
-                "status": {
-                    "phase": phase,
-                    "conditions": [
-                        {
-                            "type": condition_type,
-                            "status": condition_status,
-                            "reason": reason,
-                            "message": message,
-                            "lastTransitionTime": now,
-                        }
-                    ],
-                }
-            },
-        )
-        logger.info("Updated workshop %s status: %s - %s", name, phase, message)
-    except ApiException as e:
-        if e.status == 404:
-            logger.warning("Could not update status: workshop %s not found", name)
-        else:
-            logger.error("Failed to patch workshop %s status: %s", name, e)
