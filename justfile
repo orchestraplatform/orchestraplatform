@@ -192,6 +192,7 @@ deploy-gcp:
     set -euo pipefail
     sha=$(git rev-parse --short HEAD)
     kubectl config use-context {{ gcp_context }}
+    kubectl apply -f ./deploy/charts/orchestra-crds/templates/
     helm upgrade --install orchestra ./deploy/charts/orchestra \
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
@@ -222,6 +223,7 @@ ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
         --push frontend/
     echo "==> Deploying sha=${sha}"
     kubectl config use-context {{ gcp_context }}
+    kubectl apply -f ./deploy/charts/orchestra-crds/templates/
     helm upgrade --install orchestra ./deploy/charts/orchestra \
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
