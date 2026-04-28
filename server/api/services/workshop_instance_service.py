@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import case, distinct, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from api.core.kubernetes import ApiException, get_custom_objects_api
@@ -545,11 +545,22 @@ class WorkshopInstanceService:
         if changed:
             await db.commit()
 
-    async def events(self, db: AsyncSession, *, owner_email: str | None = None):
-        """SSE generator: yields instance list JSON, polling fast while transitional."""
+    async def events(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        owner_email: str | None = None,
+    ):
+        """SSE generator: yields instance list JSON, polling fast while transitional.
+
+        Accepts a session factory rather than a held session so each poll cycle
+        opens and closes its own connection. This prevents SSE streams from
+        exhausting the connection pool during idle sleep intervals.
+        """
         await asyncio.sleep(random.uniform(0, SSE_JITTER_S))
         while True:
-            items, total = await self.list_instances(db, owner_email=owner_email)
+            async with session_factory() as db:
+                items, total = await self.list_instances(db, owner_email=owner_email)
             yield WorkshopInstanceList(items=items, total=total).model_dump_json(by_alias=True)
             has_transitional = any(i.phase in _TRANSITIONAL_PHASES for i in items)
             base = SSE_POLL_FAST_S if has_transitional else SSE_POLL_SLOW_S
