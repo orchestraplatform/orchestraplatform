@@ -202,6 +202,37 @@ deploy-gcp:
         --set frontend.image.tag="${sha}" \
         --wait
 
+# Build, push, and deploy to GCP in one atomic step — prevents SHA mismatch between images and Helm.
+ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sha=$(git rev-parse --short HEAD)
+    echo "==> Building images at commit ${sha}"
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-api:${sha} \
+        -t {{registry}}/orchestra-api:latest \
+        --push server/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-operator:${sha} \
+        -t {{registry}}/orchestra-operator:latest \
+        --push operator/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-frontend:${sha} \
+        -t {{registry}}/orchestra-frontend:latest \
+        --push frontend/
+    echo "==> Deploying sha=${sha}"
+    kubectl config use-context {{ gcp_context }}
+    helm upgrade --install orchestra ./deploy/charts/orchestra \
+        -n {{ gcp_namespace }} --create-namespace \
+        -f deploy/charts/orchestra/values.yaml \
+        -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-secrets.yaml \
+        --set operator.image.tag="${sha}" \
+        --set api.image.tag="${sha}" \
+        --set frontend.image.tag="${sha}" \
+        --wait
+    echo "==> Done. Deployed sha=${sha}"
+
 # Dry-run the GCP deployment (renders templates, validates against cluster, no changes).
 deploy-gcp-dry-run:
     #!/usr/bin/env bash
