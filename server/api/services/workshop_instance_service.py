@@ -47,7 +47,7 @@ SSE_POLL_SLOW_S: int = 30
 SSE_JITTER_S: int = 5
 
 _ACTIVE_PHASES = {"Ready", "Running"}
-_TRANSITIONAL_PHASES = {"Pending", "Creating"}
+_TRANSITIONAL_PHASES = {"Pending", "Creating", "Starting"}
 
 
 # ---------------------------------------------------------------------------

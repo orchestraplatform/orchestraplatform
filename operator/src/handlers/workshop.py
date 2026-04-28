@@ -166,7 +166,6 @@ async def workshop_create_handler(
             name=f"{workshop_name}-deployment", namespace=namespace
         )
         if (dep.status.ready_replicas or 0) < 1:
-            patch["status"] = {"phase": "Starting"}
             patch["status"] = {"phase": WorkshopPhase.STARTING}
             raise kopf.TemporaryError("Workshop pod not yet ready", delay=15)
 
