@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
-from api.services.workshop_instance_service import WorkshopInstanceService
+from api.services.workshop_instance_service import WorkshopInstanceService, _TRANSITIONAL_PHASES
 
 
 def _instance(**overrides) -> WorkshopInstance:
@@ -42,7 +42,7 @@ async def test_sync_from_k8s_marks_missing_crd_terminated():
     row = _instance(phase="Running")
 
     with patch(
-        "api.services.workshop_instance_service._k8s.get_workshop",
+        "api.services.workshop_instance_service._k8s_get",
         AsyncMock(return_value=None),
     ):
         await service._sync_from_k8s(db, row)
@@ -57,6 +57,57 @@ async def test_sync_from_k8s_marks_missing_crd_terminated():
     assert event.instance_id == row.id
 
 
+@pytest.mark.parametrize("phase", sorted(_TRANSITIONAL_PHASES))
+@pytest.mark.asyncio
+async def test_list_instances_syncs_transitional_phases(phase: str):
+    """_sync_from_k8s must be called for every phase in _TRANSITIONAL_PHASES.
+
+    Regression test: "Starting" was missing from _TRANSITIONAL_PHASES, so
+    workshops whose pods were up but not yet marked Ready were never synced
+    and stayed frozen in the UI.
+    """
+    service = WorkshopInstanceService()
+    row = _instance(phase=phase)
+    row.workshop = MagicMock()
+    row.workshop.name = "Test Workshop"
+
+    total_result = MagicMock()
+    total_result.scalar_one.return_value = 1
+    rows_result = MagicMock()
+    rows_result.scalars.return_value.all.return_value = [row]
+
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=[total_result, rows_result])
+
+    with patch.object(service, "_sync_from_k8s", AsyncMock()) as mock_sync:
+        await service.list_instances(db, owner_email="alice@example.com")
+
+    mock_sync.assert_awaited_once_with(db, row)
+
+
+@pytest.mark.parametrize("phase", ["Ready", "Running", "Failed"])
+@pytest.mark.asyncio
+async def test_list_instances_does_not_sync_stable_phases(phase: str):
+    """_sync_from_k8s must not be called for stable (non-transitional) phases."""
+    service = WorkshopInstanceService()
+    row = _instance(phase=phase)
+    row.workshop = MagicMock()
+    row.workshop.name = "Test Workshop"
+
+    total_result = MagicMock()
+    total_result.scalar_one.return_value = 1
+    rows_result = MagicMock()
+    rows_result.scalars.return_value.all.return_value = [row]
+
+    db = MagicMock()
+    db.execute = AsyncMock(side_effect=[total_result, rows_result])
+
+    with patch.object(service, "_sync_from_k8s", AsyncMock()) as mock_sync:
+        await service.list_instances(db, owner_email="alice@example.com")
+
+    mock_sync.assert_not_awaited()
+
+
 @pytest.mark.asyncio
 async def test_sync_from_k8s_does_not_reterminate_existing_row():
     service = WorkshopInstanceService()
@@ -68,7 +119,7 @@ async def test_sync_from_k8s_does_not_reterminate_existing_row():
     row = _instance(phase="Terminated", terminated_at=terminated_at)
 
     with patch(
-        "api.services.workshop_instance_service._k8s.get_workshop",
+        "api.services.workshop_instance_service._k8s_get",
         AsyncMock(return_value=None),
     ):
         await service._sync_from_k8s(db, row)
