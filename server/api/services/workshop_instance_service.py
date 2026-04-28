@@ -545,6 +545,12 @@ class WorkshopInstanceService:
         if changed:
             await db.commit()
 
+    # TODO(scaling): each SSE connection independently polls K8s via _sync_from_k8s
+    # for its transitional-phase instances. At ~50+ simultaneous users all launching
+    # sessions, this produces redundant parallel K8s API calls. The fix is a single
+    # shared background task that polls all active workshops on a common schedule and
+    # pushes results into a cache (e.g. asyncio.Queue per subscriber or a broadcast
+    # dict). Each SSE stream then reads from the cache instead of hitting K8s itself.
     async def events(
         self,
         session_factory: async_sessionmaker[AsyncSession],
