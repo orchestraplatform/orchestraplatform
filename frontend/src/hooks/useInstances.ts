@@ -89,3 +89,18 @@ export function useTerminateInstance() {
     },
   });
 }
+
+export function useExtendInstance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ k8sName, namespace = 'default', extraHours = 1 }: { k8sName: string; namespace?: string; extraHours?: number }) =>
+      __request(OpenAPI, {
+        method: 'POST',
+        url: `/instances/${k8sName}/extend`,
+        query: { namespace, extra_hours: extraHours },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INSTANCES_KEY });
+    },
+  });
+}
