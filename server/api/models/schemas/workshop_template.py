@@ -30,6 +30,7 @@ class WorkshopTemplateCreate(BaseModel):
         default_factory=WorkshopResources
     )
     storage: WorkshopStorage | None = Field(default=None)
+    tags: list[str] = Field(default_factory=list, description="Category tags for filtering")
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -55,6 +56,7 @@ class WorkshopTemplateUpdate(BaseModel):
     default_duration: str | None = Field(default=None, alias="defaultDuration")
     resources: WorkshopResources | None = None
     storage: WorkshopStorage | None = None
+    tags: list[str] | None = None
     is_active: bool | None = Field(default=None, alias="isActive")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -73,6 +75,7 @@ class WorkshopTemplateResponse(BaseModel):
     default_duration: str = Field(alias="defaultDuration")
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
+    tags: list[str] = Field(default_factory=list)
     is_active: bool = Field(alias="isActive")
     created_by: str = Field(alias="createdBy")
     created_at: datetime = Field(alias="createdAt")

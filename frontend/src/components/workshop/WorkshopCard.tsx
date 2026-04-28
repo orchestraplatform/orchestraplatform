@@ -66,10 +66,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
       onConfirm={handleConfirmTerminate}
       onCancel={() => setConfirmOpen(false)}
     />
-    <Card className={`flex flex-col transition-colors ${
-      isCritical ? 'border-red-400 bg-red-50' :
-      isWarning  ? 'border-amber-400 bg-amber-50' : ''
-    }`}>
+    <Card className="flex flex-col transition-colors">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{instance.k8sName}</CardTitle>
@@ -92,14 +89,17 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
                 </div>
               )}
               {instance.expiresAt && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-wrap">
                   <span className="font-medium text-foreground">Ends:</span>{' '}
                   {formatAbsoluteTime(instance.expiresAt)}
-                  <span className={`ml-1 text-xs font-medium ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-600' : ''}`}>
-                    ({getTimeRemaining(instance.expiresAt)})
-                  </span>
                   {(isCritical || isWarning) && (
-                    <AlertTriangle className={`h-3.5 w-3.5 ${isCritical ? 'text-red-500' : 'text-amber-500'}`} />
+                    <span className={`ml-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold
+                      ${isCritical
+                        ? 'border-red-200 bg-red-50 text-red-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                      <AlertTriangle className="h-2.5 w-2.5" />
+                      {getTimeRemaining(instance.expiresAt)} left
+                    </span>
                   )}
                 </div>
               )}
@@ -126,12 +126,14 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
           )}
         </div>
         <Button
-          variant="destructive"
+          variant="ghost"
           size="sm"
           onClick={handleTerminate}
           disabled={terminate.isPending}
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="h-4 w-4 mr-1" />
+          Terminate
         </Button>
       </CardFooter>
     </Card>

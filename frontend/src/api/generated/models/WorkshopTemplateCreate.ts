@@ -30,5 +30,6 @@ export type WorkshopTemplateCreate = {
     defaultDuration?: string;
     resources?: WorkshopResourceDefaults;
     storage?: (WorkshopStorageDefaults | null);
+    tags?: Array<string>;
 };
 
