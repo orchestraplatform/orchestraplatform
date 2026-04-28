@@ -86,3 +86,14 @@ export function useDeleteTemplate() {
     },
   });
 }
+
+export function useCloneTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      __request(OpenAPI, { method: 'POST', url: `/templates/${templateId}/clone` }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
+    },
+  });
+}

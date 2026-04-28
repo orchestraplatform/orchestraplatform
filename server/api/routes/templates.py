@@ -173,6 +173,32 @@ async def toggle_template_active(
 
 
 # ---------------------------------------------------------------------------
+# Clone endpoint
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{template_id}/clone",
+    response_model=WorkshopTemplateResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin)],
+)
+async def clone_template(
+    template_id: uuid.UUID = Path(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopTemplateService = Depends(get_template_service),
+):
+    """Clone a template (admin only). The copy starts inactive for review before publishing."""
+    clone = await svc.clone_template(db, template_id, created_by=current_user.email)
+    if not clone:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
+        )
+    return clone
+
+
+# ---------------------------------------------------------------------------
 # Template stats endpoints
 # ---------------------------------------------------------------------------
 

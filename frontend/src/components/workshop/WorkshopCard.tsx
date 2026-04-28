@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
-import { ExternalLink, Trash2, CalendarClock, AlertTriangle } from 'lucide-react';
+import { ExternalLink, Trash2, CalendarClock, AlertTriangle, PlusCircle } from 'lucide-react';
 import { WorkshopInstanceResponse } from '../../api/generated';
 import { formatAbsoluteTime, getTimeRemaining } from '../../utils';
-import { useTerminateInstance } from '../../hooks/useInstances';
+import { useTerminateInstance, useExtendInstance } from '../../hooks/useInstances';
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
 import { useToast } from '../ui/Toast';
 import { useTick } from '../../contexts/TickContext';
@@ -17,6 +17,7 @@ interface WorkshopCardProps {
 
 export function WorkshopCard({ instance }: WorkshopCardProps) {
   const terminate = useTerminateInstance();
+  const extend = useExtendInstance();
   const { addToast } = useToast();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -26,9 +27,17 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
     setConfirmOpen(false);
     try {
       await terminate.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
-    } catch (error) {
-      console.error('Failed to terminate instance:', error);
+    } catch {
       addToast({ type: 'error', message: 'Failed to terminate session. Please try again.' });
+    }
+  };
+
+  const handleExtend = async () => {
+    try {
+      await extend.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
+      addToast({ type: 'success', message: 'Session extended by 1 hour.' });
+    } catch {
+      addToast({ type: 'error', message: 'Failed to extend session.' });
     }
   };
 
@@ -113,7 +122,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
       </CardContent>
 
       <CardFooter className="flex justify-between">
-        <div>
+        <div className="flex items-center gap-2">
           {isOpen && instance.url && (
             <Button
               variant="outline"
@@ -122,6 +131,18 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
             >
               <ExternalLink className="h-4 w-4 mr-1" />
               Open
+            </Button>
+          )}
+          {isOpen && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExtend}
+              disabled={extend.isPending}
+              className="text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              +1h
             </Button>
           )}
         </div>

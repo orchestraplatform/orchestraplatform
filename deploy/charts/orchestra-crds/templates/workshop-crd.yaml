@@ -76,7 +76,7 @@ spec:
             properties:
               phase:
                 type: string
-                enum: ["Pending", "Creating", "Ready", "Running", "Terminating", "Failed"]
+                enum: ["Pending", "Creating", "Starting", "Ready", "Running", "Terminating", "Failed"]
               url:
                 type: string
               createdAt:
