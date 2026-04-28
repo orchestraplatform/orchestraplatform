@@ -42,6 +42,9 @@ class OperatorSettings(BaseSettings):
     # created alongside each IngressRoute. Set by the chart in production.
     oauth2_proxy_auth_url: str = ""
 
+    # ── Workshop defaults ─────────────────────────────────────────────────────
+    default_workshop_image: str = "rocker/rstudio:latest"
+
     # ── Sidecar ───────────────────────────────────────────────────────────────
     sidecar_image: str = "seandavi/orchestra-sidecar:latest"
     sidecar_pull_policy: str = "Always"
