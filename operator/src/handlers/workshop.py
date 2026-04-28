@@ -14,6 +14,7 @@ from resources.ingress import create_workshop_ingress
 from resources.middleware import create_auth_middleware
 from resources.pvc import create_workshop_pvc
 from resources.service import create_workshop_service
+from utils.phases import WorkshopPhase
 from utils.time_utils import get_expiration_time
 
 logger = logging.getLogger(__name__)
@@ -89,7 +90,8 @@ async def workshop_create_handler(
         resources = spec.get("resources", {})
         storage = spec.get("storage", {})
         ingress_config = spec.get("ingress", {})
-        owner_email = spec.get("owner", "unknown")
+        # Support both new 'ownerEmail' and legacy 'owner' CRD field names
+        owner_email = spec.get("ownerEmail") or spec.get("owner", "unknown")
 
         expiration_time = get_expiration_time(duration)
         owner_ref = _owner_ref(meta)
@@ -164,11 +166,12 @@ async def workshop_create_handler(
         )
         if (dep.status.ready_replicas or 0) < 1:
             patch["status"] = {"phase": "Starting"}
+            patch["status"] = {"phase": WorkshopPhase.STARTING}
             raise kopf.TemporaryError("Workshop pod not yet ready", delay=15)
 
         logger.info("Workshop %s is ready", workshop_name)
         patch["status"] = {
-            "phase": "Ready",
+            "phase": WorkshopPhase.READY,
             "url": workshop_url,
             "createdAt": meta.get("creationTimestamp", ""),
             "expiresAt": expiration_time.isoformat(),
@@ -187,7 +190,7 @@ async def workshop_create_handler(
     except Exception as e:
         logger.error("Failed to create workshop %s: %s", name, e)
         patch["status"] = {
-            "phase": "Failed",
+            "phase": WorkshopPhase.FAILED,
             "conditions": [
                 {
                     "type": "Ready",
@@ -210,4 +213,4 @@ async def workshop_update_handler(
 ) -> dict[str, Any]:
     """Handle Workshop update events."""
     logger.info("Workshop %s updated (no-op for now)", name)
-    return {"phase": status.get("phase", "Ready")}
+    return {"phase": status.get("phase", WorkshopPhase.READY)}
