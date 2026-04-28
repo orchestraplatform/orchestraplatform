@@ -172,6 +172,42 @@ class WorkshopTemplateService:
         return True
 
 
+    async def clone_template(
+        self,
+        db: AsyncSession,
+        template_id: uuid.UUID,
+        created_by: str,
+    ) -> WorkshopTemplateResponse | None:
+        """Create a copy of a template with a new slug and 'Copy of' prefix."""
+        result = await db.execute(select(Workshop).where(Workshop.id == template_id))
+        source = result.scalar_one_or_none()
+        if source is None:
+            return None
+
+        # Generate a unique slug by appending a random suffix to the original
+        import random, string
+        suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
+        new_slug = f"{source.slug}-{suffix}"
+
+        row = Workshop(
+            name=f"Copy of {source.name}",
+            slug=new_slug,
+            description=source.description,
+            image=source.image,
+            default_duration=source.default_duration,
+            resources=source.resources,
+            storage=source.storage,
+            tags=list(source.tags or []),
+            is_active=False,  # clones start inactive so admin reviews before publishing
+            created_by=created_by,
+        )
+        db.add(row)
+        await db.commit()
+        await db.refresh(row)
+        logger.info("Cloned template %s → %s (slug=%s)", template_id, row.id, new_slug)
+        return _to_response(row)
+
+
 def get_template_service() -> WorkshopTemplateService:
     """FastAPI dependency — returns a WorkshopTemplateService instance."""
     return WorkshopTemplateService()

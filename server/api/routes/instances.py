@@ -89,6 +89,31 @@ async def get_instance(
     return instance
 
 
+@router.post("/{k8s_name}/extend", response_model=WorkshopInstanceResponse)
+async def extend_instance(
+    k8s_name: str = Path(..., description="Workshop instance k8s name"),
+    namespace: str = Query(default="default"),
+    extra_hours: int = Query(default=1, ge=1, le=24),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+    svc: WorkshopInstanceService = Depends(get_instance_service),
+):
+    """Extend an active workshop instance's expiry by extra_hours (default +1h)."""
+    instance = await svc.get_instance(db, k8s_name, namespace)
+    if not instance or not _can_access(current_user, instance.owner_email):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Instance {k8s_name} not found",
+        )
+    extended = await svc.extend(db, k8s_name, namespace, extra_hours=extra_hours)
+    if not extended:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Instance has no expiry or is already terminated",
+        )
+    return extended
+
+
 @router.delete("/{k8s_name}", status_code=status.HTTP_204_NO_CONTENT)
 async def terminate_instance(
     k8s_name: str = Path(..., description="Workshop instance k8s name"),
