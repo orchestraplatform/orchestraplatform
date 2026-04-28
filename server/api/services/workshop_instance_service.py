@@ -79,7 +79,7 @@ def _to_kubernetes_crd(
         },
         "spec": {
             "name": workshop.name,
-            "ownerEmail": owner_email,
+            "owner": owner_email,
             "duration": workshop.duration,
             "image": workshop.image,
             "resources": {
