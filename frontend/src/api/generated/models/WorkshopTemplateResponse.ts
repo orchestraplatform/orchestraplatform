@@ -16,6 +16,7 @@ export type WorkshopTemplateResponse = {
     defaultDuration: string;
     resources: WorkshopResourceDefaults;
     storage?: (WorkshopStorageDefaults | null);
+    tags: Array<string>;
     isActive: boolean;
     createdBy: string;
     createdAt: string;

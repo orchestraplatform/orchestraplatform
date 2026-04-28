@@ -98,9 +98,10 @@ oauth2Proxy:
   enabled: true
   fullProxy: true
 
-# ── oauth2-proxy subchart values (top-level key required by Helm) ─────────────
-# All credential and runtime config must be here so Helm passes them to the
-# subchart. Values nested under oauth2Proxy."oauth2-proxy" are ignored by Helm.
+# ── oauth2-proxy subchart values ─────────────────────────────────────────────
+# Credentials (clientID / clientSecret / cookieSecret) are NOT here — they live
+# in deploy/gcp-values-secrets.yaml (gitignored). Supply that file as the third
+# -f argument when running helm upgrade (see justfile deploy-gcp recipe).
 "oauth2-proxy":
   replicaCount: 1
   resources:
@@ -108,31 +109,15 @@ oauth2Proxy:
       cpu: 250m
       memory: 512Mi
   config:
-    # Credentials should be managed in a Kubernetes Secret.
-    #   kubectl create secret generic orchestra-oauth-secrets \
-    #     --from-literal=client-id='...' \
-    #     --from-literal=client-secret='...' \
-    #     --from-literal=cookie-secret='...'
-    existingSecret: "orchestra-oauth-secrets"
-    # configFile sets the oauth2_proxy.cfg content.
-    # upstreams: proxy authenticated requests to the frontend service.
     configFile: |-
       email_domains = [ "*" ]
       upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
   extraArgs:
-    # Always use the external callback URL regardless of the inbound Host header.
     redirect-url: "https://app.orchestraplatform.org/oauth2/callback"
-    # Scope cookie to all subdomains for cross-service auth.
     cookie-domain: ".orchestraplatform.org"
-    # Allow redirect back to any subdomain after login.
     whitelist-domain: ".orchestraplatform.org"
-    # Skip the "Sign in with Google" button page; go straight to Google.
     skip-provider-button: "true"
-    # Emit X-Auth-Request-Email (and User/Access-Token) in /oauth2/auth responses
-    # so Traefik's ForwardAuth can copy them to the upstream request. Without this
-    # oauth2-proxy only returns Gap-Auth, which the API doesn't read.
     set-xauthrequest: "true"
-  # Restrict login to specific email addresses.
   authenticatedEmailsFile:
     enabled: true
     restricted_access: |-

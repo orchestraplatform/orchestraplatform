@@ -4,6 +4,7 @@ import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import { WorkshopCard } from '../components/workshop/WorkshopCard';
 import { NotificationBanner } from '../components/ui/NotificationBanner';
 import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
 import { TickProvider } from '../contexts/TickContext';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -48,7 +49,12 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">My Sessions</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            My Sessions
+            {instances.length > 0 && (
+              <Badge variant="secondary">{instances.length} active</Badge>
+            )}
+          </h1>
           <p className="text-muted-foreground mt-2">
             Your active workshop sessions
           </p>
@@ -94,9 +100,6 @@ export function Dashboard() {
         </TickProvider>
       )}
 
-      <div className="text-sm text-muted-foreground">
-        Total sessions: {instances.length}
-      </div>
     </div>
   );
 }

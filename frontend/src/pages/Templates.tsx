@@ -3,7 +3,7 @@ import { useTemplates } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
-import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, Rocket } from 'lucide-react';
+import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, LayoutGrid, List } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { WorkshopTemplateResponse } from '../api/generated';
 import { useTemplateLaunchCounts } from '../hooks/useTemplates';
@@ -19,42 +19,45 @@ function TemplateCard({ template, launchCount }: TemplateCardProps) {
   return (
     <Card className="flex flex-col">
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">{template.name}</CardTitle>
-          {!template.isActive && (
-            <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>
-          )}
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle>{template.name}</CardTitle>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {launchCount !== undefined && (
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{launchCount.toLocaleString()} launches</span>
+            )}
+            {!template.isActive && (
+              <Badge className="bg-gray-100 text-gray-600 border-gray-200">Archived</Badge>
+            )}
+          </div>
         </div>
-        <CardDescription>{template.description ?? template.image}</CardDescription>
+        {template.description && (
+          <CardDescription>{template.description}</CardDescription>
+        )}
       </CardHeader>
 
-      <CardContent className="flex-grow space-y-2">
-        <div className="flex items-center text-sm text-muted-foreground space-x-1">
-          <Clock className="h-3.5 w-3.5 shrink-0" />
-          <span>Default duration: {template.defaultDuration}</span>
-        </div>
-        {template.resources && (
-          <div className="flex items-center text-sm text-muted-foreground space-x-1">
-            <Cpu className="h-3.5 w-3.5 shrink-0" />
-            <span>
-              CPU: {template.resources.cpuRequest ?? template.resources.cpu ?? '—'} /
-              Mem: {template.resources.memoryRequest ?? template.resources.memory ?? '—'}
+      <CardContent className="flex-grow">
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />{template.defaultDuration}
+          </span>
+          {template.resources && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              <Cpu className="h-3 w-3" />
+              {template.resources.cpuRequest ?? template.resources.cpu ?? '—'} ·{' '}
+              {template.resources.memoryRequest ?? template.resources.memory ?? '—'}
             </span>
-          </div>
-        )}
-        {template.storage && (
-          <div className="flex items-center text-sm text-muted-foreground space-x-1">
-            <HardDrive className="h-3.5 w-3.5 shrink-0" />
-            <span>Storage: {template.storage.size}</span>
-          </div>
-        )}
-        <div className="text-xs text-muted-foreground font-mono pt-1">{template.image}</div>
-        {launchCount !== undefined && (
-          <div className="flex items-center text-sm text-muted-foreground space-x-1 pt-1">
-            <Rocket className="h-3.5 w-3.5 shrink-0" />
-            <span>{launchCount.toLocaleString()} {launchCount === 1 ? 'launch' : 'launches'}</span>
-          </div>
-        )}
+          )}
+          {template.storage && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              <HardDrive className="h-3 w-3" />{template.storage.size}
+            </span>
+          )}
+          {template.tags?.map((tag) => (
+            <span key={tag} className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium">
+              {tag}
+            </span>
+          ))}
+        </div>
       </CardContent>
 
       <CardFooter>
@@ -71,6 +74,59 @@ function TemplateCard({ template, launchCount }: TemplateCardProps) {
   );
 }
 
+interface TemplateRowProps {
+  template: WorkshopTemplateResponse;
+  launchCount?: number;
+}
+
+function TemplateRow({ template, launchCount }: TemplateRowProps) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex items-center gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-sm">{template.name}</span>
+          {template.tags?.map((tag) => (
+            <span key={tag} className="inline-flex items-center rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary font-medium">
+              {tag}
+            </span>
+          ))}
+        </div>
+        {template.description && (
+          <p className="text-xs text-muted-foreground truncate">{template.description}</p>
+        )}
+      </div>
+      <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">
+        <Clock className="h-3 w-3 inline mr-1" />{template.defaultDuration}
+      </span>
+      {launchCount !== undefined && (
+        <span className="text-xs text-muted-foreground whitespace-nowrap hidden md:block">{launchCount.toLocaleString()} launches</span>
+      )}
+      <Button
+        size="sm"
+        disabled={!template.isActive}
+        onClick={() => navigate(`/launch/${template.id}`)}
+      >
+        <Play className="h-3.5 w-3.5 mr-1" />
+        Launch
+      </Button>
+    </div>
+  );
+}
+
+function matchesDuration(defaultDuration: string, filter: string): boolean {
+  const match = defaultDuration.match(/^(\d+(\.\d+)?)(h|m)$/i);
+  if (!match) return true;
+  const hours = match[3].toLowerCase() === 'h' ? parseFloat(match[1]) : parseFloat(match[1]) / 60;
+  switch (filter) {
+    case 'under4h':  return hours < 4;
+    case '4to8h':    return hours >= 4 && hours <= 8;
+    case 'over8h':   return hours > 8;
+    default:         return true;
+  }
+}
+
 type SortOption = 'name-asc' | 'name-desc' | 'newest' | 'oldest';
 
 export function Templates() {
@@ -78,6 +134,16 @@ export function Templates() {
   const { data: statsData } = useTemplateLaunchCounts();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('newest');
+  const [activeTag, setActiveTag] = useState('');
+  const [durationFilter, setDurationFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(
+    () => (localStorage.getItem('orchestra:template-view') as 'grid' | 'list') ?? 'grid'
+  );
+
+  const setView = (mode: 'grid' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('orchestra:template-view', mode);
+  };
 
   const launchCountMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -87,24 +153,26 @@ export function Templates() {
 
   const active = useMemo(() => (data?.items ?? []).filter((t) => t.isActive), [data]);
 
+  const allTags = useMemo(
+    () => [...new Set(active.flatMap((t) => t.tags ?? []))].sort(),
+    [active]
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const matches = q
-      ? active.filter((t) =>
-          [t.name, t.description ?? '', t.image, t.slug]
-            .some((field) => field.toLowerCase().includes(q))
-        )
-      : active;
-
-    return [...matches].sort((a, b) => {
-      switch (sort) {
-        case 'name-asc':  return a.name.localeCompare(b.name);
-        case 'name-desc': return b.name.localeCompare(a.name);
-        case 'newest':    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-    });
-  }, [active, search, sort]);
+    return [...active]
+      .filter((t) => !activeTag || t.tags?.includes(activeTag))
+      .filter((t) => !durationFilter || matchesDuration(t.defaultDuration, durationFilter))
+      .filter((t) => !q || [t.name, t.description ?? '', t.image, t.slug].some((f) => f.toLowerCase().includes(q)))
+      .sort((a, b) => {
+        switch (sort) {
+          case 'name-asc':  return a.name.localeCompare(b.name);
+          case 'name-desc': return b.name.localeCompare(a.name);
+          case 'newest':    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          case 'oldest':    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        }
+      });
+  }, [active, activeTag, durationFilter, search, sort]);
 
   if (isLoading) {
     return (
@@ -138,7 +206,7 @@ export function Templates() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Workshop Templates</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Workshop Templates</h1>
           <p className="text-muted-foreground mt-2">Choose a template to launch a session</p>
         </div>
         <Button onClick={() => refetch()} variant="outline" size="sm">
@@ -147,6 +215,7 @@ export function Templates() {
         </Button>
       </div>
 
+      {/* Search + sort + view toggle */}
       <div className="flex items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -167,6 +236,16 @@ export function Templates() {
           )}
         </div>
         <select
+          value={durationFilter}
+          onChange={(e) => setDurationFilter(e.target.value)}
+          className="text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">Any duration</option>
+          <option value="under4h">Under 4h</option>
+          <option value="4to8h">4–8h</option>
+          <option value="over8h">8h+</option>
+        </select>
+        <select
           value={sort}
           onChange={(e) => setSort(e.target.value as SortOption)}
           className="text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-ring"
@@ -179,15 +258,54 @@ export function Templates() {
         <span className="text-sm text-muted-foreground whitespace-nowrap">
           {filtered.length} of {active.length}
         </span>
+        <div className="flex items-center gap-1 border rounded-md p-0.5">
+          <button
+            onClick={() => setView('grid')}
+            className={`rounded p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            title="Grid view"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => setView('list')}
+            className={`rounded p-1.5 transition-colors ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+            title="List view"
+          >
+            <List className="h-4 w-4" />
+          </button>
+        </div>
       </div>
+
+      {/* Tag chip filter row */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setActiveTag('')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border
+              ${!activeTag ? 'bg-foreground text-background border-foreground' : 'bg-background text-muted-foreground border-border hover:border-foreground hover:text-foreground'}`}
+          >
+            All
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors border
+                ${activeTag === tag ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-muted-foreground border-border hover:border-primary hover:text-primary'}`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-12">
           <div className="mx-auto max-w-md">
-            {search ? (
+            {search || activeTag || durationFilter ? (
               <>
-                <h3 className="text-lg font-semibold">No templates match "{search}"</h3>
-                <p className="text-muted-foreground mt-2">Try a different search term.</p>
+                <h3 className="text-lg font-semibold">No templates match the current filters</h3>
+                <p className="text-muted-foreground mt-2">Try adjusting your search or filters.</p>
               </>
             ) : (
               <>
@@ -197,10 +315,20 @@ export function Templates() {
             )}
           </div>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((template) => (
             <TemplateCard
+              key={template.id}
+              template={template}
+              launchCount={launchCountMap[template.id]}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border overflow-hidden">
+          {filtered.map((template) => (
+            <TemplateRow
               key={template.id}
               template={template}
               launchCount={launchCountMap[template.id]}

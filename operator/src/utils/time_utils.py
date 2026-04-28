@@ -26,8 +26,8 @@ def parse_duration(duration_str: str) -> timedelta:
     if not duration_str:
         raise ValueError("Duration string cannot be empty")
 
-    # Regex pattern to match duration components
-    pattern = r"(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?"
+    # Anchored so invalid trailing characters (e.g. "4h_garbage") are rejected.
+    pattern = r"^(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$"
     match = re.match(pattern, duration_str.strip())
 
     if not match:

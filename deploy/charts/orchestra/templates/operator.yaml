@@ -66,38 +66,6 @@ subjects:
   name: orchestra-operator
   namespace: {{ .Release.Namespace }}
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: orchestra-operator-config
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "orchestra.labels" . | nindent 4 }}
-    {{- include "orchestra.selectorLabels" (dict "component" "operator" "context" .) | nindent 4 }}
-data:
-  config.yaml: |
-    operator:
-      namespace: {{ .Release.Namespace }}
-      logLevel: {{ .Values.operator.logLevel }}
-      metricsPort: 8080
-      healthcheckPort: 8080
-    workshop:
-      defaultImage: {{ .Values.operator.defaultWorkshopImage }}
-      defaultDuration: "4h"
-      defaultResources:
-        cpu: "1"
-        memory: "2Gi"
-        cpuRequest: "500m"
-        memoryRequest: "1Gi"
-      defaultStorage:
-        size: {{ .Values.persistence.size | quote }}
-        {{- if .Values.persistence.storageClass }}
-        storageClass: {{ .Values.persistence.storageClass | quote }}
-        {{- end }}
-    cleanup:
-      checkInterval: 300
-      gracePeriod: 60
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

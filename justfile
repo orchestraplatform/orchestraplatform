@@ -159,6 +159,47 @@ test:
     @echo "--- Test: Frontend ---"
     cd frontend && npm run test -- --run --passWithNoTests
 
+# --- GCP / Production Deployment ---
+
+# GCP deployment config lives in:
+#   deploy/gcp-values.yaml        — environment overrides (committed)
+#   deploy/gcp-values-secrets.yaml — OAuth credentials (gitignored, local only)
+#
+# To create the secrets file on a new machine, see docs/deployment/gcp.mdx.
+
+gcp_context := "gke_orchestraplatform-dev_us-central1_orchestra-dev"
+gcp_namespace := "orchestra-system"
+
+# Deploy (or upgrade) Orchestra to GCP. Requires deploy/gcp-values-secrets.yaml.
+deploy-gcp:
+    kubectl config use-context {{ gcp_context }}
+    helm upgrade --install orchestra ./deploy/charts/orchestra \
+        -n {{ gcp_namespace }} --create-namespace \
+        -f deploy/charts/orchestra/values.yaml \
+        -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-secrets.yaml \
+        --wait
+
+# Dry-run the GCP deployment (renders templates, validates against cluster, no changes).
+deploy-gcp-dry-run:
+    kubectl config use-context {{ gcp_context }}
+    helm upgrade --install orchestra ./deploy/charts/orchestra \
+        -n {{ gcp_namespace }} --create-namespace \
+        -f deploy/charts/orchestra/values.yaml \
+        -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-secrets.yaml \
+        --dry-run --debug 2>&1 | head -200
+
+# Show the values currently deployed to GCP (redacts nothing — contains secrets).
+deploy-gcp-values:
+    kubectl config use-context {{ gcp_context }}
+    helm get values orchestra -n {{ gcp_namespace }}
+
+# Show the Helm release history for GCP.
+deploy-gcp-history:
+    kubectl config use-context {{ gcp_context }}
+    helm history orchestra -n {{ gcp_namespace }}
+
 # --- Kubernetes Tools ---
 
 # Watch workshops in the cluster

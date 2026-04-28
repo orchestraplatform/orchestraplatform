@@ -27,6 +27,7 @@ def _to_response(row: Workshop) -> WorkshopTemplateResponse:
         defaultDuration=row.default_duration,
         resources=row.resources,
         storage=row.storage,
+        tags=row.tags or [],
         isActive=row.is_active,
         createdBy=row.created_by,
         createdAt=row.created_at,
@@ -92,6 +93,7 @@ class WorkshopTemplateService:
             default_duration=data.default_duration,
             resources=data.resources.model_dump(by_alias=False),
             storage=data.storage.model_dump(by_alias=False) if data.storage else None,
+            tags=data.tags,
             is_active=True,
             created_by=created_by,
         )
@@ -125,6 +127,8 @@ class WorkshopTemplateService:
             row.resources = data.resources.model_dump(by_alias=False)
         if data.storage is not None:
             row.storage = data.storage.model_dump(by_alias=False)
+        if data.tags is not None:
+            row.tags = data.tags
         if data.is_active is not None:
             row.is_active = data.is_active
 

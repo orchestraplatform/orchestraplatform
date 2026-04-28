@@ -28,11 +28,11 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
     : <ChevronDown className="h-3.5 w-3.5" />;
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+function StatStrip({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3">
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
-      <div className="text-xs text-muted-foreground mt-0.5">{label}</div>
+    <div className="px-4 py-3">
+      <div className={`text-3xl font-extrabold tracking-tight leading-none ${color}`}>{value}</div>
+      <div className="mt-1 text-[10px] text-muted-foreground">{label}</div>
     </div>
   );
 }
@@ -137,7 +137,7 @@ export function AdminDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Session Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Session Dashboard</h1>
           <p className="text-muted-foreground mt-1">All active workshop sessions</p>
         </div>
         <Button onClick={() => refetch()} variant="outline" size="sm">
@@ -146,15 +146,13 @@ export function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Total active" value={stats.total} color="text-foreground" />
-        <StatCard label="Ready / Running" value={stats.ready} color="text-green-600" />
-        <StatCard label="Starting up" value={stats.transitional} color="text-yellow-600" />
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Failed" value={stats.failed} color="text-red-600" />
-        <StatCard label="Total launches (all time)" value={summary?.totalLaunches ?? 0} color="text-foreground" />
-        <StatCard label="Launches (last 7 days)" value={summary?.launchedLast7Days ?? 0} color="text-primary" />
+      <div className="grid grid-cols-6 divide-x rounded-lg border">
+        <StatStrip label="Total active"        value={stats.total}                     color="text-foreground" />
+        <StatStrip label="Ready"               value={stats.ready}                     color="text-green-600" />
+        <StatStrip label="Starting"            value={stats.transitional}              color="text-yellow-600" />
+        <StatStrip label="Failed"              value={stats.failed}                    color="text-red-600" />
+        <StatStrip label="All-time launches"   value={summary?.totalLaunches ?? 0}     color="text-foreground" />
+        <StatStrip label="Last 7 days"         value={summary?.launchedLast7Days ?? 0} color="text-primary" />
       </div>
 
       {/* Filters */}

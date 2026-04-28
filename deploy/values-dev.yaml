@@ -9,6 +9,8 @@ api:
   devIdentity: dev@example.com
   adminEmails:
     - dev@example.com
+  image:
+    pullPolicy: Never
 
 ingress:
   enabled: true
@@ -23,9 +25,7 @@ oauth2Proxy:
 operator:
   image:
     pullPolicy: Never
-api:
-  image:
-    pullPolicy: Never
+
 frontend:
   image:
     pullPolicy: Never

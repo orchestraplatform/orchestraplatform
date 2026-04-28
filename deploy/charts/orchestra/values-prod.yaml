@@ -1,8 +1,13 @@
 # Production overrides for the Orchestra Helm chart.
-# Apply on top of values.yaml:
-#   helm upgrade --install orchestra . -f values.yaml -f values-prod.yaml
 #
-# Fill in every TODO before deploying. See docs/deployment/helm.md for details.
+# Usage (layered — base defaults + this file + your secrets file):
+#   helm upgrade --install orchestra ./deploy/charts/orchestra \
+#     -n orchestra-system \
+#     -f deploy/charts/orchestra/values.yaml \
+#     -f deploy/charts/orchestra/values-prod.yaml \
+#     -f deploy/YOUR-secrets.yaml   # gitignored, contains oauth2-proxy credentials
+#
+# See docs/deployment/helm.md for the full setup walkthrough.
 
 global:
   domain: "TODO.example.edu"         # e.g. orchestra.myuni.edu
@@ -78,14 +83,40 @@ ingress:
 networkPolicy:
   enabled: true
 
-# ── oauth2-proxy ──────────────────────────────────────────────────────────────
-# See docs/deployment/oauth2-proxy.md for credential setup.
+# ── oauth2-proxy (bundled) ────────────────────────────────────────────────────
+# fullProxy=true is recommended for Traefik: oauth2-proxy sits in front of the
+# frontend and handles the login redirect transparently.
 oauth2Proxy:
   enabled: true
+  fullProxy: true
+
+# Subchart credentials — MUST be at root level so Helm passes them to the subchart.
+# Store credentials in a Secret (never inline them here):
+#
+#   kubectl create secret generic orchestra-oauth-secrets \
+#     --from-literal=client-id='<GCP OAuth client ID>' \
+#     --from-literal=client-secret='<GCP OAuth client secret>' \
+#     --from-literal=cookie-secret="$(python3 -c 'import secrets; print(secrets.token_hex(16))')" \
+#     -n orchestra-system
+#
+# Then reference it below. Keep the actual values in a gitignored secrets file
+# (e.g. deploy/YOUR-secrets.yaml) that you supply as a third -f flag.
+"oauth2-proxy":
   config:
-    clientID: "TODO"                 # GCP OAuth client ID
-    clientSecret: "TODO"             # GCP OAuth client secret
-    cookieSecret: "TODO"             # python3 -c "import secrets; print(secrets.token_hex(16))"
-    allowedDomains:
-      - "example.edu"                # restrict to your institution's email domain
-    allowedEmails: []
+    existingSecret: "orchestra-oauth-secrets"
+    configFile: |-
+      email_domains = [ "*" ]
+      upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
+  extraArgs:
+    # Replace TODO.example.edu with global.domain above
+    redirect-url: "https://app.TODO.example.edu/oauth2/callback"
+    cookie-domain: ".TODO.example.edu"
+    whitelist-domain: ".TODO.example.edu"
+    set-xauthrequest: "true"
+    skip-provider-button: "true"
+  # Optionally restrict to specific email addresses:
+  # authenticatedEmailsFile:
+  #   enabled: true
+  #   restricted_access: |-
+  #     user1@example.edu
+  #     user2@example.edu
