@@ -1,0 +1,129 @@
+---
+title: Building Workshop Images
+description: Base your workshop environment on Orchestra's no-auth Bioconductor and JupyterLab images, then reference it from a Workshop template.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Orchestra runs each workshop session as a container behind two authentication
+layers, so your workshop image must **not** present its own login. This guide
+explains that contract and shows how to build your own image on top of
+Orchestra's maintained no-auth base images.
+
+## The no-auth contract
+
+Every session is fronted by:
+
+1. **oauth2-proxy** at the ingress — establishes *who* the user is, and
+2. the **Orchestra sidecar** in the pod — enforces that the user *owns* this
+   session.
+
+Authentication is already handled by the time a request reaches your app. If the
+application inside the pod also requires a login, participants get a confusing
+second prompt — and in the proxied setup they often can't satisfy it (for
+example, a JupyterLab token they never get to see). So the app must start
+**unauthenticated**, listening on a known port that the sidecar proxies to on
+`localhost`.
+
+<Aside type="caution">
+The base images below are intentionally unauthenticated. Only run them inside
+Orchestra (or behind your own authenticating proxy) — never expose them
+directly.
+</Aside>
+
+## Base images
+
+| Image                     | App            | Port | Set in template   |
+| ------------------------- | -------------- | ---- | ----------------- |
+| `.../bioconductor-devel`  | RStudio Server | 8787 | `port: 8787`      |
+| `.../jupyterlab`          | JupyterLab     | 8888 | `port: 8888`      |
+
+`port` is the `spec.port` field on a Workshop template; the sidecar proxies to
+`http://localhost:<port>`. RStudio's `8787` is also the platform default.
+
+These images live in the monorepo under `images/` and are published with:
+
+```sh
+just workshop-images-push
+```
+
+## Building your own
+
+Base your image on the matching no-auth image and add whatever your workshop
+needs — R/Bioconductor packages, Python libraries, datasets, notebooks. The auth
+configuration is inherited, so you don't repeat it.
+
+<Tabs>
+<TabItem label="Bioconductor (RStudio)">
+
+```dockerfile
+# FROM the published Orchestra base, or build images/bioconductor-devel locally.
+FROM us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra/bioconductor-devel:latest
+
+# Install the Bioconductor/CRAN packages your workshop uses.
+RUN R -e "BiocManager::install(c('DESeq2', 'edgeR'), update = FALSE, ask = FALSE)"
+
+# Copy in materials (vignettes, data, etc.).
+COPY materials/ /home/rstudio/materials/
+```
+
+Auth is already disabled (`DISABLE_AUTH=true`) and RStudio listens on **8787**.
+
+</TabItem>
+<TabItem label="JupyterLab">
+
+```dockerfile
+FROM us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra/jupyterlab:latest
+
+# Install Python packages your workshop uses.
+RUN pip install --no-cache-dir scanpy anndata
+
+# Copy in notebooks/data.
+COPY notebooks/ /home/jovyan/notebooks/
+```
+
+The token is already disabled and JupyterLab listens on **8888**.
+
+</TabItem>
+</Tabs>
+
+<Aside type="tip">
+Pin to a digest or a dated tag (not `:latest`) for reproducible workshops so an
+upstream base-image change can't shift your environment mid-course.
+</Aside>
+
+## Referencing it from a template
+
+Build and push your image, then point a Workshop template at it. The two things
+that must agree are the **image** and its **port**:
+
+<Steps>
+
+1. Build and push your image to a registry the cluster can pull from.
+
+2. Create or edit a Workshop template with the image and matching port:
+
+   ```yaml
+   spec:
+     image: myregistry/my-bioc-workshop:2026-06
+     port: 8787   # 8787 for RStudio, 8888 for JupyterLab
+   ```
+
+3. Launch a session from the template and confirm it comes up — the sidecar will
+   proxy `http://localhost:<port>` and oauth2-proxy guards the front door.
+
+</Steps>
+
+## Rolling your own from scratch
+
+You don't have to use these bases. Any image works as long as it honors the
+contract:
+
+- start the app **without** authentication,
+- listen on a single HTTP port, and
+- set that port as `spec.port` on the template.
+
+The base images simply encapsulate the fiddly part: RStudio's `DISABLE_AUTH`
+environment variable, and JupyterLab's tokenless server config
+(`ServerApp.token = ''` plus proxy-friendly `allow_origin`/`trust_xheaders`/
+`disable_check_xsrf` settings).
