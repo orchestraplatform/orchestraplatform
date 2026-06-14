@@ -43,6 +43,8 @@ def _full_workshop() -> WorkshopCreate:
         name="test-abc123",
         duration="2h",
         image="rocker/rstudio:4.3",
+        env={"FOO": "bar"},
+        args=["--ServerApp.token=''"],
         storage=WorkshopStorage(size="20Gi"),
         ingress=WorkshopIngress(host="test.orchestraplatform.org"),
     )
@@ -107,6 +109,25 @@ def test_port_override_passed_through():
     workshop = WorkshopCreate(name="test-abc123", port=8888)
     spec = _to_kubernetes_crd(workshop, "alice@example.com", "default")["spec"]
     assert spec["port"] == 8888
+
+
+def test_env_and_args_omitted_when_empty():
+    """Empty env/args must not appear in the CRD body (operator applies defaults)."""
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")["spec"]
+    assert "env" not in spec
+    assert "args" not in spec
+
+
+def test_env_and_args_passed_through():
+    """Non-empty env/args are passed through to the CRD body verbatim."""
+    workshop = WorkshopCreate(
+        name="test-abc123",
+        env={"DISABLE_AUTH": "false", "FOO": "bar"},
+        args=["start-notebook.py", "--ServerApp.token=''"],
+    )
+    spec = _to_kubernetes_crd(workshop, "alice@example.com", "default")["spec"]
+    assert spec["env"] == {"DISABLE_AUTH": "false", "FOO": "bar"}
+    assert spec["args"] == ["start-notebook.py", "--ServerApp.token=''"]
 
 
 # ---------------------------------------------------------------------------

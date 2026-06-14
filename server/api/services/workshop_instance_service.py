@@ -91,6 +91,10 @@ def _to_kubernetes_crd(
             },
         },
     }
+    if workshop.env:
+        crd["spec"]["env"] = dict(workshop.env)
+    if workshop.args:
+        crd["spec"]["args"] = list(workshop.args)
     if workshop.storage:
         crd["spec"]["storage"] = {"size": workshop.storage.size}
         if workshop.storage.storage_class:
@@ -144,6 +148,8 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             duration=spec.get("duration", "4h"),
             image=spec.get("image", "rocker/rstudio:latest"),
             port=spec.get("port", 8787),
+            env=spec.get("env") or {},
+            args=spec.get("args") or [],
             resources=WorkshopResources(
                 cpu=res.get("cpu", "1"),
                 memory=res.get("memory", "2Gi"),
@@ -288,6 +294,8 @@ class WorkshopInstanceService:
             duration=duration,
             image=template.image,
             port=template.port,
+            env=template.env,
+            args=template.args,
             resources=WorkshopResources(
                 cpu=res.cpu,
                 memory=res.memory,

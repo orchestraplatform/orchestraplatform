@@ -33,6 +33,16 @@ class WorkshopTemplateCreate(BaseModel):
         description="Port the application listens on inside the container "
         "(e.g. 8787 for RStudio, 8888 for JupyterLab)",
     )
+    env: dict[str, str] = Field(
+        default_factory=dict,
+        description="Extra environment variables for the app container "
+        "(name -> value). Override operator defaults such as DISABLE_AUTH.",
+    )
+    args: list[str] = Field(
+        default_factory=list,
+        description="Container args, replacing the image's default CMD "
+        "(e.g. JupyterLab launch flags). Leave empty to use the image default.",
+    )
     resources: WorkshopResources = Field(
         default_factory=WorkshopResources
     )
@@ -62,6 +72,8 @@ class WorkshopTemplateUpdate(BaseModel):
     image: str | None = None
     default_duration: str | None = Field(default=None, alias="defaultDuration")
     port: int | None = Field(default=None, ge=1, le=65535)
+    env: dict[str, str] | None = None
+    args: list[str] | None = None
     resources: WorkshopResources | None = None
     storage: WorkshopStorage | None = None
     tags: list[str] | None = None
@@ -82,6 +94,8 @@ class WorkshopTemplateResponse(BaseModel):
     image: str
     default_duration: str = Field(alias="defaultDuration")
     port: int = 8787
+    env: dict[str, str] = Field(default_factory=dict)
+    args: list[str] = Field(default_factory=list)
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
     tags: list[str] = Field(default_factory=list)
