@@ -36,8 +36,12 @@ proxies to `http://localhost:<port>`.
 just workshop-images-push
 ```
 
-This cross-builds both images for `linux/amd64` and pushes them to Artifact
-Registry as `.../bioconductor-devel:latest` and `.../jupyterlab:latest`.
+This cross-builds both images for `linux/amd64` and pushes them to GHCR as
+`ghcr.io/orchestraplatform/bioconductor-devel:latest` and
+`ghcr.io/orchestraplatform/jupyterlab:latest`. They're public, so they live next
+to the repo rather than in the private Artifact Registry used for the platform's
+own images. Pushing requires `docker login ghcr.io` with a GitHub token that has
+`write:packages`.
 
 ## Extending them
 

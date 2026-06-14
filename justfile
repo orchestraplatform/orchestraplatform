@@ -126,8 +126,10 @@ sidecar-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestr
 # --- Workshop base images ---
 
 # Build and push the no-auth workshop base images (bioconductor-devel +
-# jupyterlab) to Artifact Registry. See images/README.md for the auth contract.
-workshop-images-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+# jupyterlab) to GHCR. These are public, so they live next to the repo rather
+# than in the private Artifact Registry. See images/README.md for the auth
+# contract. Requires `docker login ghcr.io` (GH PAT with write:packages).
+workshop-images-push registry="ghcr.io/orchestraplatform":
     #!/usr/bin/env bash
     set -euo pipefail
     echo "==> Building bioconductor-devel base"

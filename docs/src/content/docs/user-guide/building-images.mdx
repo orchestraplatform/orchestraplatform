@@ -33,10 +33,10 @@ directly.
 
 ## Base images
 
-| Image                     | App            | Port | Set in template   |
-| ------------------------- | -------------- | ---- | ----------------- |
-| `.../bioconductor-devel`  | RStudio Server | 8787 | `port: 8787`      |
-| `.../jupyterlab`          | JupyterLab     | 8888 | `port: 8888`      |
+| Image                                          | App            | Port | Set in template |
+| ---------------------------------------------- | -------------- | ---- | --------------- |
+| `ghcr.io/orchestraplatform/bioconductor-devel` | RStudio Server | 8787 | `port: 8787`    |
+| `ghcr.io/orchestraplatform/jupyterlab`         | JupyterLab     | 8888 | `port: 8888`    |
 
 `port` is the `spec.port` field on a Workshop template; the sidecar proxies to
 `http://localhost:<port>`. RStudio's `8787` is also the platform default.
@@ -58,7 +58,7 @@ configuration is inherited, so you don't repeat it.
 
 ```dockerfile
 # FROM the published Orchestra base, or build images/bioconductor-devel locally.
-FROM us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra/bioconductor-devel:latest
+FROM ghcr.io/orchestraplatform/bioconductor-devel:latest
 
 # Install the Bioconductor/CRAN packages your workshop uses.
 RUN R -e "BiocManager::install(c('DESeq2', 'edgeR'), update = FALSE, ask = FALSE)"
@@ -73,7 +73,7 @@ Auth is already disabled (`DISABLE_AUTH=true`) and RStudio listens on **8787**.
 <TabItem label="JupyterLab">
 
 ```dockerfile
-FROM us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra/jupyterlab:latest
+FROM ghcr.io/orchestraplatform/jupyterlab:latest
 
 # Install Python packages your workshop uses.
 RUN pip install --no-cache-dir scanpy anndata
