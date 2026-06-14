@@ -15,8 +15,13 @@ def create_rstudio_deployment(
     resources: dict[str, Any],
     storage: dict[str, Any],
     require_auth: bool = True,
+    port: int = 8787,
 ) -> k8s.V1Deployment:
-    """Create a Kubernetes Deployment for an RStudio workshop with auth sidecar."""
+    """Create a Kubernetes Deployment for a workshop app with an auth sidecar.
+
+    ``port`` is the port the application container listens on (e.g. 8787 for
+    RStudio, 8888 for JupyterLab); the sidecar proxies to it on localhost.
+    """
     settings = get_settings()
 
     cpu_limit = resources.get("cpu", "1")
@@ -27,7 +32,7 @@ def create_rstudio_deployment(
     app_container = k8s.V1Container(
         name="rstudio",
         image=image,
-        ports=[k8s.V1ContainerPort(container_port=8787, name="rstudio-api")],
+        ports=[k8s.V1ContainerPort(container_port=port, name="app-api")],
         env=[
             k8s.V1EnvVar(name="DISABLE_AUTH", value="true"),
             k8s.V1EnvVar(name="ROOT", value="true"),
@@ -47,7 +52,9 @@ def create_rstudio_deployment(
         image_pull_policy=settings.sidecar_pull_policy,
         ports=[k8s.V1ContainerPort(container_port=8080, name="http-proxy")],
         env=[
-            k8s.V1EnvVar(name="ORCHESTRA_TARGET_URL", value="http://localhost:8787"),
+            k8s.V1EnvVar(
+                name="ORCHESTRA_TARGET_URL", value=f"http://localhost:{port}"
+            ),
             k8s.V1EnvVar(name="ORCHESTRA_OWNER_EMAIL", value=owner_email),
             k8s.V1EnvVar(name="ORCHESTRA_LISTEN_ADDR", value=":8080"),
             k8s.V1EnvVar(

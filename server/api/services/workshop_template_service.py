@@ -25,6 +25,7 @@ def _to_response(row: Workshop) -> WorkshopTemplateResponse:
         description=row.description,
         image=row.image,
         defaultDuration=row.default_duration,
+        port=row.port,
         resources=row.resources,
         storage=row.storage,
         tags=row.tags or [],
@@ -91,6 +92,7 @@ class WorkshopTemplateService:
             description=data.description,
             image=data.image,
             default_duration=data.default_duration,
+            port=data.port,
             resources=data.resources.model_dump(by_alias=False),
             storage=data.storage.model_dump(by_alias=False) if data.storage else None,
             tags=data.tags,
@@ -123,6 +125,8 @@ class WorkshopTemplateService:
             row.image = data.image
         if data.default_duration is not None:
             row.default_duration = data.default_duration
+        if data.port is not None:
+            row.port = data.port
         if data.resources is not None:
             row.resources = data.resources.model_dump(by_alias=False)
         if data.storage is not None:
@@ -195,6 +199,7 @@ class WorkshopTemplateService:
             description=source.description,
             image=source.image,
             default_duration=source.default_duration,
+            port=source.port,
             resources=source.resources,
             storage=source.storage,
             tags=list(source.tags or []),

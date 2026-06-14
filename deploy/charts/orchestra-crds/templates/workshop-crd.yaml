@@ -33,6 +33,12 @@ spec:
                 type: string
                 default: "rocker/rstudio:latest"
                 description: "RStudio Docker image to use"
+              port:
+                type: integer
+                default: 8787
+                minimum: 1
+                maximum: 65535
+                description: "Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)"
               resources:
                 type: object
                 properties:

@@ -87,6 +87,7 @@ async def workshop_create_handler(
         workshop_name = spec.get("name", name)
         duration = spec.get("duration", "4h")
         image = spec.get("image", settings.default_workshop_image)
+        port = spec.get("port", 8787)
         resources = spec.get("resources", {})
         storage = spec.get("storage", {})
         ingress_config = spec.get("ingress", {})
@@ -114,7 +115,7 @@ async def workshop_create_handler(
         require_auth = bool(settings.auth_middleware or settings.oauth2_proxy_auth_url)
         deployment = create_rstudio_deployment(
             workshop_name, namespace, image, owner_email, resources, storage,
-            require_auth=require_auth,
+            require_auth=require_auth, port=port,
         )
         deployment.metadata.owner_references = [owner_ref]
         _create_or_ignore(

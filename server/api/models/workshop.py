@@ -80,6 +80,13 @@ class WorkshopCreate(BaseModel):
     name: str = Field(..., description="Workshop name")
     duration: str = Field(default="4h", description="Workshop duration")
     image: str = Field(default="rocker/rstudio:latest", description="RStudio image")
+    port: int = Field(
+        default=8787,
+        ge=1,
+        le=65535,
+        description="Port the application listens on inside the container "
+        "(e.g. 8787 for RStudio, 8888 for JupyterLab)",
+    )
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
     ingress: WorkshopIngress | None = Field(default=None)

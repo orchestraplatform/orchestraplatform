@@ -28,6 +28,10 @@ export type WorkshopTemplateCreate = {
      * Default session duration
      */
     defaultDuration?: string;
+    /**
+     * Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)
+     */
+    port?: number;
     resources?: WorkshopResourceDefaults;
     storage?: (WorkshopStorageDefaults | null);
     tags?: Array<string>;

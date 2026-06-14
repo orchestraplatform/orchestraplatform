@@ -26,6 +26,13 @@ class WorkshopTemplateCreate(BaseModel):
     default_duration: str = Field(
         default="4h", alias="defaultDuration", description="Default session duration"
     )
+    port: int = Field(
+        default=8787,
+        ge=1,
+        le=65535,
+        description="Port the application listens on inside the container "
+        "(e.g. 8787 for RStudio, 8888 for JupyterLab)",
+    )
     resources: WorkshopResources = Field(
         default_factory=WorkshopResources
     )
@@ -54,6 +61,7 @@ class WorkshopTemplateUpdate(BaseModel):
     description: str | None = None
     image: str | None = None
     default_duration: str | None = Field(default=None, alias="defaultDuration")
+    port: int | None = Field(default=None, ge=1, le=65535)
     resources: WorkshopResources | None = None
     storage: WorkshopStorage | None = None
     tags: list[str] | None = None
@@ -73,6 +81,7 @@ class WorkshopTemplateResponse(BaseModel):
     description: str | None = None
     image: str
     default_duration: str = Field(alias="defaultDuration")
+    port: int = 8787
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
     tags: list[str] = Field(default_factory=list)

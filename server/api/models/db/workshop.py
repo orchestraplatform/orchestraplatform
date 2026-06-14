@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import ARRAY, Boolean, DateTime, String, Text
+from sqlalchemy import ARRAY, Boolean, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -27,6 +27,7 @@ class Workshop(Base):
     default_duration: Mapped[str] = mapped_column(
         String(20), nullable=False, default="4h"
     )
+    port: Mapped[int] = mapped_column(Integer, nullable=False, default=8787)
     resources: Mapped[dict] = mapped_column(JSONB, nullable=False)
     storage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     ingress: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
