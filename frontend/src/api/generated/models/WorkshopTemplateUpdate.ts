@@ -12,6 +12,7 @@ export type WorkshopTemplateUpdate = {
     description?: (string | null);
     image?: (string | null);
     defaultDuration?: (string | null);
+    port?: (number | null);
     resources?: (WorkshopResourceDefaults | null);
     storage?: (WorkshopStorageDefaults | null);
     isActive?: (boolean | null);

@@ -16,6 +16,7 @@ const DEFAULT_CREATE_VALUES: WorkshopTemplateCreate = {
   description: '',
   image: 'rocker/rstudio:latest',
   defaultDuration: '4h',
+  port: 8787,
   resources: {
     cpu: '1',
     memory: '2Gi',
@@ -40,6 +41,7 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
         description: template.description || '',
         image: template.image,
         defaultDuration: template.defaultDuration,
+        port: template.port ?? DEFAULT_CREATE_VALUES.port,
         resources: template.resources || DEFAULT_CREATE_VALUES.resources,
         storage: template.storage || DEFAULT_CREATE_VALUES.storage,
       });
@@ -120,7 +122,7 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="duration">Default Duration</label>
             <input
@@ -132,6 +134,20 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
             />
           </div>
           <div className="space-y-1">
+            <label className="text-sm font-medium" htmlFor="port">App Port</label>
+            <input
+              id="port"
+              type="number"
+              min={1}
+              max={65535}
+              placeholder="8787"
+              title="Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={formData.port ?? ''}
+              onChange={e => setFormData({ ...formData, port: e.target.value === '' ? undefined : Number(e.target.value) })}
+            />
+          </div>
+          <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="storage">Storage Size</label>
             <input
               id="storage"
@@ -140,6 +156,52 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
               value={formData.storage?.size || ''}
               onChange={e => setFormData({ ...formData, storage: { size: e.target.value } })}
             />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Resources</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="cpu">CPU Limit</label>
+              <input
+                id="cpu"
+                placeholder="1"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={formData.resources?.cpu || ''}
+                onChange={e => setFormData({ ...formData, resources: { ...formData.resources, cpu: e.target.value } })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="memory">Memory Limit</label>
+              <input
+                id="memory"
+                placeholder="2Gi"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={formData.resources?.memory || ''}
+                onChange={e => setFormData({ ...formData, resources: { ...formData.resources, memory: e.target.value } })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="cpuRequest">CPU Request</label>
+              <input
+                id="cpuRequest"
+                placeholder="500m"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={formData.resources?.cpuRequest || ''}
+                onChange={e => setFormData({ ...formData, resources: { ...formData.resources, cpuRequest: e.target.value } })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground" htmlFor="memoryRequest">Memory Request</label>
+              <input
+                id="memoryRequest"
+                placeholder="1Gi"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                value={formData.resources?.memoryRequest || ''}
+                onChange={e => setFormData({ ...formData, resources: { ...formData.resources, memoryRequest: e.target.value } })}
+              />
+            </div>
           </div>
         </div>
 

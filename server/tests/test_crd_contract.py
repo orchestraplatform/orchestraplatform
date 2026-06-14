@@ -96,6 +96,19 @@ def test_namespace_in_metadata():
     assert body["metadata"]["namespace"] == "staging"
 
 
+def test_port_default_passed_through():
+    """A workshop with no explicit port defaults to 8787 in the CRD body."""
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")["spec"]
+    assert spec["port"] == 8787
+
+
+def test_port_override_passed_through():
+    """An explicit port (e.g. JupyterLab on 8888) is passed through to the CRD body."""
+    workshop = WorkshopCreate(name="test-abc123", port=8888)
+    spec = _to_kubernetes_crd(workshop, "alice@example.com", "default")["spec"]
+    assert spec["port"] == 8888
+
+
 # ---------------------------------------------------------------------------
 # Phase enum consistency
 # ---------------------------------------------------------------------------

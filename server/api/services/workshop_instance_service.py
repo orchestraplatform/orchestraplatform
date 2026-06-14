@@ -82,6 +82,7 @@ def _to_kubernetes_crd(
             "owner": owner_email,
             "duration": workshop.duration,
             "image": workshop.image,
+            "port": workshop.port,
             "resources": {
                 "cpu": workshop.resources.cpu,
                 "memory": workshop.resources.memory,
@@ -142,6 +143,7 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             name=spec.get("name"),
             duration=spec.get("duration", "4h"),
             image=spec.get("image", "rocker/rstudio:latest"),
+            port=spec.get("port", 8787),
             resources=WorkshopResources(
                 cpu=res.get("cpu", "1"),
                 memory=res.get("memory", "2Gi"),
@@ -285,6 +287,7 @@ class WorkshopInstanceService:
             name=k8s_name,
             duration=duration,
             image=template.image,
+            port=template.port,
             resources=WorkshopResources(
                 cpu=res.cpu,
                 memory=res.memory,

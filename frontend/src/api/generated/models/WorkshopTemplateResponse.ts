@@ -14,6 +14,7 @@ export type WorkshopTemplateResponse = {
     description?: (string | null);
     image: string;
     defaultDuration: string;
+    port?: number;
     resources: WorkshopResourceDefaults;
     storage?: (WorkshopStorageDefaults | null);
     tags: Array<string>;
