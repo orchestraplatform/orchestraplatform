@@ -123,6 +123,23 @@ sidecar-build tag="seandavi/orchestra-sidecar:latest":
 sidecar-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
     docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-sidecar:latest --push sidecar/
 
+# --- Workshop base images ---
+
+# Build and push the no-auth workshop base images (bioconductor-devel +
+# jupyterlab) to Artifact Registry. See images/README.md for the auth contract.
+workshop-images-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "==> Building bioconductor-devel base"
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/bioconductor-devel:latest \
+        --push images/bioconductor-devel/
+    echo "==> Building jupyterlab base"
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/jupyterlab:latest \
+        --push images/jupyterlab/
+    echo "==> Done."
+
 # Run sidecar tests
 sidecar-test:
     cd sidecar && go test ./... -v
