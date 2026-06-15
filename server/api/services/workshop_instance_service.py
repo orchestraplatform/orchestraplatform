@@ -126,8 +126,17 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             )
             for c in status.get("conditions", [])
         ]
+        raw_phase = status.get("phase", "Pending")
+        try:
+            phase = WorkshopPhase(raw_phase)
+        except ValueError:
+            logger.warning(
+                "Unknown workshop phase %r from CRD; falling back to Pending",
+                raw_phase,
+            )
+            phase = WorkshopPhase.PENDING
         workshop_status = WorkshopStatus(
-            phase=WorkshopPhase(status.get("phase", "Pending")),
+            phase=phase,
             url=status.get("url"),
             created_at=_parse_datetime(status.get("createdAt")),
             expires_at=_parse_datetime(status.get("expiresAt")),
@@ -529,8 +538,12 @@ class WorkshopInstanceService:
         if k8s_workshop is None:
             if row.terminated_at is None:
                 row.terminated_at = datetime.now(UTC)
-                row.phase = "Terminated"
-                db.add(InstanceEvent(instance_id=row.id, phase="Terminated"))
+                row.phase = WorkshopPhase.TERMINATED.value
+                db.add(
+                    InstanceEvent(
+                        instance_id=row.id, phase=WorkshopPhase.TERMINATED.value
+                    )
+                )
                 await db.commit()
             return
 
