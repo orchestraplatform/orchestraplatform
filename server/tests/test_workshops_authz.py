@@ -28,6 +28,8 @@ def _make_instance(
         id=uuid.uuid4(),
         workshopId=uuid.uuid4(),
         workshopName="Standard RStudio",
+        templateSlug="rstudio",
+        resolvedSpec={"image": "rocker/rstudio:latest", "port": 8787},
         k8sName=k8s_name,
         namespace="default",
         ownerEmail=owner,

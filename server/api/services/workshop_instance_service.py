@@ -260,11 +260,32 @@ def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
     )
 
 
-def _to_response(row: WorkshopInstance, workshop_name: str | None = None) -> WorkshopInstanceResponse:
+def _resolved_spec_dict(workshop: WorkshopCreate) -> dict[str, Any]:
+    """Snapshot the resolved launch spec for stamping onto the instance row.
+
+    Uses snake_case sub-keys to match how templates persist resources/storage
+    (``model_dump(by_alias=False)``) and the migration backfill.
+    """
+    return {
+        "image": workshop.image,
+        "port": workshop.port,
+        "duration": workshop.duration,
+        "env": dict(workshop.env),
+        "args": list(workshop.args),
+        "resources": workshop.resources.model_dump(by_alias=False),
+        "storage": workshop.storage.model_dump(by_alias=False)
+        if workshop.storage
+        else None,
+    }
+
+
+def _to_response(row: WorkshopInstance) -> WorkshopInstanceResponse:
     return WorkshopInstanceResponse(
         id=row.id,
         workshopId=row.workshop_id,
-        workshopName=workshop_name,
+        workshopName=row.template_name,
+        templateSlug=row.template_slug,
+        resolvedSpec=row.resolved_spec,
         k8sName=row.k8s_name,
         namespace=row.namespace,
         ownerEmail=row.owner_email,
@@ -322,6 +343,9 @@ class WorkshopInstanceService:
 
         row = WorkshopInstance(
             workshop_id=template.id,
+            template_slug=template.slug,
+            template_name=template.name,
+            resolved_spec=_resolved_spec_dict(workshop_create),
             k8s_name=k8s_name,
             namespace=namespace,
             owner_email=owner_email,
@@ -336,7 +360,7 @@ class WorkshopInstanceService:
         await db.refresh(row)
 
         logger.info("Launched instance %s (k8s=%s) for %s", row.id, k8s_name, owner_email)
-        return _to_response(row, workshop_name=template.name)
+        return _to_response(row)
 
     async def list_instances(
         self,
@@ -349,7 +373,6 @@ class WorkshopInstanceService:
         """Return a paginated list. If owner_email is None, return all (admin)."""
         query = (
             select(WorkshopInstance)
-            .options(selectinload(WorkshopInstance.workshop))
             .where(WorkshopInstance.terminated_at.is_(None))
             .order_by(WorkshopInstance.launched_at.desc())
         )
@@ -364,21 +387,20 @@ class WorkshopInstanceService:
             if row.phase in _TRANSITIONAL_PHASES or (row.expires_at and row.expires_at <= now):
                 await self._sync_from_k8s(db, row)
 
-        return [_to_response(r, workshop_name=r.workshop.name) for r in rows], total
+        return [_to_response(r) for r in rows], total
 
     async def get_instance(
         self, db: AsyncSession, k8s_name: str, namespace: str = "default"
     ) -> WorkshopInstanceResponse | None:
         result = await db.execute(
             select(WorkshopInstance)
-            .options(selectinload(WorkshopInstance.workshop))
             .where(WorkshopInstance.k8s_name == k8s_name, WorkshopInstance.namespace == namespace)
         )
         row = result.scalar_one_or_none()
         if row is None:
             return None
         await self._sync_from_k8s(db, row)
-        return _to_response(row, workshop_name=row.workshop.name)
+        return _to_response(row)
 
     async def terminate(
         self, db: AsyncSession, k8s_name: str, namespace: str = "default"
@@ -417,7 +439,6 @@ class WorkshopInstanceService:
         """Extend an active instance's expiry by extra_hours."""
         result = await db.execute(
             select(WorkshopInstance)
-            .options(selectinload(WorkshopInstance.workshop))
             .where(
                 WorkshopInstance.k8s_name == k8s_name,
                 WorkshopInstance.namespace == namespace,
@@ -440,7 +461,7 @@ class WorkshopInstanceService:
         await db.commit()
         await db.refresh(row)
         logger.info("Extended instance %s by %dh → %s", k8s_name, extra_hours, new_expires)
-        return _to_response(row, workshop_name=row.workshop.name)
+        return _to_response(row)
 
     async def get_status(
         self, db: AsyncSession, k8s_name: str, namespace: str = "default"

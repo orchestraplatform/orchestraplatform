@@ -7,7 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
-from api.services.workshop_instance_service import WorkshopInstanceService, _TRANSITIONAL_PHASES
+from api.models.schemas.workshop_template import WorkshopTemplateResponse
+from api.models.workshop import WorkshopResources, WorkshopStorage
+from api.services.workshop_instance_service import (
+    _TRANSITIONAL_PHASES,
+    WorkshopInstanceService,
+)
 
 
 def _instance(**overrides) -> WorkshopInstance:
@@ -15,6 +20,9 @@ def _instance(**overrides) -> WorkshopInstance:
     row = WorkshopInstance(
         id=uuid.uuid4(),
         workshop_id=uuid.uuid4(),
+        template_slug="rstudio",
+        template_name="Standard RStudio",
+        resolved_spec={"image": "rocker/rstudio:latest", "port": 8787},
         k8s_name="rstudio-abc123",
         namespace="default",
         owner_email="alice@example.com",
@@ -68,8 +76,6 @@ async def test_list_instances_syncs_transitional_phases(phase: str):
     """
     service = WorkshopInstanceService()
     row = _instance(phase=phase)
-    row.workshop = MagicMock()
-    row.workshop.name = "Test Workshop"
 
     total_result = MagicMock()
     total_result.scalar_one.return_value = 1
@@ -91,8 +97,6 @@ async def test_list_instances_does_not_sync_stable_phases(phase: str):
     """_sync_from_k8s must not be called for stable (non-transitional) phases."""
     service = WorkshopInstanceService()
     row = _instance(phase=phase)
-    row.workshop = MagicMock()
-    row.workshop.name = "Test Workshop"
 
     total_result = MagicMock()
     total_result.scalar_one.return_value = 1
@@ -106,6 +110,86 @@ async def test_list_instances_does_not_sync_stable_phases(phase: str):
         await service.list_instances(db, owner_email="alice@example.com")
 
     mock_sync.assert_not_awaited()
+
+
+def _template(**overrides) -> WorkshopTemplateResponse:
+    now = datetime.now(UTC)
+    data = {
+        "id": uuid.uuid4(),
+        "name": "Standard RStudio",
+        "slug": "rstudio",
+        "image": "rocker/rstudio:4.4",
+        "defaultDuration": "4h",
+        "port": 8787,
+        "env": {"DISABLE_AUTH": "false"},
+        "args": ["--www-port=8787"],
+        "resources": WorkshopResources(),
+        "storage": WorkshopStorage(size="20Gi", storageClass="standard"),
+        "tags": ["bioconductor"],
+        "isActive": True,
+        "createdBy": "admin@example.com",
+        "createdAt": now,
+        "updatedAt": now,
+    }
+    data.update(overrides)
+    return WorkshopTemplateResponse(**data)
+
+
+@pytest.mark.asyncio
+async def test_launch_stamps_template_spec_onto_instance():
+    """launch() must denormalize the template onto the instance row so it is
+    self-describing and independent of the template row (ADR-0006)."""
+    service = WorkshopInstanceService()
+    template = _template()
+
+    captured: list = []
+
+    def _refresh(obj):
+        # Simulate the DB assigning server-side defaults on flush/refresh.
+        if isinstance(obj, WorkshopInstance):
+            now = datetime.now(UTC)
+            obj.id = obj.id or uuid.uuid4()
+            obj.created_at = obj.created_at or now
+            obj.updated_at = obj.updated_at or now
+
+    db = MagicMock()
+    db.add = MagicMock(side_effect=captured.append)
+    db.flush = AsyncMock()
+    db.commit = AsyncMock()
+    db.refresh = AsyncMock(side_effect=_refresh)
+
+    with patch(
+        "api.services.workshop_instance_service._k8s_create",
+        AsyncMock(),
+    ):
+        resp = await service.launch(
+            db,
+            template=template,
+            k8s_name="rstudio-abc123",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    instance = next(o for o in captured if isinstance(o, WorkshopInstance))
+    assert instance.workshop_id == template.id
+    assert instance.template_slug == "rstudio"
+    assert instance.template_name == "Standard RStudio"
+    spec = instance.resolved_spec
+    assert spec["image"] == "rocker/rstudio:4.4"
+    assert spec["port"] == 8787
+    assert spec["duration"] == "2h"  # the launch override, not the template default
+    assert spec["env"] == {"DISABLE_AUTH": "false"}
+    assert spec["args"] == ["--www-port=8787"]
+    assert (
+        spec["resources"]["cpu_request"] == "500m"
+    )  # snake_case, matches template storage
+    assert spec["storage"] == {"size": "20Gi", "storage_class": "standard"}
+
+    # Response is built from the stamped fields, not a template join.
+    assert resp.template_slug == "rstudio"
+    assert resp.workshop_name == "Standard RStudio"
+    assert resp.resolved_spec["image"] == "rocker/rstudio:4.4"
 
 
 @pytest.mark.asyncio

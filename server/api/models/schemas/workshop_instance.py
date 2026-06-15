@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,7 +17,17 @@ class WorkshopInstanceResponse(BaseModel):
     workshop_name: str | None = Field(
         default=None,
         alias="workshopName",
-        description="Display name of the source template",
+        description="Display name of the source template (stamped at launch)",
+    )
+    template_slug: str = Field(
+        alias="templateSlug",
+        description="Slug of the source template, stamped at launch.",
+    )
+    resolved_spec: dict[str, Any] = Field(
+        default_factory=dict,
+        alias="resolvedSpec",
+        description="Immutable snapshot of the resolved spec this instance "
+        "launched with (image, port, duration, env, args, resources, storage).",
     )
     k8s_name: str = Field(alias="k8sName")
     namespace: str
