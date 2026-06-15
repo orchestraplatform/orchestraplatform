@@ -1,4 +1,14 @@
 {
+  // Cloudflare Worker (Static Assets) for the Orchestra docs + landing site.
+  // Pure static: Astro builds to docs/dist and Cloudflare serves it directly
+  // (no `main` Worker script, no Astro Cloudflare adapter).
+  //
+  // Workers Builds runs from the repo ROOT (monorepo, no root-directory option),
+  // so this config lives at the root and the build command must build the docs:
+  //   • Build command:   cd docs && npm ci && npm run build
+  //   • Deploy command:  npx wrangler deploy   (default; reads this file)
+  //   • Custom domain:   orchestraplatform.org (apex). app./api./*. stay on GKE.
+  //   • Enable preview deployments for non-production branches → PR preview URLs.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "orchestraplatform",
   "compatibility_date": "2026-06-15",
@@ -6,9 +16,9 @@
     "enabled": true
   },
   "assets": {
-    "directory": "frontend"
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ]
+    // Astro build output (NOT the frontend/ React source the auto-config guessed).
+    "directory": "docs/dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
 }
