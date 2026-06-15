@@ -1,0 +1,92 @@
+---
+title: Local Development
+description: Run the full Orchestra stack locally against Docker Desktop Kubernetes, with the test and quality workflows.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Orchestra is a monorepo driven by a `justfile`. This page covers running the full
+stack locally and the day-to-day dev loop.
+
+## Repository layout
+
+| Path | What it is |
+| --- | --- |
+| `operator/` | Kubernetes operator — manages Workshop CRDs and lifecycle |
+| `server/` | Orchestra API (FastAPI) — REST endpoints for workshop ops |
+| `frontend/` | Web dashboard (React) |
+| `sidecar/` | Per-pod auth/proxy sidecar (Go) |
+| `deploy/` | Helm charts and Kubernetes manifests |
+| `docs/` | This documentation site (Astro / Starlight) |
+
+## Prerequisites
+
+- **Docker Desktop** with Kubernetes enabled (the `docker-desktop` context).
+- **[uv](https://docs.astral.sh/uv/)** for the Python services, **Node.js** for the frontend and docs, and **Go** for the sidecar.
+- `kubectl`, `helm`, and [`just`](https://github.com/casey/just).
+
+## First-time setup
+
+<Steps>
+
+1. Install all dependencies (npm + uv) and generate API types:
+
+   ```sh
+   just setup
+   ```
+
+2. Prepare the local cluster (Traefik, CRDs, example `.env` files):
+
+   ```sh
+   just dev-setup
+   ```
+
+3. Apply database migrations:
+
+   ```sh
+   just migrate
+   ```
+
+</Steps>
+
+## Running the stack
+
+```sh
+just dev
+```
+
+This runs the API, frontend, and operator together. Individual pieces are also
+available (`just dev-server`, `just dev-frontend`, `just dev-operator`, `just dev-docs`).
+
+| Service | URL |
+| --- | --- |
+| Frontend | http://localhost:3000 |
+| API | http://localhost:8080 (OpenAPI docs at `/docs`) |
+| Docs site | http://localhost:3003 |
+
+Stop everything with `just stop`, or restart with `just restart`.
+
+<Aside type="tip">
+Local dev runs with authentication disabled
+(`ORCHESTRA_REQUIRE_AUTHENTICATION=false`) and a fixed admin identity, so you can
+work without an OAuth round-trip. See [Authentication](/docs/architecture/authentication/).
+</Aside>
+
+## Tests and quality
+
+```sh
+just test       # server, operator, sidecar, and frontend test suites
+just quality    # ruff (Python), eslint/prettier (JS/TS), go fmt
+```
+
+See the [Testing](/docs/contributing/testing/) guide for the test strategy and
+where to add coverage.
+
+## Schema and types
+
+The frontend's API types are generated from the server's OpenAPI schema. After
+changing API models, regenerate them:
+
+```sh
+just sync-types
+```

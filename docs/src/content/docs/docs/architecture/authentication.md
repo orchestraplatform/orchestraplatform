@@ -82,10 +82,24 @@ oauth2-proxy supports Google, GitHub, and any OIDC-compliant provider. To
 enable GitHub as a second provider alongside Google, see the
 [oauth2-proxy setup guide](../deployment/oauth2-proxy).
 
-## Future: per-pod workshop auth
+## Per-pod workshop auth
 
-Workshop pods currently run with `DISABLE_AUTH=true` (RStudio). The intended
-model is for each pod to have an oauth2-proxy sidecar that restricts access
-to the workshop owner's email (from `spec.owner` on the Workshop CR). This is
-tracked as a follow-up; the `spec.owner` field on the CRD is already in place
-to support it.
+Each workshop pod enforces owner-only access via the Orchestra **`orchestra-sidecar`**
+(a small Go reverse proxy in `sidecar/src/main.go`) — **not** a per-pod
+oauth2-proxy. The operator injects the sidecar as a second container in every
+workshop Deployment alongside the app container.
+
+How it fits together:
+
+- The workshop **Service** exposes port `80` and maps it to `targetPort: 8080`
+  — the sidecar's listen port. The sidecar then proxies to the app container on
+  `localhost:<port>` (default `8787` for RStudio, `8888` for JupyterLab).
+- On every request the sidecar compares the inbound `X-Auth-Request-Email`
+  (set by the global ingress oauth2-proxy) against `ORCHESTRA_OWNER_EMAIL`
+  (stamped from `spec.owner` on the Workshop CR). On a mismatch it returns
+  **403 Forbidden**; only the owner reaches the app.
+- The app container still runs with `DISABLE_AUTH=true` (an RStudio flag, a
+  harmless no-op on other images). Auth is **not** absent — it is enforced one
+  hop earlier by the sidecar, so the app itself does not need its own login.
+- In dev mode (`ORCHESTRA_REQUIRE_AUTHENTICATION=false`) the sidecar logs but
+  does not block, so the stack works without a proxy.

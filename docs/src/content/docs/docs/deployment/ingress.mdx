@@ -28,8 +28,17 @@ their routing tables in seconds when a new Ingress appears.
 ## Traefik (recommended)
 
 Traefik is the primary supported controller. The chart creates Traefik
-`Middleware` CRDs that implement ForwardAuth, which delegates every request to
-oauth2-proxy before forwarding it upstream.
+`Middleware` CRDs that implement ForwardAuth, which delegates auth decisions to
+oauth2-proxy before forwarding a request upstream. How they are applied depends
+on `oauth2Proxy.fullProxy` (see [What the chart creates](#what-the-chart-creates)).
+
+<Aside type="tip">
+For Traefik, set `oauth2Proxy.fullProxy: true`. In full-proxy mode oauth2-proxy
+sits in front of the frontend and issues a clean login redirect; in the default
+forwardAuth mode (`fullProxy: false`) Traefik v3 returns a `401` + `Location`
+header instead of a transparent `302`. Both `values-prod.yaml` and the GCP
+reference deployment use `fullProxy: true`.
+</Aside>
 
 ### Install Traefik
 
@@ -68,19 +77,34 @@ ingress:
 ### What the chart creates
 
 When `ingress.controller=traefik` and `oauth2Proxy.enabled=true`, the chart
-creates two Traefik `Middleware` objects in the release namespace:
+creates up to four Traefik `Middleware` objects in the release namespace:
 
 | Middleware | Purpose |
 |---|---|
-| `orchestra-auth` | ForwardAuth — sends every request to oauth2-proxy for validation. On success, injects `X-Auth-Request-Email` and `X-Auth-Request-User`. On failure, redirects to the login page. |
+| `orchestra-auth` | ForwardAuth — sends every request to oauth2-proxy for validation. On success, injects `X-Auth-Request-User`, `X-Auth-Request-Email`, and `X-Auth-Request-Access-Token`. |
 | `orchestra-auth-headers` | Strips any incoming `X-Auth-Request-*` headers **before** ForwardAuth runs. Prevents clients from forging identity headers. |
+| `orchestra-auth-signin` | Redirect-on-401 — on a `401-403` from ForwardAuth, sends the browser to `/oauth2/start`. **Only created when `fullProxy=false`.** Traefik v3's errors middleware keeps the original status code, so this is a `401` + `Location` header rather than a true `302` — use `fullProxy=true` for a seamless redirect. |
+| `orchestra-api-cors` | CORS for the API ingress. Intercepts `OPTIONS` preflight and returns `200` with CORS headers *without* hitting ForwardAuth (browsers strip cookies from preflight, so ForwardAuth would always `401`). FastAPI's own CORS is disabled in production to avoid duplicate headers. |
 
-Both middlewares are referenced in every Ingress annotation:
+The middlewares applied to each ingress differ, and the auth annotations are
+**only added when `fullProxy=false`** (in full-proxy mode the frontend ingress
+routes straight to oauth2-proxy, so no auth middleware is needed there):
 
-```
+```yaml
+# Frontend ingress (fullProxy=false): signin → header-strip → auth
 traefik.ingress.kubernetes.io/router.middlewares: >-
-  orchestra-system-orchestra-auth@kubernetescrd,
-  orchestra-system-orchestra-auth-headers@kubernetescrd
+  orchestra-system-orchestra-auth-signin@kubernetescrd,
+  orchestra-system-orchestra-auth-headers@kubernetescrd,
+  orchestra-system-orchestra-auth@kubernetescrd
+```
+
+```yaml
+# API ingress: cors → header-strip → auth (no auth-signin)
+# The frontend JS handles the redirect when the API returns 401.
+traefik.ingress.kubernetes.io/router.middlewares: >-
+  orchestra-system-orchestra-api-cors@kubernetescrd,
+  orchestra-system-orchestra-auth-headers@kubernetescrd,
+  orchestra-system-orchestra-auth@kubernetescrd
 ```
 
 ### Per-session workshop Ingress resources

@@ -16,7 +16,7 @@ frontend, and an optional bundled oauth2-proxy.
 | Helm 3.12+ | |
 | Ingress controller | Traefik or nginx-ingress — see [Ingress Guide](./ingress) |
 | cert-manager | For automatic TLS; can be skipped in dev |
-| PostgreSQL | External — see [Database](#database) below |
+| PostgreSQL 14+ | External — see [Database](#database) below |
 | Google OAuth credentials | See [oauth2-proxy Setup](./oauth2-proxy) |
 
 ## Quick install
@@ -40,19 +40,42 @@ helm install orchestra deploy/charts/orchestra \
   --set global.domain=orchestra.example.edu \
   --set global.defaultNamespace=default \
   --set ingress.controller=traefik \
+  --set oauth2Proxy.fullProxy=true \
   --set api.database.existingSecret=orchestra-db \
-  --set oauth2Proxy.config.existingSecret=orchestra-oauth-secrets \
-  --set "oauth2Proxy.config.allowedDomains={example.edu}" \
-  --set "api.adminEmails={admin@example.edu}"
+  --set "api.adminEmails={admin@example.edu}" \
+  -f oauth2-proxy-values.yaml
 ```
 
-For production, use a values file instead of `--set` flags — see
-[Production deployment](#production-deployment).
+The oauth2-proxy credentials and domain restrictions live in the bundled
+**subchart** and cannot be set cleanly via `--set` (the subchart key contains a
+dot: `"oauth2-proxy"`). Put them in a small values file:
+
+```yaml
+# oauth2-proxy-values.yaml
+"oauth2-proxy":
+  config:
+    existingSecret: orchestra-oauth-secrets
+    configFile: |-
+      email_domains = [ "example.edu" ]
+      upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
+  extraArgs:
+    redirect-url: "https://app.orchestra.example.edu/oauth2/callback"
+    cookie-domain: ".orchestra.example.edu"
+    whitelist-domain: ".orchestra.example.edu"
+    set-xauthrequest: "true"
+    skip-provider-button: "true"
+```
+
+See [The bundled oauth2-proxy subchart](#the-bundled-oauth2-proxy-subchart)
+below for the full structure, and [oauth2-proxy Setup](./oauth2-proxy) for
+provider details. For production, use a values file for everything instead of
+`--set` flags — see [Production deployment](#production-deployment).
 
 ## Database
 
-Orchestra requires an external PostgreSQL database (version 13+). The operator
-and API share a single database.
+Orchestra requires an external PostgreSQL database (version 14+; the GCP
+reference deployment uses PostgreSQL 18). The operator and API share a single
+database.
 
 ### Create the secret
 
@@ -103,6 +126,13 @@ ingress:
     enabled: true
     clusterIssuer: letsencrypt-prod
 ```
+
+With `ingress.controller=traefik` and `oauth2Proxy.enabled=true` the chart
+creates four `Middleware` objects — `orchestra-auth`, `orchestra-auth-signin`,
+`orchestra-api-cors`, and `orchestra-auth-headers` — and wires them onto the
+frontend and API ingresses. The forwardAuth-redirect annotations are only added
+when `fullProxy=false`; see the [Ingress Guide](./ingress#what-the-chart-creates)
+for the full breakdown.
 
 See the [Ingress Guide](./ingress) for per-controller prerequisites and the full
 auth flow explanation.
@@ -238,16 +268,58 @@ admin. No Google credentials required.
 
 ### `oauth2Proxy`
 
+The Orchestra chart itself reads only **two** oauth2-proxy keys. They control
+whether the bundled proxy is deployed and which auth mode the ingress uses.
+Credentials and domain rules are **not** set here — they go in the separate
+top-level `"oauth2-proxy"` subchart block (see below).
+
 | Key | Default | Description |
 |---|---|---|
-| `oauth2Proxy.enabled` | `true` | Deploy bundled oauth2-proxy |
-| `oauth2Proxy.config.existingSecret` | `""` | Name of existing Secret for OAuth credentials |
-| `oauth2Proxy.config.clientID` | `""` | Google OAuth client ID |
-| `oauth2Proxy.config.clientSecret` | `""` | Google OAuth client secret |
-| `oauth2Proxy.config.cookieSecret` | `""` | Random 16-byte hex string |
-| `oauth2Proxy.config.allowedDomains` | `["*"]` | Email domains allowed to log in |
-| `oauth2Proxy.config.allowedEmails` | `[]` | Specific emails allowed regardless of domain |
-| `oauth2Proxy.config.githubOrg` | `""` | Restrict to a GitHub org (single-provider GitHub mode) |
+| `oauth2Proxy.enabled` | `true` | Deploy the bundled oauth2-proxy and create the Traefik auth middlewares |
+| `oauth2Proxy.fullProxy` | `false` | Auth mode toggle — see below. `true` is recommended for Traefik |
+
+#### `fullProxy` — the auth-mode toggle
+
+| Mode | Behaviour |
+|---|---|
+| `fullProxy: false` (default) | **ForwardAuth mode.** The frontend ingress routes directly to the frontend; the Traefik middleware calls oauth2-proxy's `/oauth2/auth` to validate each request. Note: Traefik v3's errors middleware does not emit a clean `302` on auth failure, so unauthenticated browser requests get a `401` with a `Location` header rather than a transparent redirect. |
+| `fullProxy: true` | **Full proxy mode.** oauth2-proxy sits *in front of* the frontend: the frontend ingress routes to oauth2-proxy, which proxies authenticated traffic to the frontend and redirects unauthenticated users to Google. The API ingress still uses ForwardAuth for identity injection. Recommended for Traefik because the login redirect is seamless. Both `values-prod.yaml` and the GCP reference deployment set this to `true`. |
+
+### The bundled oauth2-proxy subchart
+
+OAuth credentials, allowed domains, redirect URLs, and cookie settings are
+passed straight through to the bundled
+[`oauth2-proxy`](https://github.com/oauth2-proxy/manifests/tree/main/helm/oauth2-proxy)
+subchart. **These keys must live at the root of your values file under the
+quoted `"oauth2-proxy"` key — not nested under `oauth2Proxy`.** Because the key
+contains a dot, prefer a values file over `--set`.
+
+```yaml
+# Root-level — passed verbatim to the oauth2-proxy subchart
+"oauth2-proxy":
+  config:
+    # Reference a Secret with client-id / client-secret / cookie-secret keys
+    existingSecret: orchestra-oauth-secrets
+    # Or inline (dev only): clientID / clientSecret / cookieSecret
+    configFile: |-
+      email_domains = [ "example.edu" ]   # use "*" to allow any Google account
+      upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
+  extraArgs:
+    redirect-url: "https://app.orchestra.example.edu/oauth2/callback"
+    cookie-domain: ".orchestra.example.edu"
+    whitelist-domain: ".orchestra.example.edu"
+    set-xauthrequest: "true"        # inject X-Auth-Request-* headers upstream
+    skip-provider-button: "true"    # go straight to Google, skip the chooser page
+  # Optional per-email allowlist (in addition to / instead of email_domains)
+  authenticatedEmailsFile:
+    enabled: true
+    restricted_access: |-
+      alice@example.edu
+      bob@other.edu
+```
+
+See [oauth2-proxy Setup](./oauth2-proxy) for credential creation, provider
+configuration (Google / GitHub), and cookie-secret rotation.
 
 ## Disabling the bundled oauth2-proxy
 

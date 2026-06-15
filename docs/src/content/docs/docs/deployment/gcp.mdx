@@ -440,15 +440,40 @@ ingress:
 networkPolicy:
   enabled: true
 
+# Orchestra-chart-level oauth2-proxy settings: deploy the bundled proxy and use
+# full-proxy mode (oauth2-proxy in front of the frontend — recommended for Traefik).
 oauth2Proxy:
   enabled: true
-  "oauth2-proxy":
-    config:
-      # Use the secret created in Step 7
-      existingSecret: "orchestra-oauth-secrets"
-    allowedDomains:
-      - "example.edu"
+  fullProxy: true
+
+# Bundled oauth2-proxy SUBCHART values — MUST be at the root level (not nested
+# under oauth2Proxy) so Helm passes them through to the subchart.
+"oauth2-proxy":
+  config:
+    # Use the secret created in Step 7 (client-id / client-secret / cookie-secret)
+    existingSecret: "orchestra-oauth-secrets"
+    configFile: |-
+      email_domains = [ "example.edu" ]
+      upstreams = [ "http://orchestra-frontend.orchestra-system.svc.cluster.local:80" ]
+  extraArgs:
+    redirect-url: "https://app.orchestra.example.edu/oauth2/callback"
+    cookie-domain: ".orchestra.example.edu"
+    whitelist-domain: ".orchestra.example.edu"
+    set-xauthrequest: "true"
+    skip-provider-button: "true"
+  # Optional — restrict to specific email addresses on top of email_domains:
+  # authenticatedEmailsFile:
+  #   enabled: true
+  #   restricted_access: |-
+  #     admin@example.edu
 ```
+
+<Aside type="caution">
+The `"oauth2-proxy"` block is a **top-level** key, at the same indentation as
+`oauth2Proxy`, `api`, and `frontend` — not nested inside `oauth2Proxy`. Helm
+only forwards root-level keys to a subchart. The committed
+`deploy/gcp-values.yaml` is the canonical reference for this structure.
+</Aside>
 
 Install:
 
