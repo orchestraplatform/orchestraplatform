@@ -72,9 +72,17 @@ export default defineConfig({
           ],
         },
         {
+          label: 'API Reference',
+          items: [
+            { label: 'REST API', link: '/docs/api/rest-api/' },
+            { label: 'CRD Reference', link: '/docs/api/crds/' },
+          ],
+        },
+        {
           label: 'Development',
           items: [
             { label: 'Local Development', link: '/docs/development/local-development/' },
+            { label: 'Contributing', link: '/docs/development/contributing/' },
             { label: 'Testing', link: '/docs/contributing/testing/' },
           ],
         },
