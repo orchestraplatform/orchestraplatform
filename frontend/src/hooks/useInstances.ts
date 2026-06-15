@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { InstancesService, OpenAPI } from '../api/generated';
 import { request as __request } from '../api/generated/core/request';
@@ -9,7 +9,7 @@ const INSTANCES_KEY = ['instances'] as const;
 
 export function useInstances(namespace = 'default', page = 1, size = 50) {
   const queryClient = useQueryClient();
-  const queryKey = [...INSTANCES_KEY, namespace, page, size];
+  const queryKey = useMemo(() => [...INSTANCES_KEY, namespace, page, size], [namespace, page, size]);
 
   // SSE for real-time updates with exponential-backoff reconnect
   useEffect(() => {

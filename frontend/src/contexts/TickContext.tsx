@@ -11,6 +11,7 @@ export function TickProvider({ intervalMs, children }: { intervalMs: number; chi
   return <TickContext.Provider value={tick}>{children}</TickContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- hook colocated with its provider; Fast Refresh only
 export function useTick() {
   useContext(TickContext); // subscribe — re-renders consumer on each tick
 }
