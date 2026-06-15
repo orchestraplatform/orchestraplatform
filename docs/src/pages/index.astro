@@ -1,0 +1,186 @@
+---
+// Apex landing page (orchestraplatform.org/). Public + crawlable.
+// Docs live under /docs (Starlight); the authenticated app is at app.<domain>.
+const appUrl = 'https://app.orchestraplatform.org/';
+const docsUrl = '/docs/';
+const githubUrl = 'https://github.com/orchestraplatform/orchestraplatform';
+const gaId = 'G-KLLV1GCF4E';
+
+const features = [
+  {
+    title: 'Isolated per learner',
+    body: 'Every participant gets their own sandboxed session — no shared state, no "works on my machine".',
+  },
+  {
+    title: 'RStudio, JupyterLab, anything',
+    body: 'Launch any container image. Stock upstream images work as-is via per-template env and args.',
+  },
+  {
+    title: 'Time-limited & self-cleaning',
+    body: 'Sessions expire and tear themselves down automatically. No lingering pods, no surprise bills.',
+  },
+  {
+    title: 'Built with Bioconductor, open to all',
+    body: 'Created for the Bioconductor community and proven on BioC courses — but it runs any image for any field: Python, R, ML, GIS, and beyond.',
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orchestra Platform — On-demand workshop environments for bioinformatics</title>
+    <meta
+      name="description"
+      content="Orchestra spins up isolated, time-limited RStudio and JupyterLab sessions on Kubernetes — zero setup for your learners. Supported by the Bioconductor community and open to any teaching or research stack."
+    />
+    <link rel="canonical" href="https://orchestraplatform.org/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Orchestra Platform" />
+    <meta
+      property="og:description"
+      content="On-demand, isolated workshop environments (RStudio, JupyterLab) on Kubernetes."
+    />
+    <meta property="og:url" content="https://orchestraplatform.org/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script
+      async
+      src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+    <script is:inline define:vars={{ gaId }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+      gtag('config', gaId);
+    </script>
+  </head>
+  <body>
+    <header class="nav">
+      <a class="brand" href="/">Orchestra<span>Platform</span></a>
+      <nav class="nav-links">
+        <a href={docsUrl}>Docs</a>
+        <a href={githubUrl}>GitHub</a>
+        <a class="btn btn-sm" href={appUrl}>Launch</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">Open source · supported by the Bioconductor community</p>
+        <h1>On-demand workshop environments<br />for bioinformatics &amp; data science.</h1>
+        <p class="lede">
+          Orchestra spins up isolated, time-limited RStudio and JupyterLab
+          sessions on Kubernetes — so your learners click a link and start
+          working, with nothing to install.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href={appUrl}>Launch a workshop →</a>
+          <a class="btn btn-ghost" href={docsUrl}>Read the docs</a>
+        </div>
+      </section>
+
+      <section class="features" aria-label="Features">
+        {
+          features.map((f) => (
+            <article class="card">
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </article>
+          ))
+        }
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>
+        Orchestra Platform — supported by the
+        <a href="https://bioconductor.org">Bioconductor</a> community, open to any teaching or research stack.
+        <a href={githubUrl}>Source on GitHub</a> · <a href={docsUrl}>Documentation</a>
+      </p>
+    </footer>
+
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #121a30;
+        --text: #e8ecf5;
+        --muted: #9aa6c0;
+        --accent: #6ea8fe;
+        --accent-2: #8b7bff;
+        --border: #25304d;
+      }
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        background: radial-gradient(1200px 600px at 50% -10%, #1a2547 0%, var(--bg) 55%);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+
+      .nav {
+        display: flex; align-items: center; justify-content: space-between;
+        max-width: 1080px; margin: 0 auto; padding: 1.25rem 1.5rem;
+      }
+      .brand { font-weight: 800; font-size: 1.15rem; color: var(--text); letter-spacing: -0.02em; }
+      .brand span { color: var(--accent); }
+      .nav-links { display: flex; gap: 1.25rem; align-items: center; }
+      .nav-links a { color: var(--muted); font-size: 0.95rem; }
+      .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+      .btn {
+        display: inline-block; border-radius: 0.6rem; font-weight: 600;
+        padding: 0.7rem 1.15rem; border: 1px solid var(--border); transition: all 0.15s ease;
+      }
+      .btn:hover { text-decoration: none; transform: translateY(-1px); }
+      .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.9rem; }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: #0b1020; border-color: transparent;
+      }
+      .btn-ghost { color: var(--text); background: transparent; }
+      .btn-ghost:hover { border-color: var(--accent); }
+
+      main { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; }
+
+      .hero { text-align: center; padding: 4.5rem 0 3.5rem; }
+      .eyebrow {
+        text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.78rem;
+        color: var(--accent); margin: 0 0 1rem; font-weight: 700;
+      }
+      .hero h1 {
+        font-size: clamp(2rem, 5vw, 3.4rem); line-height: 1.1; margin: 0 0 1.25rem;
+        letter-spacing: -0.03em; font-weight: 800;
+      }
+      .lede {
+        max-width: 640px; margin: 0 auto 2rem; color: var(--muted); font-size: 1.15rem;
+      }
+      .cta-row { display: flex; gap: 0.85rem; justify-content: center; flex-wrap: wrap; }
+
+      .features {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 1rem; padding: 1rem 0 4rem;
+      }
+      .card {
+        background: var(--panel); border: 1px solid var(--border); border-radius: 0.9rem;
+        padding: 1.4rem;
+      }
+      .card h3 { margin: 0 0 0.5rem; font-size: 1.05rem; }
+      .card p { margin: 0; color: var(--muted); font-size: 0.95rem; }
+
+      .footer {
+        border-top: 1px solid var(--border); margin-top: 2rem; padding: 2rem 1.5rem;
+        text-align: center; color: var(--muted); font-size: 0.9rem;
+      }
+      .footer a { color: var(--muted); }
+      .footer a:hover { color: var(--text); }
+    </style>
+  </body>
+</html>

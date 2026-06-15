@@ -1,0 +1,37 @@
+/* Orchestra docs theme — matches the apex landing page:
+   deep-navy surfaces + a blue/purple brand accent.
+   Starlight derives all semantic colors (bg, text, sidebar, links, code, …)
+   from these scale variables, so overriding the scale retones the whole site. */
+
+/* Dark theme (default) — mirrors the landing palette. */
+:root {
+  --sl-color-accent-low: #15224a;
+  --sl-color-accent: #3f6fd6;
+  --sl-color-accent-high: #b9d0ff;
+
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #e8ecf5; /* headings / strong text */
+  --sl-color-gray-2: #c2cbe0;
+  --sl-color-gray-3: #9aa6c0; /* muted text (matches landing) */
+  --sl-color-gray-4: #5d6a88;
+  --sl-color-gray-5: #25304d; /* hairlines / borders */
+  --sl-color-gray-6: #121a30; /* nav + sidebar + card surfaces */
+  --sl-color-black: #0b1020; /* page background */
+}
+
+/* Light theme — clean, with the same brand accent for continuity. */
+:root[data-theme='light'] {
+  --sl-color-accent-low: #d8e3ff;
+  --sl-color-accent: #2f5fd0;
+  --sl-color-accent-high: #16294f;
+
+  --sl-color-white: #11151f; /* (Starlight: darkest text in light mode) */
+  --sl-color-gray-1: #1d2433;
+  --sl-color-gray-2: #38415a;
+  --sl-color-gray-3: #5d6a88;
+  --sl-color-gray-4: #8b96b0;
+  --sl-color-gray-5: #c5ccdc;
+  --sl-color-gray-6: #eaeef6;
+  --sl-color-gray-7: #f5f7fb;
+  --sl-color-black: #ffffff; /* page background in light mode */
+}

@@ -1,0 +1,50 @@
+---
+title: Orchestra Platform Documentation
+description: Guides, architecture, and reference for running the Orchestra Platform.
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+
+Orchestra provisions isolated, time-limited workshop sessions — RStudio,
+JupyterLab, or any container — on Kubernetes, with authentication and cleanup
+handled for you. These docs cover installing it, configuring workshop images,
+and how the platform works under the hood.
+
+<CardGrid>
+  <LinkCard
+    title="Getting Started"
+    description="Install Orchestra and launch your first workshop."
+    href="/docs/getting-started/introduction/"
+  />
+  <LinkCard
+    title="Configuring a Workshop Image"
+    description="Run any stock image no-auth via a template's port, env, and args."
+    href="/docs/user-guide/configuring-images/"
+  />
+  <LinkCard
+    title="Architecture"
+    description="How the operator, API, frontend, and sidecar fit together."
+    href="/docs/architecture/platform-overview/"
+  />
+  <LinkCard
+    title="Deployment"
+    description="Helm install, ingress, and GCP Autopilot."
+    href="/docs/deployment/helm/"
+  />
+  <LinkCard
+    title="Contributing"
+    description="Run the test suites and contribute changes."
+    href="/docs/contributing/testing/"
+  />
+  <LinkCard
+    title="Decision Records"
+    description="Why the platform is built the way it is."
+    href="/docs/adr/0001-oauth2-proxy-at-ingress/"
+  />
+</CardGrid>
+
+## What Orchestra is good for
+
+- **Teaching & workshops** — bioinformatics courses, data-science bootcamps, conference tutorials.
+- **Research** — reproducible analysis sessions and collaborative environments.
+- **Any stack** — point a template at any container image; it isn't limited to a single field or toolchain.
