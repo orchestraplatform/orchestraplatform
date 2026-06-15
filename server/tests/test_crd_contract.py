@@ -11,8 +11,16 @@ import pathlib
 import pytest
 import yaml
 
-from api.models.workshop import WorkshopCreate, WorkshopIngress, WorkshopStorage
-from api.services.workshop_instance_service import _to_kubernetes_crd
+from api.models.workshop import (
+    WorkshopCreate,
+    WorkshopIngress,
+    WorkshopPhase,
+    WorkshopStorage,
+)
+from api.services.workshop_instance_service import (
+    _from_kubernetes_crd,
+    _to_kubernetes_crd,
+)
 
 _CRD_YAML = (
     pathlib.Path(__file__).parents[2]
@@ -143,3 +151,36 @@ def test_status_phase_enum_contains_starting():
         f"CRD status.phase enum is missing 'Starting': {phases}\n"
         "Add it to deploy/charts/orchestra-crds/templates/workshop-crd.yaml"
     )
+
+
+def _crd_with_phase(phase: str) -> dict:
+    return {
+        "metadata": {"name": "test-abc123", "namespace": "workshops"},
+        "spec": {"name": "test-abc123"},
+        "status": {"phase": phase},
+    }
+
+
+def test_from_crd_parses_starting_phase():
+    """A CRD whose status.phase is 'Starting' must parse without raising.
+
+    The operator emits this phase while waiting for the pod to become ready;
+    if WorkshopPhase lacks the member the read path raises ValueError.
+    """
+    resp = _from_kubernetes_crd(_crd_with_phase("Starting"))
+    assert resp.status is not None
+    assert resp.status.phase is WorkshopPhase.STARTING
+
+
+def test_terminated_is_a_valid_phase():
+    """'Terminated' is the API's marker for a vanished CRD and must be a
+    valid WorkshopPhase member."""
+    assert WorkshopPhase("Terminated") is WorkshopPhase.TERMINATED
+
+
+def test_from_crd_tolerates_unknown_phase():
+    """An unknown phase (e.g. one a future operator adds) must not crash the
+    read path; it falls back to Pending."""
+    resp = _from_kubernetes_crd(_crd_with_phase("Hibernating"))
+    assert resp.status is not None
+    assert resp.status.phase is WorkshopPhase.PENDING

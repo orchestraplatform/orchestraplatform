@@ -12,10 +12,14 @@ class WorkshopPhase(str, Enum):
 
     PENDING = "Pending"
     CREATING = "Creating"
+    STARTING = "Starting"
     READY = "Ready"
     RUNNING = "Running"
     TERMINATING = "Terminating"
     FAILED = "Failed"
+    # Not emitted by the operator on a CRD; used by the API to mark an
+    # instance whose backing CRD has vanished (see workshop_instance_service).
+    TERMINATED = "Terminated"
 
 
 class WorkshopResources(BaseModel):
