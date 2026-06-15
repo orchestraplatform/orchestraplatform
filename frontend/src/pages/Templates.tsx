@@ -1,20 +1,26 @@
 import React, { useMemo, useState } from 'react';
-import { useTemplates } from '../hooks/useTemplates';
+import { useTemplates, useTemplateLaunchCounts } from '../hooks/useTemplates';
+import { useInstances, useExtendInstance } from '../hooks/useInstances';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
-import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, LayoutGrid, List } from 'lucide-react';
+import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, LayoutGrid, List, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { WorkshopTemplateResponse } from '../api/generated';
-import { useTemplateLaunchCounts } from '../hooks/useTemplates';
+import type { WorkshopTemplateResponse, WorkshopInstanceResponse } from '../api/generated';
+
+const ACTIVE_PHASES = new Set(['Pending', 'Creating', 'Starting', 'Ready', 'Running']);
 
 interface TemplateCardProps {
   template: WorkshopTemplateResponse;
   launchCount?: number;
+  activeInstance?: WorkshopInstanceResponse;
 }
 
-function TemplateCard({ template, launchCount }: TemplateCardProps) {
+function TemplateCard({ template, launchCount, activeInstance }: TemplateCardProps) {
   const navigate = useNavigate();
+  const extend = useExtendInstance();
+
+  const isOpen = activeInstance?.phase === 'Ready' || activeInstance?.phase === 'Running';
 
   return (
     <Card className="flex flex-col">
@@ -61,14 +67,38 @@ function TemplateCard({ template, launchCount }: TemplateCardProps) {
       </CardContent>
 
       <CardFooter>
-        <Button
-          className="w-full"
-          disabled={!template.isActive}
-          onClick={() => navigate(`/launch/${template.id}`)}
-        >
-          <Play className="h-4 w-4 mr-2" />
-          Launch
-        </Button>
+        {activeInstance ? (
+          <div className="flex gap-2 w-full">
+            <Button
+              className="flex-1"
+              disabled={!isOpen || !activeInstance.url}
+              onClick={() => activeInstance.url && window.open(activeInstance.url, '_blank')}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              {isOpen ? 'Connect' : `${activeInstance.phase}…`}
+            </Button>
+            {isOpen && (
+              <Button
+                variant="outline"
+                disabled={extend.isPending}
+                onClick={() => extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace })}
+                title="Extend by 1 hour"
+              >
+                <Clock className="h-4 w-4 mr-1" />
+                +1h
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button
+            className="w-full"
+            disabled={!template.isActive}
+            onClick={() => navigate(`/launch/${template.id}`)}
+          >
+            <Play className="h-4 w-4 mr-2" />
+            Launch
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
@@ -77,10 +107,14 @@ function TemplateCard({ template, launchCount }: TemplateCardProps) {
 interface TemplateRowProps {
   template: WorkshopTemplateResponse;
   launchCount?: number;
+  activeInstance?: WorkshopInstanceResponse;
 }
 
-function TemplateRow({ template, launchCount }: TemplateRowProps) {
+function TemplateRow({ template, launchCount, activeInstance }: TemplateRowProps) {
   const navigate = useNavigate();
+  const extend = useExtendInstance();
+
+  const isOpen = activeInstance?.phase === 'Ready' || activeInstance?.phase === 'Running';
 
   return (
     <div className="flex items-center gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/30 transition-colors">
@@ -103,14 +137,38 @@ function TemplateRow({ template, launchCount }: TemplateRowProps) {
       {launchCount !== undefined && (
         <span className="text-xs text-muted-foreground whitespace-nowrap hidden md:block">{launchCount.toLocaleString()} launches</span>
       )}
-      <Button
-        size="sm"
-        disabled={!template.isActive}
-        onClick={() => navigate(`/launch/${template.id}`)}
-      >
-        <Play className="h-3.5 w-3.5 mr-1" />
-        Launch
-      </Button>
+      {activeInstance ? (
+        <div className="flex gap-1.5">
+          <Button
+            size="sm"
+            disabled={!isOpen || !activeInstance.url}
+            onClick={() => activeInstance.url && window.open(activeInstance.url, '_blank')}
+          >
+            <ExternalLink className="h-3.5 w-3.5 mr-1" />
+            {isOpen ? 'Connect' : `${activeInstance.phase}…`}
+          </Button>
+          {isOpen && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={extend.isPending}
+              onClick={() => extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace })}
+              title="Extend by 1 hour"
+            >
+              <Clock className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          disabled={!template.isActive}
+          onClick={() => navigate(`/launch/${template.id}`)}
+        >
+          <Play className="h-3.5 w-3.5 mr-1" />
+          Launch
+        </Button>
+      )}
     </div>
   );
 }
@@ -132,6 +190,7 @@ type SortOption = 'name-asc' | 'name-desc' | 'newest' | 'oldest';
 export function Templates() {
   const { data, isLoading, error, refetch } = useTemplates();
   const { data: statsData } = useTemplateLaunchCounts();
+  const { data: instancesData } = useInstances();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('newest');
   const [activeTag, setActiveTag] = useState('');
@@ -150,6 +209,14 @@ export function Templates() {
     for (const s of statsData ?? []) map[s.templateId] = s.totalLaunches;
     return map;
   }, [statsData]);
+
+  const activeByTemplate = useMemo(() => {
+    const map = new Map<string, WorkshopInstanceResponse>();
+    for (const inst of instancesData?.items ?? []) {
+      if (ACTIVE_PHASES.has(inst.phase)) map.set(inst.workshopId, inst);
+    }
+    return map;
+  }, [instancesData]);
 
   const active = useMemo(() => (data?.items ?? []).filter((t) => t.isActive), [data]);
 
@@ -322,6 +389,7 @@ export function Templates() {
               key={template.id}
               template={template}
               launchCount={launchCountMap[template.id]}
+              activeInstance={activeByTemplate.get(template.id)}
             />
           ))}
         </div>
@@ -332,6 +400,7 @@ export function Templates() {
               key={template.id}
               template={template}
               launchCount={launchCountMap[template.id]}
+              activeInstance={activeByTemplate.get(template.id)}
             />
           ))}
         </div>

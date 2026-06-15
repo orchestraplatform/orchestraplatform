@@ -87,6 +87,16 @@ class WorkshopCreate(BaseModel):
         description="Port the application listens on inside the container "
         "(e.g. 8787 for RStudio, 8888 for JupyterLab)",
     )
+    env: dict[str, str] = Field(
+        default_factory=dict,
+        description="Extra environment variables for the app container "
+        "(name -> value). Override operator defaults such as DISABLE_AUTH.",
+    )
+    args: list[str] = Field(
+        default_factory=list,
+        description="Container args, replacing the image's default CMD "
+        "(e.g. JupyterLab launch flags). Leave empty to use the image default.",
+    )
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
     ingress: WorkshopIngress | None = Field(default=None)

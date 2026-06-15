@@ -127,6 +127,8 @@ spec:
           value: {{ .Values.global.domain | quote }}
         - name: ORCHESTRA_INGRESS_ENTRY_POINTS
           value: '["websecure"]'
+        - name: ORCHESTRA_DEFAULT_WORKSHOP_IMAGE
+          value: {{ .Values.operator.defaultWorkshopImage | quote }}
         - name: ORCHESTRA_SIDECAR_IMAGE
           value: "{{ .Values.operator.sidecar.image.repository }}:{{ .Values.operator.sidecar.image.tag }}"
         - name: ORCHESTRA_SIDECAR_PULL_POLICY

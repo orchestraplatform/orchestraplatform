@@ -3,6 +3,7 @@ import { useCreateTemplate, useUpdateTemplate } from '../../hooks/useTemplates';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import type { WorkshopTemplateResponse, WorkshopTemplateCreate, WorkshopTemplateUpdate } from '../../api/generated';
+import { parseArgs, parseEnv, serializeArgs, serializeEnv } from '../../utils/envArgs';
 
 interface TemplateModalProps {
   isOpen: boolean;
@@ -32,6 +33,11 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
   const [formData, setFormData] = useState<WorkshopTemplateCreate>(DEFAULT_CREATE_VALUES);
+  // env/args are edited as text (dotenv lines / one arg per line) and parsed on submit.
+  const [envText, setEnvText] = useState('');
+  const [argsText, setArgsText] = useState('');
+  const [envError, setEnvError] = useState<string | null>(null);
+  const [argsError, setArgsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (template) {
@@ -45,21 +51,35 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
         resources: template.resources || DEFAULT_CREATE_VALUES.resources,
         storage: template.storage || DEFAULT_CREATE_VALUES.storage,
       });
+      setEnvText(serializeEnv(template.env));
+      setArgsText(serializeArgs(template.args));
     } else {
       setFormData(DEFAULT_CREATE_VALUES);
+      setEnvText('');
+      setArgsText('');
     }
+    setEnvError(null);
+    setArgsError(null);
   }, [template, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const env = parseEnv(envText);
+    const args = parseArgs(argsText);
+    if (env.error || args.error) {
+      setEnvError(env.error);
+      setArgsError(args.error);
+      return;
+    }
+    const payload: WorkshopTemplateCreate = { ...formData, env: env.value, args: args.value };
     try {
       if (template) {
         await updateTemplate.mutateAsync({
           id: template.id,
-          body: formData as WorkshopTemplateUpdate,
+          body: payload as WorkshopTemplateUpdate,
         });
       } else {
-        await createTemplate.mutateAsync(formData);
+        await createTemplate.mutateAsync(payload);
       }
       onClose();
     } catch (err) {
@@ -205,11 +225,55 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
           </div>
         </div>
 
+        <div className="space-y-2">
+          <p className="text-sm font-medium">Advanced</p>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="env">
+              Environment variables
+            </label>
+            <textarea
+              id="env"
+              spellCheck={false}
+              placeholder={'DISABLE_AUTH=false\nMY_FLAG=1'}
+              className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={envText}
+              onChange={e => {
+                setEnvText(e.target.value);
+                setEnvError(parseEnv(e.target.value).error);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              One <code>KEY=value</code> per line. Overrides operator defaults (e.g. <code>DISABLE_AUTH</code>).
+            </p>
+            {envError && <p className="text-xs text-destructive">{envError}</p>}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground" htmlFor="args">
+              Container args
+            </label>
+            <textarea
+              id="args"
+              spellCheck={false}
+              placeholder={"start-notebook.py\n--ServerApp.token="}
+              className="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              value={argsText}
+              onChange={e => {
+                setArgsText(e.target.value);
+                setArgsError(parseArgs(e.target.value).error);
+              }}
+            />
+            <p className="text-xs text-muted-foreground">
+              One argument per line. Replaces the image's default command. Leave empty to use the image default.
+            </p>
+            {argsError && <p className="text-xs text-destructive">{argsError}</p>}
+          </div>
+        </div>
+
         <div className="border-t pt-4 mt-6 flex justify-end space-x-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={isPending || !!envError || !!argsError}>
             {isPending ? 'Saving...' : template ? 'Update Template' : 'Create Template'}
           </Button>
         </div>

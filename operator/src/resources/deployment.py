@@ -6,6 +6,11 @@ import kubernetes.client as k8s
 
 from config import get_settings
 
+# Default environment for the app container. These are rocker/rstudio flags
+# (auto-login + sudo); they are harmless no-ops on non-RStudio images. A
+# template's ``env`` overrides any of these by name.
+_DEFAULT_APP_ENV = {"DISABLE_AUTH": "true", "ROOT": "true"}
+
 
 def create_rstudio_deployment(
     workshop_name: str,
@@ -16,11 +21,16 @@ def create_rstudio_deployment(
     storage: dict[str, Any],
     require_auth: bool = True,
     port: int = 8787,
+    env: dict[str, str] | None = None,
+    args: list[str] | None = None,
 ) -> k8s.V1Deployment:
     """Create a Kubernetes Deployment for a workshop app with an auth sidecar.
 
     ``port`` is the port the application container listens on (e.g. 8787 for
     RStudio, 8888 for JupyterLab); the sidecar proxies to it on localhost.
+
+    ``env`` is merged on top of the default app environment (template values
+    win). ``args``, when given, replaces the image's default CMD.
     """
     settings = get_settings()
 
@@ -29,14 +39,14 @@ def create_rstudio_deployment(
     cpu_request = resources.get("cpuRequest", "500m")
     memory_request = resources.get("memoryRequest", "1Gi")
 
+    app_env = {**_DEFAULT_APP_ENV, **(env or {})}
+
     app_container = k8s.V1Container(
         name="rstudio",
         image=image,
         ports=[k8s.V1ContainerPort(container_port=port, name="app-api")],
-        env=[
-            k8s.V1EnvVar(name="DISABLE_AUTH", value="true"),
-            k8s.V1EnvVar(name="ROOT", value="true"),
-        ],
+        env=[k8s.V1EnvVar(name=k, value=v) for k, v in app_env.items()],
+        args=list(args) if args else None,
         resources=k8s.V1ResourceRequirements(
             requests={"cpu": cpu_request, "memory": memory_request},
             limits={"cpu": cpu_limit, "memory": memory_limit},

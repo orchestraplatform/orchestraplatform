@@ -28,6 +28,8 @@ class Workshop(Base):
         String(20), nullable=False, default="4h"
     )
     port: Mapped[int] = mapped_column(Integer, nullable=False, default=8787)
+    env: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    args: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     resources: Mapped[dict] = mapped_column(JSONB, nullable=False)
     storage: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     ingress: Mapped[dict | None] = mapped_column(JSONB, nullable=True)

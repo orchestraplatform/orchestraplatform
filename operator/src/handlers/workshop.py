@@ -88,6 +88,8 @@ async def workshop_create_handler(
         duration = spec.get("duration", "4h")
         image = spec.get("image", settings.default_workshop_image)
         port = spec.get("port", 8787)
+        env = spec.get("env") or {}
+        args = spec.get("args") or None
         resources = spec.get("resources", {})
         storage = spec.get("storage", {})
         ingress_config = spec.get("ingress", {})
@@ -115,7 +117,7 @@ async def workshop_create_handler(
         require_auth = bool(settings.auth_middleware or settings.oauth2_proxy_auth_url)
         deployment = create_rstudio_deployment(
             workshop_name, namespace, image, owner_email, resources, storage,
-            require_auth=require_auth, port=port,
+            require_auth=require_auth, port=port, env=env, args=args,
         )
         deployment.metadata.owner_references = [owner_ref]
         _create_or_ignore(
@@ -166,7 +168,6 @@ async def workshop_create_handler(
             name=f"{workshop_name}-deployment", namespace=namespace
         )
         if (dep.status.ready_replicas or 0) < 1:
-            patch["status"] = {"phase": "Starting"}
             patch["status"] = {"phase": WorkshopPhase.STARTING}
             raise kopf.TemporaryError("Workshop pod not yet ready", delay=15)
 

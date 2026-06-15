@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from api.core.auth import CurrentUser, get_current_user, require_admin
-from api.core.database import get_db
+from api.core.database import get_db, get_session_factory
 from api.models.schemas.workshop_instance import (
     InstanceSummary,
     InstanceUtilization,
@@ -60,14 +60,18 @@ async def get_instance_summary(
 @router.get("/events")
 async def instance_events(
     request: Request,
-    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
     svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
-    """Stream workshop instance updates for the current user."""
+    """Stream workshop instance updates for the current user.
+
+    Passes the session factory rather than a held session so the generator
+    acquires and releases a connection on each poll cycle instead of holding
+    one open for the entire stream lifetime.
+    """
     owner_filter = None if current_user.is_admin else current_user.email
     return EventSourceResponse(
-        svc.events(db, owner_email=owner_filter),
+        svc.events(get_session_factory(), owner_email=owner_filter),
     )
 
 

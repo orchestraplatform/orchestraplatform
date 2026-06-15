@@ -92,13 +92,28 @@ restart: stop dev
 
 # --- Sidecar ---
 
-# Build and push all images to Artifact Registry (cross-compiled for linux/amd64)
+# Build and push all images to Artifact Registry (cross-compiled for linux/amd64).
+# Tags each image with the current git SHA and :latest.
 # Usage: just build-push
 #        just build-push registry=us-central1-docker.pkg.dev/my-project/orchestra
 build-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
-    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-api:latest --push server/
-    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-operator:latest --push operator/
-    docker buildx build --platform linux/amd64 -t {{registry}}/orchestra-frontend:latest --push frontend/
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sha=$(git rev-parse --short HEAD)
+    echo "==> Building images at commit ${sha}"
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-api:${sha} \
+        -t {{registry}}/orchestra-api:latest \
+        --push server/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-operator:${sha} \
+        -t {{registry}}/orchestra-operator:latest \
+        --push operator/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-frontend:${sha} \
+        -t {{registry}}/orchestra-frontend:latest \
+        --push frontend/
+    echo "==> Done. Image tag: ${sha}"
 
 # Build the sidecar Docker image
 sidecar-build tag="seandavi/orchestra-sidecar:latest":
@@ -171,23 +186,69 @@ gcp_context := "gke_orchestraplatform-dev_us-central1_orchestra-dev"
 gcp_namespace := "orchestra-system"
 
 # Deploy (or upgrade) Orchestra to GCP. Requires deploy/gcp-values-secrets.yaml.
+# Pins images to the current git SHA so each Helm revision is traceable.
 deploy-gcp:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sha=$(git rev-parse --short HEAD)
     kubectl config use-context {{ gcp_context }}
+    kubectl apply -f ./deploy/charts/orchestra-crds/templates/
     helm upgrade --install orchestra ./deploy/charts/orchestra \
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
         -f deploy/gcp-values.yaml \
         -f deploy/gcp-values-secrets.yaml \
+        --set operator.image.tag="${sha}" \
+        --set api.image.tag="${sha}" \
+        --set frontend.image.tag="${sha}" \
         --wait
+
+# Build, push, and deploy to GCP in one atomic step — prevents SHA mismatch between images and Helm.
+ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sha=$(git rev-parse --short HEAD)
+    echo "==> Building images at commit ${sha}"
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-api:${sha} \
+        -t {{registry}}/orchestra-api:latest \
+        --push server/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-operator:${sha} \
+        -t {{registry}}/orchestra-operator:latest \
+        --push operator/
+    docker buildx build --platform linux/amd64 \
+        -t {{registry}}/orchestra-frontend:${sha} \
+        -t {{registry}}/orchestra-frontend:latest \
+        --push frontend/
+    echo "==> Deploying sha=${sha}"
+    kubectl config use-context {{ gcp_context }}
+    kubectl apply -f ./deploy/charts/orchestra-crds/templates/
+    helm upgrade --install orchestra ./deploy/charts/orchestra \
+        -n {{ gcp_namespace }} --create-namespace \
+        -f deploy/charts/orchestra/values.yaml \
+        -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-secrets.yaml \
+        --set operator.image.tag="${sha}" \
+        --set api.image.tag="${sha}" \
+        --set frontend.image.tag="${sha}" \
+        --wait
+    echo "==> Done. Deployed sha=${sha}"
 
 # Dry-run the GCP deployment (renders templates, validates against cluster, no changes).
 deploy-gcp-dry-run:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sha=$(git rev-parse --short HEAD)
     kubectl config use-context {{ gcp_context }}
     helm upgrade --install orchestra ./deploy/charts/orchestra \
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
         -f deploy/gcp-values.yaml \
         -f deploy/gcp-values-secrets.yaml \
+        --set operator.image.tag="${sha}" \
+        --set api.image.tag="${sha}" \
+        --set frontend.image.tag="${sha}" \
         --dry-run --debug 2>&1 | head -200
 
 # Show the values currently deployed to GCP (redacts nothing — contains secrets).

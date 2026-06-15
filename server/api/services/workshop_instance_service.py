@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import case, distinct, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from api.core.kubernetes import ApiException, get_custom_objects_api
@@ -47,7 +47,7 @@ SSE_POLL_SLOW_S: int = 30
 SSE_JITTER_S: int = 5
 
 _ACTIVE_PHASES = {"Ready", "Running"}
-_TRANSITIONAL_PHASES = {"Pending", "Creating"}
+_TRANSITIONAL_PHASES = {"Pending", "Creating", "Starting"}
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +91,10 @@ def _to_kubernetes_crd(
             },
         },
     }
+    if workshop.env:
+        crd["spec"]["env"] = dict(workshop.env)
+    if workshop.args:
+        crd["spec"]["args"] = list(workshop.args)
     if workshop.storage:
         crd["spec"]["storage"] = {"size": workshop.storage.size}
         if workshop.storage.storage_class:
@@ -144,6 +148,8 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             duration=spec.get("duration", "4h"),
             image=spec.get("image", "rocker/rstudio:latest"),
             port=spec.get("port", 8787),
+            env=spec.get("env") or {},
+            args=spec.get("args") or [],
             resources=WorkshopResources(
                 cpu=res.get("cpu", "1"),
                 memory=res.get("memory", "2Gi"),
@@ -288,6 +294,8 @@ class WorkshopInstanceService:
             duration=duration,
             image=template.image,
             port=template.port,
+            env=template.env,
+            args=template.args,
             resources=WorkshopResources(
                 cpu=res.cpu,
                 memory=res.memory,
@@ -545,11 +553,28 @@ class WorkshopInstanceService:
         if changed:
             await db.commit()
 
-    async def events(self, db: AsyncSession, *, owner_email: str | None = None):
-        """SSE generator: yields instance list JSON, polling fast while transitional."""
+    # TODO(scaling): each SSE connection independently polls K8s via _sync_from_k8s
+    # for its transitional-phase instances. At ~50+ simultaneous users all launching
+    # sessions, this produces redundant parallel K8s API calls. The fix is a single
+    # shared background task that polls all active workshops on a common schedule and
+    # pushes results into a cache (e.g. asyncio.Queue per subscriber or a broadcast
+    # dict). Each SSE stream then reads from the cache instead of hitting K8s itself.
+    async def events(
+        self,
+        session_factory: async_sessionmaker[AsyncSession],
+        *,
+        owner_email: str | None = None,
+    ):
+        """SSE generator: yields instance list JSON, polling fast while transitional.
+
+        Accepts a session factory rather than a held session so each poll cycle
+        opens and closes its own connection. This prevents SSE streams from
+        exhausting the connection pool during idle sleep intervals.
+        """
         await asyncio.sleep(random.uniform(0, SSE_JITTER_S))
         while True:
-            items, total = await self.list_instances(db, owner_email=owner_email)
+            async with session_factory() as db:
+                items, total = await self.list_instances(db, owner_email=owner_email)
             yield WorkshopInstanceList(items=items, total=total).model_dump_json(by_alias=True)
             has_transitional = any(i.phase in _TRANSITIONAL_PHASES for i in items)
             base = SSE_POLL_FAST_S if has_transitional else SSE_POLL_SLOW_S

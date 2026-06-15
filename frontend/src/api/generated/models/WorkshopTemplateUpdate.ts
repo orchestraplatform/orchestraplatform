@@ -13,6 +13,8 @@ export type WorkshopTemplateUpdate = {
     image?: (string | null);
     defaultDuration?: (string | null);
     port?: (number | null);
+    env?: (Record<string, string> | null);
+    args?: (Array<string> | null);
     resources?: (WorkshopResourceDefaults | null);
     storage?: (WorkshopStorageDefaults | null);
     isActive?: (boolean | null);

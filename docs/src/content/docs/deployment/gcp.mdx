@@ -474,6 +474,33 @@ Restart the API pod to pick up the annotation:
 kubectl rollout restart deployment/orchestra-api -n orchestra-system
 ```
 
+## Upgrading
+
+Use `just ship-gcp` to build, push, and deploy in a single atomic step. This
+ensures the image tag recorded in Helm always matches what was pushed — running
+`just build-push` and `just deploy-gcp` separately risks a SHA mismatch if
+you commit between the two steps.
+
+```bash
+just ship-gcp
+```
+
+This command:
+1. Builds all three images (`api`, `operator`, `frontend`) for `linux/amd64`
+2. Tags each image with the current git SHA **and** `:latest`
+3. Applies the CRD schema (so new phase values or validation rules take effect)
+4. Runs `helm upgrade` with `--set *.image.tag=<sha>` so each Helm revision is
+   traceable back to an exact commit (`helm history orchestra -n orchestra-system`)
+
+To deploy without rebuilding (e.g. a config-only change):
+
+```bash
+just deploy-gcp
+```
+
+This still applies CRDs and pins the Helm release to the current git SHA, but
+skips the Docker build steps.
+
 ## Verify
 
 ```bash
