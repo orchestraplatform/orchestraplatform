@@ -12,9 +12,13 @@ Orchestra has three test tiers. Use the right tier for the right question.
 **Run:**
 ```bash
 cd server
-just test          # all unit tests
-just test-cov      # with coverage report
+uv run python -m pytest tests/ -v          # all server tests
+uv run python -m pytest tests/ -v --cov    # with coverage report
 ```
+
+> Note: `just test` (run from the repo root) runs the **whole monorepo**
+> suite — server, operator, sidecar, and frontend — not just the server. To
+> run only the server tests, use the `pytest` command above from `server/`.
 
 **What they cover:**
 - FastAPI route responses (status codes, response body shape)
@@ -53,7 +57,7 @@ dependency, a model validator, or service logic.
 **Run:**
 ```bash
 cd server
-just test-integration   # requires ORCHESTRA_INTEGRATION_TESTS=1
+ORCHESTRA_INTEGRATION_TESTS=1 uv run python -m pytest tests/integration/ -v
 ```
 
 **Prerequisites:**
@@ -69,8 +73,9 @@ just test-integration   # requires ORCHESTRA_INTEGRATION_TESTS=1
 
 **Status:** The test file `test_workshop_lifecycle.py` contains commented
 specifications. These will be uncommented when the kind + mock OIDC fixtures
-are built out. The scaffolding (`conftest.py` skip guard, `just test-integration`
-target) is in place.
+are built out. The `conftest.py` skip guard (gated on
+`ORCHESTRA_INTEGRATION_TESTS=1`) is in place; there is no dedicated `just`
+recipe — run them with the `pytest` command above.
 
 **When to add an integration test:** When a bug requires both the API and
 Kubernetes to reproduce, or when a CRD schema change could break the

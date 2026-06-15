@@ -31,8 +31,10 @@ contain `@`).
 **Positive:**
 - `kubectl get workshops` shows owners; ownership is self-documenting.
 - `spec.owner` is validated by the API server (email pattern) and marked
-  immutable via a CEL rule (`self.owner == oldSelf.owner`). Ownership cannot
-  drift after creation.
+  immutable via a CEL rule
+  (`!has(oldSelf.owner) || self.owner == oldSelf.owner`). The first-set guard
+  permits the initial write, then locks the field; ownership cannot drift after
+  creation.
 - The operator already needs to know the owner email to provision the per-pod
   oauth2-proxy sidecar (future work). Putting it on the CR is the natural home.
 - No new persistence layer required; the Kubernetes API is the single source
@@ -56,3 +58,12 @@ contain `@`).
 - Get/delete: fetch the CR, compare `workshop.owner == current_user.email`;
   mismatches return `404` (no existence leak).
 - Admins (configured via `ORCHESTRA_ADMIN_EMAILS`) bypass the filter entirely.
+
+> **As implemented (note added later):** Two details diverged from this record.
+> (1) The `orchestra.io/owner-hash` label was **never shipped** — instance
+> ownership is filtered by the `owner_email` column on the `workshop_instances`
+> Postgres table, not a k8s label selector (see [Authorization](../architecture/authorization)
+> and [Data Model](../architecture/data-model)). (2) The CEL immutability rule
+> includes a first-set guard: `!has(oldSelf.owner) || self.owner == oldSelf.owner`.
+> The "future per-pod oauth2-proxy sidecar" shipped as the Orchestra Go
+> `orchestra-sidecar`, which enforces owner-only access using `spec.owner`.

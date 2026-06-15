@@ -88,8 +88,9 @@ helm upgrade --install orchestra ./deploy/charts/orchestra \
 ```
 
 <Aside type="note">
-The chart runs database migrations automatically as a Helm `pre-upgrade` hook,
-so they apply in the right order on every install/upgrade.
+The chart runs database migrations automatically as a Helm
+`pre-install,pre-upgrade` hook, so they apply in the right order on both fresh
+installs and upgrades.
 </Aside>
 
 See the [Helm Chart guide](/docs/deployment/helm/) for the full values reference,

@@ -18,8 +18,13 @@ erDiagram
         string description
         string image
         string default_duration
+        int port
+        jsonb env
+        string[] args
         jsonb resources
         jsonb storage
+        jsonb ingress
+        string[] tags
         bool is_active
         string created_by
         timestamptz created_at
@@ -67,8 +72,13 @@ Stores the reusable template configuration created and managed by admins.
 | `description` | string nullable | |
 | `image` | string | Docker image (e.g. `rocker/rstudio:latest`) |
 | `default_duration` | string | e.g. `"4h"` |
+| `port` | int | Port the app listens on in-container (default `8787`) |
+| `env` | JSONB nullable | Extra env vars for the app container (`name -> value`) |
+| `args` | string[] nullable | Container args, replacing the image's default CMD |
 | `resources` | JSONB | `{cpu, memory, cpuRequest, memoryRequest}` |
 | `storage` | JSONB nullable | `{size, storageClass}` |
+| `ingress` | JSONB nullable | Ingress overrides (`{host, annotations}`) |
+| `tags` | string[] | Catalog tags; defaults to empty list |
 | `is_active` | bool | `false` = archived; not launchable |
 | `created_by` | string | Email of the admin who created it |
 
@@ -105,11 +115,14 @@ entered and when. Used to compute time-in-phase utilization.
 
 ## Status Sync Strategy
 
-Phase and URL are written by the Kubernetes operator into the CRD status field.
-Rather than running a background sync daemon, the API syncs on-demand:
+Phase, URL, and expiry are written by the Kubernetes operator into the CRD
+status field. Rather than running a background sync daemon, the API syncs
+on-demand:
 
 1. `GET /instances/{name}` loads the DB record then calls `k8s.get_workshop()`.
-2. If `phase` or `url` changed, the DB row is updated and an `InstanceEvent` is appended.
+2. The synced fields are `phase` (← `status.phase`), `url` (← `status.url`),
+   and `expires_at` (← `status.expiresAt`). If `phase` changed, an
+   `InstanceEvent` is appended; any changed field updates the DB row.
 3. `DELETE /instances/{name}` deletes the k8s CRD and sets `terminated_at`, appending
    a final `Terminating` event.
 

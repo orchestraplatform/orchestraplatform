@@ -3,47 +3,75 @@ title: Authorization
 description: Workshop ownership model and admin access in Orchestra.
 ---
 
-Once a user is [authenticated](./authentication), Orchestra applies two
-authorization rules to workshop operations:
+Once a user is [authenticated](./authentication), Orchestra applies its
+authorization rules across two distinct resources — **templates** and
+**instances** — with an admin bypass on top:
 
-1. **Ownership** — users can only see and manage workshops they created.
-2. **Admin bypass** — users whose email is in `ORCHESTRA_ADMIN_EMAILS` can
-   operate on any workshop regardless of owner.
+1. **Instance ownership** — users can only see and manage the workshop
+   instances they launched.
+2. **Template access** — any authenticated user can read templates; only
+   admins can create, edit, or delete them.
+3. **Admin bypass** — users whose email is in `ORCHESTRA_ADMIN_EMAILS` can
+   operate on any instance and manage templates.
 
-## Workshop ownership
+## Instance ownership
 
-Every workshop has a `spec.owner` field containing the email of the user who
-created it. This field is:
+Every workshop **instance** records the email of the user who launched it in
+the `owner_email` column on the `workshop_instances` table. This value is:
 
-- **Stamped at create time** by the API from the authenticated user's email.
-  Callers cannot set it themselves.
-- **Immutable** — the CRD schema includes a CEL validation rule
-  (`self.owner == oldSelf.owner`) that prevents the field from changing after
-  creation.
-- **Reflected in responses** — `WorkshopResponse.owner` is always the creator's
-  email.
+- **Stamped at launch time** by the API from the authenticated user's email
+  (`current_user.email`). Callers cannot set it themselves.
+- **The basis for filtering** — `GET /instances/` filters rows by
+  `WorkshopInstance.owner_email == current_user.email` (admins see all).
+- **Reflected in responses** — `WorkshopInstanceResponse.owner_email` is the
+  launcher's email.
 
-For efficient server-side filtering, the API also stamps a label on the Workshop CR:
+Access checks happen in the DB layer, not via a Kubernetes label selector.
+The Workshop CR the operator creates carries only the labels
+`{app: orchestra-operator, managed-by: orchestra-api}` — there is **no**
+owner label on the CR. The CR's `spec.owner` field exists (it is what the
+per-pod sidecar enforces; see [Authentication](./authentication)), but
+instance-list authorization is driven entirely by the `owner_email` DB column.
 
-```
-orchestra.io/owner-hash: <sha256(email)[:63]>
-```
+## Template ownership
 
-Labels cannot contain `@`, so the email is hashed. The `spec.owner` field
-stores the original email and is the source of truth.
+Templates have **no owner**. They are shared catalog entries: the only
+person-related column is `created_by`, the email of the admin who created the
+template (`WorkshopTemplateResponse.created_by`). It is informational and does
+**not** restrict access — every authenticated user can read every template.
 
 ## Route behaviour
 
+Instances are addressed by their Kubernetes name (`{k8s_name}`); templates are
+addressed by UUID (`{template_id}`).
+
+### Instances — owner-or-admin, 404 on mismatch
+
 | Operation | Regular user | Admin |
 |---|---|---|
-| `POST /templates/` | Creates workshop with `owner = self` | Same |
-| `GET /templates/` | Lists only workshops where `owner = self` | Lists all workshops |
-| `GET /templates/{name}` | 200 if owner matches, **404** otherwise | 200 always |
-| `DELETE /templates/{name}` | Deletes if owner matches, **404** otherwise | Deletes always |
+| `GET /instances/` | Lists only instances where `owner_email = self` | Lists all |
+| `GET /instances/{k8s_name}` | 200 if owner matches, **404** otherwise | 200 always |
+| `POST /instances/{k8s_name}/extend` | Extends if owner matches, **404** otherwise | Extends always |
+| `DELETE /instances/{k8s_name}` | Terminates if owner matches, **404** otherwise | Terminates always |
 
-Returning `404` (not `403`) for another user's workshop prevents leaking
-information about which workshops exist. An attacker cannot distinguish "this
-workshop doesn't exist" from "this workshop exists but belongs to someone else."
+Returning `404` (not `403`) for another user's instance prevents leaking
+information about which instances exist. An attacker cannot distinguish "this
+instance doesn't exist" from "this instance exists but belongs to someone else."
+
+### Templates — read-any, write-admin (403)
+
+| Operation | Regular user | Admin |
+|---|---|---|
+| `GET /templates/` | Lists active templates | Lists all (incl. inactive) |
+| `GET /templates/{template_id}` | 200 | 200 |
+| `POST /templates/{template_id}/launch` | Launches an instance owned by self | Same |
+| `POST /templates/` | **403 Forbidden** | Creates the template |
+| `PUT /templates/{template_id}` | **403 Forbidden** | Updates the template |
+| `DELETE /templates/{template_id}` | **403 Forbidden** | Archives/deletes the template |
+
+Template mutations are gated by the `require_admin` dependency, which returns
+**403** (not 404) for non-admins — there is no existence to hide, since any
+user may already read the template.
 
 ## Admin access
 
