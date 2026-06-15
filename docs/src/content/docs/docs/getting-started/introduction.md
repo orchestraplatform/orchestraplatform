@@ -71,7 +71,7 @@ Each workshop gets its own unique subdomain and runs in complete isolation from 
 
 ## Getting Started
 
-Ready to start using Orchestra Platform? Check out our [Installation Guide](/getting-started/installation/) to set up your own instance, or jump to the [User Guide](/user-guide/creating-workshops/) to learn how to create your first workshop.
+Ready to start using Orchestra Platform? Check out our [Installation Guide](/docs/getting-started/installation/) to set up your own instance, or jump to the [User Guide](/docs/user-guide/creating-workshops/) to learn how to create your first workshop.
 
 ## Community and Support
 

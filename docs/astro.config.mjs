@@ -3,11 +3,12 @@ import starlight from '@astrojs/starlight';
 const googleAnalyticsId = 'G-KLLV1GCF4E';
 
 export default defineConfig({
-  site: 'https://docs.orchestraplatform.org',
+  site: 'https://orchestraplatform.org',
   integrations: [
     starlight({
       title: 'Orchestra Platform',
       description: 'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
+      customCss: ['./src/styles/custom.css'],
       head: [
         // Adding google analytics
         {
@@ -34,64 +35,65 @@ export default defineConfig({
           href: 'https://github.com/seandavi/orchestra-operator',
         },
       ],
+      // Docs live under /docs (the apex root is the marketing landing page).
       sidebar: [
         {
           label: 'Getting Started',
           items: [
-            { label: 'Introduction', link: '/getting-started/introduction/' },
-            { label: 'Installation', link: '/getting-started/installation/' },
+            { label: 'Introduction', link: '/docs/getting-started/introduction/' },
+            { label: 'Installation', link: '/docs/getting-started/installation/' },
           ],
         },
         {
           label: 'Architecture',
           items: [
-            { label: 'Platform Overview', link: '/architecture/platform-overview/' },
-            { label: 'Domain Structure', link: '/architecture/domain-structure/' },
-            { label: 'Data Model', link: '/architecture/data-model/' },
-            { label: 'Components', link: '/architecture/components/' },
-            { label: 'Authentication', link: '/architecture/authentication/' },
-            { label: 'Authorization', link: '/architecture/authorization/' },
+            { label: 'Platform Overview', link: '/docs/architecture/platform-overview/' },
+            { label: 'Domain Structure', link: '/docs/architecture/domain-structure/' },
+            { label: 'Data Model', link: '/docs/architecture/data-model/' },
+            { label: 'Components', link: '/docs/architecture/components/' },
+            { label: 'Authentication', link: '/docs/architecture/authentication/' },
+            { label: 'Authorization', link: '/docs/architecture/authorization/' },
           ],
         },
         {
           label: 'User Guide',
           items: [
-            { label: 'Creating Workshops', link: '/user-guide/creating-workshops/' },
-            { label: 'Managing Workshops', link: '/user-guide/managing-workshops/' },
-            { label: 'Configuring a Workshop Image', link: '/user-guide/configuring-images/' },
+            { label: 'Creating Workshops', link: '/docs/user-guide/creating-workshops/' },
+            { label: 'Managing Workshops', link: '/docs/user-guide/managing-workshops/' },
+            { label: 'Configuring a Workshop Image', link: '/docs/user-guide/configuring-images/' },
           ],
         },
         {
           label: 'API Reference',
           items: [
-            { label: 'REST API', link: '/api/rest-api/' },
-            { label: 'Kubernetes CRDs', link: '/api/crds/' },
+            { label: 'REST API', link: '/docs/api/rest-api/' },
+            { label: 'Kubernetes CRDs', link: '/docs/api/crds/' },
           ],
         },
         {
           label: 'Deployment',
           items: [
-            { label: 'Helm Install', link: '/deployment/helm/' },
-            { label: 'Ingress Controller Guide', link: '/deployment/ingress/' },
-            { label: 'GCP Autopilot', link: '/deployment/gcp/' },
-            { label: 'oauth2-proxy Setup', link: '/deployment/oauth2-proxy/' },
+            { label: 'Helm Install', link: '/docs/deployment/helm/' },
+            { label: 'Ingress Controller Guide', link: '/docs/deployment/ingress/' },
+            { label: 'GCP Autopilot', link: '/docs/deployment/gcp/' },
+            { label: 'oauth2-proxy Setup', link: '/docs/deployment/oauth2-proxy/' },
           ],
         },
         {
           label: 'Contributing',
           items: [
-            { label: 'Testing Guide', link: '/contributing/testing/' },
-            { label: 'Contributing', link: '/development/contributing/' },
-            { label: 'Local Development', link: '/development/local-development/' },
+            { label: 'Testing Guide', link: '/docs/contributing/testing/' },
+            { label: 'Contributing', link: '/docs/development/contributing/' },
+            { label: 'Local Development', link: '/docs/development/local-development/' },
           ],
         },
         {
           label: 'Architecture Decision Records',
           items: [
-            { label: 'ADR-0001: oauth2-proxy at ingress', link: '/adr/0001-oauth2-proxy-at-ingress/' },
-            { label: 'ADR-0002: spec.owner on CRD', link: '/adr/0002-spec-owner-on-crd/' },
-            { label: 'ADR-0003: Helm install method', link: '/adr/0003-helm-as-install-method/' },
-            { label: 'ADR-0004: Template/instance split', link: '/adr/0004-template-instance-split/' },
+            { label: 'ADR-0001: oauth2-proxy at ingress', link: '/docs/adr/0001-oauth2-proxy-at-ingress/' },
+            { label: 'ADR-0002: spec.owner on CRD', link: '/docs/adr/0002-spec-owner-on-crd/' },
+            { label: 'ADR-0003: Helm install method', link: '/docs/adr/0003-helm-as-install-method/' },
+            { label: 'ADR-0004: Template/instance split', link: '/docs/adr/0004-template-instance-split/' },
           ],
         },
       ],
