@@ -7,6 +7,18 @@
 `gemini.google.com/app/912dfa39b11aa614`) and refined in follow-up discussion.
 The current target prompt is in the appendix; the original is preserved there too.
 
+## Where this gets implemented
+
+The production OpenTofu does **not** live in this repo. Actual infra work is done
+in **`monode/infrastructure/terraform/`**, which already has cloud-based (remote)
+state, pulls secrets from **Google Secret Manager**, is private, and follows a
+module-based layout (`modules/`, `providers.tf`, `backend.tf`, `versions.tf`).
+
+This `deploy/tofu/` directory is the **design spec / reference only** — no live
+infra, state, or credentials belong here, and there's deliberately no skeleton to
+drift out of sync. When implementing, add the cluster as a module/config under
+`monode/infrastructure/terraform/` per the spec below and the appendix prompt.
+
 ## Why: cost
 
 Orchestra runs on **GKE Autopilot** today. Autopilot bills per pod *request* at a
@@ -141,10 +153,11 @@ streaming / `pd-balanced` / balloon / operator requirements apply. Kept as a
 fallback; **NAP is the recommendation.**
 
 ## Deliverables (when implemented)
-Modular OpenTofu: `providers.tf`, `main.tf` (cluster + NAP + system pool),
-`variables.tf`, `outputs.tf`, `kubernetes.tf` (ComputeClass + PriorityClass +
-balloon Deployment). Variable-driven naming. Outputs for cluster name, endpoint,
-CA certificate.
+Produced as a module under `monode/infrastructure/terraform/` (see "Where this
+gets implemented"), **not** in this repo. Modular OpenTofu: cluster + NAP +
+system pool, variables, outputs, and the Kubernetes resources (ComputeClass +
+PriorityClass + balloon Deployment), matching that repo's module conventions
+(remote state, Secret Manager). Outputs for cluster name, endpoint, CA cert.
 
 ## Open questions / next steps
 - System pool sizing and taint/toleration wiring for platform components.
