@@ -73,11 +73,12 @@ const features = [
         <p class="lede">
           Orchestra spins up isolated, time-limited RStudio and JupyterLab
           sessions on Kubernetes — so your learners click a link and start
-          working, with nothing to install.
+          working in the browser, with nothing to install.
         </p>
         <div class="cta-row">
           <a class="btn btn-primary btn-lg" href={appUrl}>Launch a workshop →</a>
         </div>
+        <p class="cta-note">No installs, no setup — the environment is one click away.</p>
       </section>
 
       <section class="features" aria-label="Features">
@@ -89,12 +90,6 @@ const features = [
             </article>
           ))
         }
-      </section>
-
-      <section class="closing">
-        <h2>Start a workshop in your browser.</h2>
-        <p>No installs, no setup — the environment is one click away.</p>
-        <a class="btn btn-primary btn-lg" href={appUrl}>Launch a workshop →</a>
       </section>
 
       <section class="operators">
@@ -195,19 +190,11 @@ const features = [
       .footer a:hover { color: var(--text); }
 
       .btn-lg { padding: 0.85rem 1.55rem; font-size: 1.05rem; }
-
-      .closing {
-        text-align: center; padding: 4rem 1.5rem 1.25rem;
-        border-top: 1px solid var(--border);
-      }
-      .closing h2 {
-        font-size: clamp(1.5rem, 3.5vw, 2.2rem); margin: 0 0 0.5rem;
-        letter-spacing: -0.02em; font-weight: 800;
-      }
-      .closing p { color: var(--muted); margin: 0 0 1.6rem; }
+      .cta-note { color: var(--muted); font-size: 0.9rem; margin: 0.9rem 0 0; }
 
       .operators {
-        text-align: center; padding: 1.25rem 1.5rem 3.5rem;
+        text-align: center; padding: 2.5rem 1.5rem 3.5rem; margin-top: 2rem;
+        border-top: 1px solid var(--border);
         color: var(--muted); font-size: 0.95rem;
       }
       .operators p { max-width: 560px; margin: 0 auto; }
