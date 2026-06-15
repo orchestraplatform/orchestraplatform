@@ -32,6 +32,14 @@ export type WorkshopTemplateCreate = {
      * Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)
      */
     port?: number;
+    /**
+     * Extra environment variables for the app container (name -> value). Override operator defaults such as DISABLE_AUTH.
+     */
+    env?: Record<string, string>;
+    /**
+     * Container args, replacing the image's default CMD (e.g. JupyterLab launch flags). Leave empty to use the image default.
+     */
+    args?: Array<string>;
     resources?: WorkshopResourceDefaults;
     storage?: (WorkshopStorageDefaults | null);
     tags?: Array<string>;
