@@ -61,9 +61,8 @@ const features = [
     <header class="nav">
       <a class="brand" href="/">Orchestra<span>Platform</span></a>
       <nav class="nav-links">
-        <a href={docsUrl}>Docs</a>
         <a href={githubUrl}>GitHub</a>
-        <a class="btn btn-sm" href={appUrl}>Launch</a>
+        <a class="btn btn-sm" href={appUrl}>Open the app</a>
       </nav>
     </header>
 
@@ -77,8 +76,7 @@ const features = [
           working, with nothing to install.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href={appUrl}>Launch a workshop →</a>
-          <a class="btn btn-ghost" href={docsUrl}>Read the docs</a>
+          <a class="btn btn-primary btn-lg" href={appUrl}>Launch a workshop →</a>
         </div>
       </section>
 
@@ -91,6 +89,20 @@ const features = [
             </article>
           ))
         }
+      </section>
+
+      <section class="closing">
+        <h2>Start a workshop in your browser.</h2>
+        <p>No installs, no setup — the environment is one click away.</p>
+        <a class="btn btn-primary btn-lg" href={appUrl}>Launch a workshop →</a>
+      </section>
+
+      <section class="operators">
+        <p>
+          Running or building Orchestra? The
+          <a href={docsUrl}>deployment &amp; developer docs</a> cover installation,
+          configuration, and architecture.
+        </p>
       </section>
     </main>
 
@@ -181,6 +193,24 @@ const features = [
       }
       .footer a { color: var(--muted); }
       .footer a:hover { color: var(--text); }
+
+      .btn-lg { padding: 0.85rem 1.55rem; font-size: 1.05rem; }
+
+      .closing {
+        text-align: center; padding: 4rem 1.5rem 1.25rem;
+        border-top: 1px solid var(--border);
+      }
+      .closing h2 {
+        font-size: clamp(1.5rem, 3.5vw, 2.2rem); margin: 0 0 0.5rem;
+        letter-spacing: -0.02em; font-weight: 800;
+      }
+      .closing p { color: var(--muted); margin: 0 0 1.6rem; }
+
+      .operators {
+        text-align: center; padding: 1.25rem 1.5rem 3.5rem;
+        color: var(--muted); font-size: 0.95rem;
+      }
+      .operators p { max-width: 560px; margin: 0 auto; }
     </style>
   </body>
 </html>

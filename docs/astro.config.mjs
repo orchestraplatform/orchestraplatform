@@ -36,6 +36,8 @@ export default defineConfig({
         },
       ],
       // Docs live under /docs (the apex root is the marketing landing page).
+      // Audience: people who deploy, operate, and build Orchestra
+      // (installers, instance maintainers, developers) — not workshop end-users.
       sidebar: [
         {
           label: 'Getting Started',
@@ -45,46 +47,35 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Deployment',
+          items: [
+            { label: 'Helm Chart', link: '/docs/deployment/helm/' },
+            { label: 'Ingress Controller', link: '/docs/deployment/ingress/' },
+            { label: 'GCP Autopilot', link: '/docs/deployment/gcp/' },
+            { label: 'oauth2-proxy', link: '/docs/deployment/oauth2-proxy/' },
+          ],
+        },
+        {
+          label: 'Operating an Instance',
+          items: [
+            { label: 'Configuring Workshop Images', link: '/docs/user-guide/configuring-images/' },
+          ],
+        },
+        {
           label: 'Architecture',
           items: [
             { label: 'Platform Overview', link: '/docs/architecture/platform-overview/' },
             { label: 'Domain Structure', link: '/docs/architecture/domain-structure/' },
             { label: 'Data Model', link: '/docs/architecture/data-model/' },
-            { label: 'Components', link: '/docs/architecture/components/' },
             { label: 'Authentication', link: '/docs/architecture/authentication/' },
             { label: 'Authorization', link: '/docs/architecture/authorization/' },
           ],
         },
         {
-          label: 'User Guide',
+          label: 'Development',
           items: [
-            { label: 'Creating Workshops', link: '/docs/user-guide/creating-workshops/' },
-            { label: 'Managing Workshops', link: '/docs/user-guide/managing-workshops/' },
-            { label: 'Configuring a Workshop Image', link: '/docs/user-guide/configuring-images/' },
-          ],
-        },
-        {
-          label: 'API Reference',
-          items: [
-            { label: 'REST API', link: '/docs/api/rest-api/' },
-            { label: 'Kubernetes CRDs', link: '/docs/api/crds/' },
-          ],
-        },
-        {
-          label: 'Deployment',
-          items: [
-            { label: 'Helm Install', link: '/docs/deployment/helm/' },
-            { label: 'Ingress Controller Guide', link: '/docs/deployment/ingress/' },
-            { label: 'GCP Autopilot', link: '/docs/deployment/gcp/' },
-            { label: 'oauth2-proxy Setup', link: '/docs/deployment/oauth2-proxy/' },
-          ],
-        },
-        {
-          label: 'Contributing',
-          items: [
-            { label: 'Testing Guide', link: '/docs/contributing/testing/' },
-            { label: 'Contributing', link: '/docs/development/contributing/' },
             { label: 'Local Development', link: '/docs/development/local-development/' },
+            { label: 'Testing', link: '/docs/contributing/testing/' },
           ],
         },
         {
