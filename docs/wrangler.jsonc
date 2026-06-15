@@ -3,11 +3,12 @@
   // Pure static — Astro builds to ./dist and Cloudflare serves it directly
   // (no `main` Worker script, no Astro Cloudflare adapter needed).
   //
-  // Deploy is driven by Cloudflare Workers Builds (Git-connected). Dashboard
-  // settings to use when connecting this repo:
-  //   • Root directory:  docs
-  //   • Build command:   npm ci && npm run build
-  //   • Deploy command:  npx wrangler deploy   (Workers Builds default)
+  // Deploy is driven by Cloudflare Workers Builds (Git-connected). This is a
+  // monorepo and Workers Builds runs from the repo ROOT (no root-directory
+  // option), so the commands must cd into docs/ (where this config + the
+  // package.json live). Dashboard settings:
+  //   • Build command:   cd docs && npm ci && npm run build
+  //   • Deploy command:  cd docs && npx wrangler deploy
   //   • Custom domain:   orchestraplatform.org (apex) — add under the Worker's
   //                      Domains & Routes; Cloudflare provisions DNS + TLS since
   //                      the zone is already on Cloudflare. app./api./*. stay on
