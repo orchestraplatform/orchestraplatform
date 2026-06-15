@@ -56,3 +56,8 @@ temp/
 # Project Specific
 .netlify/
 .claude
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
