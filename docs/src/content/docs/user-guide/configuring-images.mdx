@@ -1,0 +1,134 @@
+---
+title: Configuring a Workshop Image
+description: Use a stock RStudio/Bioconductor or JupyterLab image as-is by setting a template's port, env, and args — no custom image build required.
+---
+
+import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Orchestra runs each workshop session behind two authentication layers, so the
+application inside the pod must start **unauthenticated**. You don't need to
+build a custom image for this — point a template at a stock upstream image and
+configure it with the template's **App Port**, **Environment variables**, and
+**Container args** fields.
+
+## The no-auth contract
+
+Every session is fronted by **oauth2-proxy** (at the ingress, establishes who
+the user is) and the per-pod **Orchestra sidecar** (enforces session ownership).
+By the time a request reaches your app, it's already authenticated. If the app
+also requires a login, participants get a confusing second prompt — and in the
+proxied setup they often can't satisfy it (e.g. a JupyterLab token they never
+see). So the app must:
+
+1. start with its own auth **disabled**, and
+2. listen on a single HTTP port, set as the template's **App Port** (the sidecar
+   proxies to `http://localhost:<port>`).
+
+<Aside type="caution">
+These settings make the app unauthenticated *inside the pod*. That's safe only
+because oauth2-proxy and the sidecar guard the front door. Never expose such an
+image directly.
+</Aside>
+
+## The fields
+
+- **App Port** — the port the app listens on. RStudio: `8787`. JupyterLab: `8888`.
+- **Environment variables** — one `KEY=value` per line. Merged on top of the
+  operator's defaults (`DISABLE_AUTH`, `ROOT`), with your values winning.
+- **Container args** — one argument per line. **Replaces the image's default
+  command (CMD)** while keeping its entrypoint.
+
+<Aside type="caution" title="Two rules for the args box">
+1. **No quotes.** There's no shell — each line is passed literally. Write
+   `--ServerApp.token=` (empty value), *not* `--ServerApp.token=''` (which sets
+   the token to the two characters `''`).
+2. **Re-include the launcher first.** Because args replace the image's CMD, the
+   first line must be the image's launch command, or the container will try to
+   exec a flag and crash-loop.
+</Aside>
+
+## Recipes
+
+<Tabs>
+<TabItem label="RStudio / Bioconductor">
+
+Stock `rocker/rstudio` and `bioconductor/bioconductor_docker` images work with
+**no env or args** — the operator already injects `DISABLE_AUTH=true` and
+`ROOT=true`, which rocker honors to skip the login.
+
+- **App Port:** `8787`
+- **Environment variables:** *(empty)*
+- **Container args:** *(empty)*
+
+To re-enable the RStudio login for some reason, override the default:
+
+```
+DISABLE_AUTH=false
+```
+
+</TabItem>
+<TabItem label="JupyterLab">
+
+Stock docker-stacks images (`quay.io/jupyter/base-notebook`, `minimal-notebook`,
+`scipy-notebook`, …) need args to disable the token and accept proxied requests.
+
+- **App Port:** `8888`
+- **Container args:**
+
+```
+start-notebook.py
+--IdentityProvider.token=
+--ServerApp.token=
+--ServerApp.password=
+--ServerApp.allow_origin=*
+--ServerApp.trust_xheaders=True
+--ServerApp.disable_check_xsrf=True
+--ServerApp.ip=0.0.0.0
+```
+
+Why each line:
+- `start-notebook.py` — the image's launcher; must be first (args replace CMD).
+- `--IdentityProvider.token=` / `--ServerApp.token=` / `--ServerApp.password=` —
+  empty values disable the login.
+- `--ServerApp.allow_origin=*`, `--trust_xheaders=True`, `--disable_check_xsrf=True`
+  — let proxied XHR/WebSocket requests through; token-disable alone isn't enough
+  behind a reverse proxy.
+- `--ServerApp.ip=0.0.0.0` — bind all interfaces so the sidecar can reach it.
+
+<Aside type="tip">
+The launcher name depends on the image age: current docker-stacks use
+`start-notebook.py`; images built before ~mid-2023 use `start-notebook.sh`.
+Check yours with `docker inspect <image> --format '{{.Config.Cmd}}'`.
+</Aside>
+
+</TabItem>
+</Tabs>
+
+## Verifying
+
+<Steps>
+
+1. Save the template, then launch a session from it.
+
+2. Confirm the spec carries your values:
+
+   ```sh
+   kubectl get workshop <name> -o jsonpath='{.spec.port} {.spec.env} {.spec.args}{"\n"}'
+   ```
+
+3. Confirm the app container got them, and the sidecar targets the right port:
+
+   ```sh
+   kubectl get pod <pod> -o jsonpath='{range .spec.containers[*]}{.name}: env={.env[*].name} args={.args}{"\n"}{end}'
+   ```
+
+4. Open the session URL — you should land directly in RStudio/JupyterLab with no
+   in-app login prompt (oauth2-proxy still guards the front door).
+
+</Steps>
+
+## Anything else
+
+The contract is image-agnostic. Any image works as long as it can start without
+authentication and listen on one HTTP port — set that port as **App Port**, and
+use **env**/**args** to turn off whatever login it ships with.

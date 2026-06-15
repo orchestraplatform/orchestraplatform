@@ -58,6 +58,7 @@ export default defineConfig({
           items: [
             { label: 'Creating Workshops', link: '/user-guide/creating-workshops/' },
             { label: 'Managing Workshops', link: '/user-guide/managing-workshops/' },
+            { label: 'Configuring a Workshop Image', link: '/user-guide/configuring-images/' },
           ],
         },
         {
