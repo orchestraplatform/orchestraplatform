@@ -85,6 +85,7 @@ export default defineConfig({
             { label: 'ADR-0002: spec.owner on CRD', link: '/docs/adr/0002-spec-owner-on-crd/' },
             { label: 'ADR-0003: Helm install method', link: '/docs/adr/0003-helm-as-install-method/' },
             { label: 'ADR-0004: Template/instance split', link: '/docs/adr/0004-template-instance-split/' },
+            { label: 'ADR-0005: GKE Standard tenant pools', link: '/docs/adr/0005-gke-standard-tenant-pools/' },
           ],
         },
       ],
