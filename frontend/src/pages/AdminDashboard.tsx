@@ -49,7 +49,7 @@ export function AdminDashboard() {
   const [sortField, setSortField] = useState<SortField>('launchedAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
-  const instances = data?.items ?? [];
+  const instances = useMemo(() => data?.items ?? [], [data]);
 
   const stats = useMemo(() => ({
     total:       instances.length,
