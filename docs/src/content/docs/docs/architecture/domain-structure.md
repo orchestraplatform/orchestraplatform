@@ -9,7 +9,14 @@ The Orchestra Platform is organized around a clear, hierarchical domain structur
 
 ## Primary Domain
 
-**orchestraplatform.org** serves as the root domain for the entire platform ecosystem.
+The base domain is **configurable**: set `global.domain` in the Helm chart and every
+hostname below derives from it — `app.<domain>`, `api.<domain>`, and `*.<domain>` for
+workshop sessions. The examples on this page use **orchestraplatform.org** (the
+reference deployment); substitute your own domain.
+
+> The `app.` and `api.` prefixes are fixed — you configure the base domain, not the
+> individual subdomain names. The oauth2-proxy `redirect-url` / `cookie-domain` values
+> and the Google OAuth console redirect URI must be set to match your domain.
 
 ## Subdomain Architecture
 

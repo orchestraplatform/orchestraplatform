@@ -5,7 +5,10 @@ description: Complete architectural overview of the Orchestra Platform domain st
 
 ## Domain Structure
 
-The Orchestra Platform uses a hierarchical domain structure built around **orchestraplatform.org** to provide a comprehensive bioinformatics and data science learning environment.
+The Orchestra Platform uses a hierarchical domain structure built around a single
+**configurable base domain** (`global.domain` in the Helm chart). The examples here use
+**orchestraplatform.org** — the reference deployment — but your instance uses whatever
+base domain you set; `app.`, `api.`, and the workshop session subdomains all derive from it.
 
 See [Domain Structure](../domain-structure/) for details on subdomains and workshop URLs.
 

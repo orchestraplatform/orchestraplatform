@@ -17,6 +17,27 @@ this page just orients you.
 - An **ingress controller** (Orchestra is tested with Traefik) and, for real domains, **cert-manager** for TLS.
 - A **Google OAuth client** for login (see [oauth2-proxy Setup](/docs/deployment/oauth2-proxy/)).
 
+## Hostnames
+
+Orchestra is **not tied to `orchestraplatform.org`** — that's just the reference
+deployment. You pick your own base domain with a single value:
+
+```sh
+--set global.domain=orchestra.example.edu
+```
+
+Everything derives from it: `app.<domain>` (dashboard), `api.<domain>` (API), and
+`*.<domain>` (one subdomain per workshop session). Two things must be set to **match**
+your domain, since they aren't auto-derived:
+
+- the oauth2-proxy `redirect-url` / `cookie-domain` / `whitelist-domain` values, and
+- the **Google OAuth console** authorized redirect URI: `https://app.<domain>/oauth2/callback`.
+
+<Aside type="note">
+The `app.` and `api.` prefixes are fixed by the chart templates — you configure the
+base domain, not the individual subdomain names.
+</Aside>
+
 <Tabs>
 <TabItem label="Local (evaluation)">
 
