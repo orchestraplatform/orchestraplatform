@@ -21,7 +21,18 @@ orchestraplatform/
 
 ## Key open work
 
-- [GH-1](https://github.com/orchestraplatform/orchestraplatform/issues/1) — Alex Mahmoud needs orientation on the monorepo structure and Galaxy migration path. Follow-up on this.
+- ADR-0006 (git-managed YAML workshop templates) — all six phases merged to
+  `main`. JupyterLab (`jupyter`) and Bioconductor RStudio (`rstudio`) templates
+  ship in `deploy/charts/orchestra/files/templates/`.
+- Local template rehearsal: `just rehearse-check` (no-cluster smoke checks) +
+  the printed runbook validate catalog → launch → ready → connect via `just dev`.
+- [#27](https://github.com/orchestraplatform/orchestraplatform/issues/27) —
+  optional bundled Postgres subchart for dev/test installs.
+- [#28](https://github.com/orchestraplatform/orchestraplatform/issues/28) —
+  Helm chart hardcodes the operator ingress entrypoint to `websecure` and omits
+  `ORCHESTRA_INGRESS_PORT`, so a pure-Helm install can't route sessions on a
+  local NodePort — the rehearsal uses `just dev` instead.
+- Next: run the rehearsal, then the GKE Standard migration (ADR-0005).
 
 ## Context
 
