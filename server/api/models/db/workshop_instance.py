@@ -59,9 +59,6 @@ class WorkshopInstance(Base):
         onupdate=lambda: datetime.now(UTC),
     )
 
-    workshop: Mapped["Workshop"] = relationship(  # noqa: F821
-        "Workshop", back_populates="instances"
-    )
     events: Mapped[list["InstanceEvent"]] = relationship(
         "InstanceEvent", back_populates="instance", order_by="InstanceEvent.recorded_at"
     )

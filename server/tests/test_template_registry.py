@@ -1,17 +1,15 @@
-"""Tests for the in-memory template registry and source/guard dependencies."""
+"""Tests for the in-memory template registry and the reader dependency."""
 
 import uuid
 
 import pytest
 import yaml
-from fastapi import HTTPException
 
-from api.routes.templates import forbid_when_git_managed, get_template_reader
+from api.routes.templates import get_template_reader
 from api.services.template_registry import (
     TemplateRegistry,
     stable_template_id,
 )
-from api.services.workshop_template_service import WorkshopTemplateService
 
 _RSTUDIO = {
     "name": "RStudio",
@@ -42,11 +40,6 @@ def templates_dir(tmp_path):
     _write(tmp_path, "rstudio.yaml", _RSTUDIO)
     _write(tmp_path, "jupyter-old.yaml", _RETIRED)
     return tmp_path
-
-
-class FakeSettings:
-    def __init__(self, use_file_templates: bool):
-        self.use_file_templates = use_file_templates
 
 
 class TestRegistryLoading:
@@ -90,36 +83,14 @@ class TestRegistryLoading:
         assert reg._by_slug == {}
 
 
-class TestSourceAndGuardDependencies:
-    def test_reader_is_registry_in_file_mode(self, templates_dir):
+class TestReaderDependency:
+    def test_reader_returns_the_registry(self, templates_dir):
         from api.services import template_registry
 
         # Seed the process-wide registry so get_registry() returns ours.
         reg = TemplateRegistry.from_dir(templates_dir)
         template_registry._registry = reg
         try:
-            reader = get_template_reader(
-                settings=FakeSettings(use_file_templates=True),
-                svc=WorkshopTemplateService(),
-            )
-            assert reader is reg
+            assert get_template_reader() is reg
         finally:
             template_registry.reset_registry()
-
-    def test_reader_is_db_service_in_db_mode(self):
-        svc = WorkshopTemplateService()
-        reader = get_template_reader(
-            settings=FakeSettings(use_file_templates=False), svc=svc
-        )
-        assert reader is svc
-
-    def test_guard_blocks_in_file_mode(self):
-        with pytest.raises(HTTPException) as exc:
-            forbid_when_git_managed(settings=FakeSettings(use_file_templates=True))
-        assert exc.value.status_code == 409
-
-    def test_guard_allows_in_db_mode(self):
-        assert (
-            forbid_when_git_managed(settings=FakeSettings(use_file_templates=False))
-            is None
-        )

@@ -1,268 +1,127 @@
-"""Tests for workshop template API endpoints (/templates/)."""
+"""Tests for the read-only, registry-backed template routes (ADR-0006).
+
+Templates are git-managed YAML served from the in-memory registry; there are no
+create/update/delete endpoints. These tests wire a registry of known templates
+into the app and exercise list / get / launch.
+"""
 
 import uuid
-from contextlib import contextmanager
 from datetime import UTC, datetime
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
-from api.models.schemas.workshop_template import (
-    WorkshopTemplateResponse,
-)
+import pytest
+from fastapi.testclient import TestClient
+
+from api.core.auth import CurrentUser, get_current_user
+from api.core.database import get_db
+from api.models.schemas.workshop_instance import WorkshopInstanceResponse
+from api.models.schemas.workshop_template import WorkshopTemplateResponse
 from api.models.workshop import WorkshopResources
-from api.services.workshop_template_service import get_template_service
+from api.routes.templates import get_template_reader
+from api.services.template_registry import TemplateRegistry, stable_template_id
+from api.services.workshop_instance_service import get_instance_service
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
-
-TEMPLATE_ID = uuid.uuid4()
 NOW = datetime.now(UTC)
 
-MOCK_TEMPLATE = WorkshopTemplateResponse(
-    id=TEMPLATE_ID,
-    name="Standard RStudio",
-    slug="rstudio",
-    description="Default RStudio environment",
-    image="rocker/rstudio:latest",
-    defaultDuration="4h",
-    resources=WorkshopResources(),
-    storage=None,
-    isActive=True,
-    createdBy="admin@test.example.com",
-    createdAt=NOW,
-    updatedAt=NOW,
+
+def _template(slug: str, *, enabled: bool = True) -> WorkshopTemplateResponse:
+    return WorkshopTemplateResponse(
+        id=stable_template_id(slug),
+        name=slug.title(),
+        slug=slug,
+        image=f"example/{slug}:latest",
+        defaultDuration="4h",
+        port=8787,
+        tier="small",
+        resources=WorkshopResources(),
+        isActive=enabled,
+        createdBy="git",
+        createdAt=NOW,
+        updatedAt=NOW,
+    )
+
+
+_REGISTRY = TemplateRegistry(
+    [_template("rstudio"), _template("jupyter", enabled=False)]
 )
 
 
-def _make_template_svc(**overrides) -> MagicMock:
-    """Build a MagicMock WorkshopTemplateService with sensible defaults."""
-    svc = MagicMock()
-    svc.list_templates = AsyncMock(return_value=([MOCK_TEMPLATE], 1))
-    svc.get_template = AsyncMock(return_value=MOCK_TEMPLATE)
-    svc.get_template_by_slug = AsyncMock(return_value=None)
-    svc.create_template = AsyncMock(return_value=MOCK_TEMPLATE)
-    svc.update_template = AsyncMock(return_value=MOCK_TEMPLATE)
-    svc.archive_template = AsyncMock(return_value=True)
-    for key, val in overrides.items():
-        setattr(svc, key, val)
-    return svc
-
-
-@contextmanager
-def _override_template_svc(**overrides):
-    """Override the get_template_service dependency for the duration of the block."""
+@pytest.fixture
+def client(_mock_k8s_startup):
     from main import app
 
-    svc = _make_template_svc(**overrides)
-    app.dependency_overrides[get_template_service] = lambda: svc
-    try:
-        yield svc
-    finally:
-        app.dependency_overrides.pop(get_template_service, None)
-
-
-# ── List ──────────────────────────────────────────────────────────────────────
-
-
-def test_list_templates_returns_200(client):
-    with _override_template_svc():
-        response = client.get("/templates/")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["total"] == 1
-    assert data["items"][0]["slug"] == "rstudio"
-
-
-def test_list_templates_empty(client):
-    with _override_template_svc(list_templates=AsyncMock(return_value=([], 0))):
-        response = client.get("/templates/")
-    assert response.status_code == 200
-    assert response.json()["items"] == []
-
-
-def test_list_without_auth_returns_401(client):
-    """Unauthenticated requests are rejected before reaching the service."""
-    from fastapi import HTTPException
-
-    from api.core.auth import get_current_user
-    from main import app
-
-    app.dependency_overrides[get_current_user] = lambda: (_ for _ in ()).throw(
-        HTTPException(status_code=401)
+    app.dependency_overrides[get_current_user] = lambda: CurrentUser(
+        email="alice@test.example.com", is_admin=False
     )
-    try:
-        response = client.get("/templates/")
-        assert response.status_code == 401
-    finally:
-        app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides[get_db] = lambda: AsyncMock()
+    app.dependency_overrides[get_template_reader] = lambda: _REGISTRY
+    with TestClient(app) as c:
+        yield c
+    for dep in (get_current_user, get_db, get_template_reader):
+        app.dependency_overrides.pop(dep, None)
 
 
-# ── Create (admin only) ───────────────────────────────────────────────────────
+class TestListAndGet:
+    def test_list_returns_active_only_for_user(self, client):
+        resp = client.get("/templates/")
+        assert resp.status_code == 200
+        slugs = [t["slug"] for t in resp.json()["items"]]
+        assert slugs == ["rstudio"]  # jupyter is disabled
+
+    def test_get_by_id_found(self, client):
+        resp = client.get(f"/templates/{stable_template_id('rstudio')}")
+        assert resp.status_code == 200
+        assert resp.json()["slug"] == "rstudio"
+        assert resp.json()["tier"] == "small"
+
+    def test_get_unknown_id_404(self, client):
+        resp = client.get(f"/templates/{uuid.uuid4()}")
+        assert resp.status_code == 404
 
 
-def test_create_template_as_admin_returns_201(admin_client):
-    payload = {
-        "name": "Standard RStudio",
-        "slug": "rstudio",
-        "image": "rocker/rstudio:latest",
-        "defaultDuration": "4h",
-        "resources": {},
-    }
-    with _override_template_svc():
-        response = admin_client.post("/templates/", json=payload)
-    assert response.status_code == 201
-    assert response.json()["slug"] == "rstudio"
+class TestImperativeEndpointsRemoved:
+    def test_create_is_gone(self, client):
+        # POST /templates/ no longer exists -> 405 Method Not Allowed.
+        resp = client.post("/templates/", json={"name": "x", "slug": "x"})
+        assert resp.status_code == 405
+
+    def test_delete_is_gone(self, client):
+        resp = client.delete(f"/templates/{stable_template_id('rstudio')}")
+        assert resp.status_code == 405
 
 
-def test_create_template_as_non_admin_returns_403(client):
-    payload = {"name": "Test", "slug": "test", "image": "img:latest"}
-    with _override_template_svc():
-        response = client.post("/templates/", json=payload)
-    assert response.status_code == 403
+class TestLaunch:
+    def test_launch_active_template(self, client):
+        from main import app
 
-
-def test_create_template_duplicate_slug_returns_409(admin_client):
-    with _override_template_svc(
-        get_template_by_slug=AsyncMock(return_value=MOCK_TEMPLATE)
-    ):
-        response = admin_client.post(
-            "/templates/",
-            json={"name": "Dupe", "slug": "rstudio", "image": "img:latest"},
+        instance = WorkshopInstanceResponse(
+            id=uuid.uuid4(),
+            workshopId=stable_template_id("rstudio"),
+            workshopName="Rstudio",
+            templateSlug="rstudio",
+            k8sName="rstudio-abc123",
+            namespace="default",
+            ownerEmail="alice@test.example.com",
+            phase="Pending",
+            durationRequested="4h",
+            launchedAt=NOW,
+            createdAt=NOW,
+            updatedAt=NOW,
         )
-    assert response.status_code == 409
-
-
-# ── Slug validation ───────────────────────────────────────────────────────────
-
-
-class TestTemplateSlugValidation:
-    def test_uppercase_slug_rejected(self, admin_client):
-        response = admin_client.post(
-            "/templates/", json={"name": "X", "slug": "MySlug", "image": "img:latest"}
-        )
-        assert response.status_code == 422
-
-    def test_leading_dash_slug_rejected(self, admin_client):
-        response = admin_client.post(
-            "/templates/", json={"name": "X", "slug": "-bad", "image": "img:latest"}
-        )
-        assert response.status_code == 422
-
-    def test_trailing_dash_slug_rejected(self, admin_client):
-        response = admin_client.post(
-            "/templates/", json={"name": "X", "slug": "bad-", "image": "img:latest"}
-        )
-        assert response.status_code == 422
-
-    def test_slug_over_40_chars_rejected(self, admin_client):
-        long_slug = "a" * 41
-        response = admin_client.post(
-            "/templates/", json={"name": "X", "slug": long_slug, "image": "img:latest"}
-        )
-        assert response.status_code == 422
-
-    def test_valid_slug_accepted(self, admin_client):
-        with _override_template_svc():
-            response = admin_client.post(
-                "/templates/",
-                json={"name": "Valid", "slug": "my-rstudio-01", "image": "img:latest"},
+        svc = AsyncMock()
+        svc.launch = AsyncMock(return_value=instance)
+        app.dependency_overrides[get_instance_service] = lambda: svc
+        try:
+            resp = client.post(
+                f"/templates/{stable_template_id('rstudio')}/launch", json={}
             )
-        assert response.status_code == 201
+            assert resp.status_code == 201
+            assert resp.json()["templateSlug"] == "rstudio"
+        finally:
+            app.dependency_overrides.pop(get_instance_service, None)
 
-
-# ── Get ───────────────────────────────────────────────────────────────────────
-
-
-def test_get_template_returns_200(client):
-    with _override_template_svc():
-        response = client.get(f"/templates/{TEMPLATE_ID}")
-    assert response.status_code == 200
-    assert response.json()["id"] == str(TEMPLATE_ID)
-
-
-def test_get_template_not_found_returns_404(client):
-    with _override_template_svc(get_template=AsyncMock(return_value=None)):
-        response = client.get(f"/templates/{uuid.uuid4()}")
-    assert response.status_code == 404
-
-
-# ── Update (admin only) ───────────────────────────────────────────────────────
-
-
-def test_update_template_as_admin_returns_200(admin_client):
-    with _override_template_svc():
-        response = admin_client.put(
-            f"/templates/{TEMPLATE_ID}", json={"name": "Renamed"}
+    def test_launch_disabled_template_404(self, client):
+        resp = client.post(
+            f"/templates/{stable_template_id('jupyter')}/launch", json={}
         )
-    assert response.status_code == 200
-
-
-def test_update_template_as_non_admin_returns_403(client):
-    with _override_template_svc():
-        response = client.put(f"/templates/{TEMPLATE_ID}", json={"name": "X"})
-    assert response.status_code == 403
-
-
-# ── Delete (admin only) ───────────────────────────────────────────────────────
-
-
-def test_archive_template_soft_by_default(admin_client):
-    with _override_template_svc(archive_template=AsyncMock(return_value=True)):
-        response = admin_client.delete(f"/templates/{TEMPLATE_ID}")
-    assert response.status_code == 204
-
-
-def test_archive_template_hard(admin_client):
-    with _override_template_svc() as svc:
-        response = admin_client.delete(f"/templates/{TEMPLATE_ID}?hard=true")
-    assert response.status_code == 204
-    svc.archive_template.assert_called_once_with(ANY, TEMPLATE_ID, hard_delete=True)
-
-
-def test_archive_template_as_non_admin_returns_403(client):
-    with _override_template_svc():
-        response = client.delete(f"/templates/{TEMPLATE_ID}")
-    assert response.status_code == 403
-
-
-def test_archive_template_not_found_returns_404(admin_client):
-    with _override_template_svc(archive_template=AsyncMock(return_value=False)):
-        response = admin_client.delete(f"/templates/{uuid.uuid4()}")
-    assert response.status_code == 404
-
-
-# ── Pagination ────────────────────────────────────────────────────────────────
-
-
-class TestPagination:
-    def _make_templates(self, n: int) -> list[WorkshopTemplateResponse]:
-        return [
-            WorkshopTemplateResponse(
-                id=uuid.uuid4(),
-                name=f"Template {i}",
-                slug=f"tmpl-{i:02d}",
-                description=None,
-                image="rocker/rstudio:latest",
-                defaultDuration="4h",
-                resources=WorkshopResources(),
-                storage=None,
-                isActive=True,
-                createdBy="admin@test.example.com",
-                createdAt=NOW,
-                updatedAt=NOW,
-            )
-            for i in range(n)
-        ]
-
-    def test_size_over_100_rejected(self, client):
-        response = client.get("/templates/?size=101")
-        assert response.status_code == 422
-
-    def test_pagination_params_forwarded(self, client):
-        templates = self._make_templates(10)
-        page3 = templates[6:9]
-        with _override_template_svc(list_templates=AsyncMock(return_value=(page3, 10))):
-            response = client.get("/templates/?page=3&size=3")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 10
-        assert data["page"] == 3
-        assert len(data["items"]) == 3
+        assert resp.status_code == 404

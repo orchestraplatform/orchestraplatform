@@ -61,6 +61,7 @@ dev-server:
     ORCHESTRA_REQUIRE_AUTHENTICATION=false \
     ORCHESTRA_DEV_IDENTITY=admin@example.com \
     ORCHESTRA_ADMIN_EMAILS='["admin@example.com"]' \
+    ORCHESTRA_TEMPLATES_DIR=../deploy/charts/orchestra/files/templates \
     uv run python -m uvicorn main:app --reload --host 0.0.0.0 --port {{ api_port }}
 
 # Run the frontend development server

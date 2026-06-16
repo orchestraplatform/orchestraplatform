@@ -56,13 +56,13 @@ api:
   requireAuthentication: true
 
   # ── Git-managed workshop templates (ADR-0006) ─────────────────────────────
-  # When enabled, the catalog is served from the YAML files in
-  # files/templates/ (projected into a ConfigMap and mounted at mountPath)
-  # instead of the database, and the imperative template API returns 409.
-  # The API pods roll automatically when a template file changes. Off by
-  # default; production overlays (values-prod.yaml) opt in.
+  # The catalog is served from the YAML files in files/templates/, projected
+  # into a ConfigMap and mounted at mountPath; the API loads them into an
+  # in-memory registry. The API pods roll automatically when a template file
+  # changes. Enabled by default — this is how templates reach the API. Disable
+  # only if you mount the templates some other way at mountPath.
   fileTemplates:
-    enabled: false
+    enabled: true
     mountPath: /etc/orchestra/templates
 
   # ── Database ──────────────────────────────────────────────────────────────
