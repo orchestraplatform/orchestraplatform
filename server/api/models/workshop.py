@@ -1,8 +1,9 @@
 """Pydantic models for workshop API."""
 
 import re
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -101,6 +102,11 @@ class WorkshopCreate(BaseModel):
         description="Container args, replacing the image's default CMD "
         "(e.g. JupyterLab launch flags). Leave empty to use the image default.",
     )
+    tier: Literal["small", "large"] = Field(
+        default="small",
+        description="Tenant node-pool tier. The operator maps this to "
+        "nodeSelector/tolerations when tenant pools are enabled (ADR-0005/0006).",
+    )
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
     ingress: WorkshopIngress | None = Field(default=None)
@@ -157,5 +163,3 @@ class WorkshopResponse(BaseModel):
     status: WorkshopStatus | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
-
-

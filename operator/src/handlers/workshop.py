@@ -88,6 +88,7 @@ async def workshop_create_handler(
         duration = spec.get("duration", "4h")
         image = spec.get("image", settings.default_workshop_image)
         port = spec.get("port", 8787)
+        tier = spec.get("tier")
         env = spec.get("env") or {}
         args = spec.get("args") or None
         resources = spec.get("resources", {})
@@ -111,27 +112,41 @@ async def workshop_create_handler(
                 lambda: k8s_core_v1.create_namespaced_persistent_volume_claim(
                     namespace=namespace, body=pvc
                 ),
-                "PVC", workshop_name,
+                "PVC",
+                workshop_name,
             )
 
         require_auth = bool(settings.auth_middleware or settings.oauth2_proxy_auth_url)
         deployment = create_rstudio_deployment(
-            workshop_name, namespace, image, owner_email, resources, storage,
-            require_auth=require_auth, port=port, env=env, args=args,
+            workshop_name,
+            namespace,
+            image,
+            owner_email,
+            resources,
+            storage,
+            require_auth=require_auth,
+            port=port,
+            env=env,
+            args=args,
+            tier=tier,
         )
         deployment.metadata.owner_references = [owner_ref]
         _create_or_ignore(
             lambda: k8s_apps_v1.create_namespaced_deployment(
                 namespace=namespace, body=deployment
             ),
-            "Deployment", workshop_name,
+            "Deployment",
+            workshop_name,
         )
 
         service = create_workshop_service(workshop_name, namespace)
         service.metadata.owner_references = [owner_ref]
         _create_or_ignore(
-            lambda: k8s_core_v1.create_namespaced_service(namespace=namespace, body=service),
-            "Service", workshop_name,
+            lambda: k8s_core_v1.create_namespaced_service(
+                namespace=namespace, body=service
+            ),
+            "Service",
+            workshop_name,
         )
 
         local_auth_middleware: str | None = None
@@ -142,24 +157,34 @@ async def workshop_create_handler(
             middleware["metadata"]["ownerReferences"] = [owner_ref_dict]
             _create_or_ignore(
                 lambda: k8s_custom_objects_v1.create_namespaced_custom_object(
-                    group="traefik.io", version="v1alpha1",
-                    namespace=namespace, plural="middlewares", body=middleware,
+                    group="traefik.io",
+                    version="v1alpha1",
+                    namespace=namespace,
+                    plural="middlewares",
+                    body=middleware,
                 ),
-                "Middleware", workshop_name,
+                "Middleware",
+                workshop_name,
             )
             local_auth_middleware = f"{workshop_name}-auth"
 
         ingress = create_workshop_ingress(
-            workshop_name, namespace, ingress_config,
+            workshop_name,
+            namespace,
+            ingress_config,
             auth_middleware_override=local_auth_middleware,
         )
         ingress["metadata"]["ownerReferences"] = [owner_ref_dict]
         _create_or_ignore(
             lambda: k8s_custom_objects_v1.create_namespaced_custom_object(
-                group="traefik.io", version="v1alpha1",
-                namespace=namespace, plural="ingressroutes", body=ingress,
+                group="traefik.io",
+                version="v1alpha1",
+                namespace=namespace,
+                plural="ingressroutes",
+                body=ingress,
             ),
-            "IngressRoute", workshop_name,
+            "IngressRoute",
+            workshop_name,
         )
         workshop_url = _ingress_url(ingress)
 

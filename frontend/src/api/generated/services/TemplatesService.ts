@@ -61,6 +61,18 @@ export class TemplatesService {
         });
     }
     /**
+     * List Template Stats
+     * Launch counts for all templates (available to all authenticated users).
+     * @returns TemplateStats Successful Response
+     * @throws ApiError
+     */
+    public static listTemplateStatsTemplatesStatsGet(): CancelablePromise<Array<TemplateStats>> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/templates/stats',
+        });
+    }
+    /**
      * Get Template
      * Get a workshop template by ID.
      * @param templateId
@@ -147,6 +159,27 @@ export class TemplatesService {
         return __request(OpenAPI, {
             method: 'PATCH',
             url: '/templates/{template_id}/toggle-active',
+            path: {
+                'template_id': templateId,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Clone Template
+     * Clone a template (admin only). The copy starts inactive for review before publishing.
+     * @param templateId
+     * @returns WorkshopTemplateResponse Successful Response
+     * @throws ApiError
+     */
+    public static cloneTemplateTemplatesTemplateIdClonePost(
+        templateId: string,
+    ): CancelablePromise<WorkshopTemplateResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/templates/{template_id}/clone',
             path: {
                 'template_id': templateId,
             },

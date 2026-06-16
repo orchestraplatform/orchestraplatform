@@ -26,6 +26,7 @@ def _to_response(row: Workshop) -> WorkshopTemplateResponse:
         image=row.image,
         defaultDuration=row.default_duration,
         port=row.port,
+        tier=row.tier,
         env=row.env or {},
         args=row.args or [],
         resources=row.resources,
@@ -95,6 +96,7 @@ class WorkshopTemplateService:
             image=data.image,
             default_duration=data.default_duration,
             port=data.port,
+            tier=data.tier,
             env=data.env or None,
             args=data.args or None,
             resources=data.resources.model_dump(by_alias=False),
@@ -121,16 +123,22 @@ class WorkshopTemplateService:
         if row is None:
             return None
 
-        if data.name is not None:
-            row.name = data.name
-        if data.description is not None:
-            row.description = data.description
-        if data.image is not None:
-            row.image = data.image
-        if data.default_duration is not None:
-            row.default_duration = data.default_duration
-        if data.port is not None:
-            row.port = data.port
+        # Scalar fields copied straight across when present in the patch.
+        for field in (
+            "name",
+            "description",
+            "image",
+            "default_duration",
+            "port",
+            "tier",
+            "tags",
+            "is_active",
+        ):
+            value = getattr(data, field)
+            if value is not None:
+                setattr(row, field, value)
+
+        # Fields needing transformation before persisting.
         if data.env is not None:
             row.env = data.env or None
         if data.args is not None:
@@ -139,10 +147,6 @@ class WorkshopTemplateService:
             row.resources = data.resources.model_dump(by_alias=False)
         if data.storage is not None:
             row.storage = data.storage.model_dump(by_alias=False)
-        if data.tags is not None:
-            row.tags = data.tags
-        if data.is_active is not None:
-            row.is_active = data.is_active
 
         await db.commit()
         await db.refresh(row)
@@ -183,7 +187,6 @@ class WorkshopTemplateService:
         await db.commit()
         return True
 
-
     async def clone_template(
         self,
         db: AsyncSession,
@@ -197,7 +200,9 @@ class WorkshopTemplateService:
             return None
 
         # Generate a unique slug by appending a random suffix to the original
-        import random, string
+        import random
+        import string
+
         suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=4))
         new_slug = f"{source.slug}-{suffix}"
 
@@ -208,6 +213,7 @@ class WorkshopTemplateService:
             image=source.image,
             default_duration=source.default_duration,
             port=source.port,
+            tier=source.tier,
             env=dict(source.env) if source.env else None,
             args=list(source.args) if source.args else None,
             resources=source.resources,

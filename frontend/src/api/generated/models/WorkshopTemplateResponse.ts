@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WorkshopResourceDefaults } from './WorkshopResourceDefaults';
-import type { WorkshopStorageDefaults } from './WorkshopStorageDefaults';
+import type { WorkshopResources } from './WorkshopResources';
+import type { WorkshopStorage } from './WorkshopStorage';
 /**
  * Response schema for a workshop template.
  */
@@ -17,12 +17,19 @@ export type WorkshopTemplateResponse = {
     port?: number;
     env?: Record<string, string>;
     args?: Array<string>;
-    resources: WorkshopResourceDefaults;
-    storage?: (WorkshopStorageDefaults | null);
-    tags: Array<string>;
+    tier?: WorkshopTemplateResponse.tier;
+    resources: WorkshopResources;
+    storage?: (WorkshopStorage | null);
+    tags?: Array<string>;
     isActive: boolean;
     createdBy: string;
     createdAt: string;
     updatedAt: string;
 };
+export namespace WorkshopTemplateResponse {
+    export enum tier {
+        SMALL = 'small',
+        LARGE = 'large',
+    }
+}
 

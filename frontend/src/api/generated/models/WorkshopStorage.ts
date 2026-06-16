@@ -3,15 +3,15 @@
 /* tslint:disable */
 /* eslint-disable */
 /**
- * Default storage configuration for a workshop template.
+ * Workshop storage configuration.
  */
-export type WorkshopStorageDefaults = {
+export type WorkshopStorage = {
     /**
-     * PVC size
+     * Storage size
      */
     size?: string;
     /**
-     * Storage class name
+     * Storage class name. Leave unset to use the cluster default.
      */
     storageClass?: (string | null);
 };

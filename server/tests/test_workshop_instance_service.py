@@ -121,6 +121,7 @@ def _template(**overrides) -> WorkshopTemplateResponse:
         "image": "rocker/rstudio:4.4",
         "defaultDuration": "4h",
         "port": 8787,
+        "tier": "large",
         "env": {"DISABLE_AUTH": "false"},
         "args": ["--www-port=8787"],
         "resources": WorkshopResources(),
@@ -178,6 +179,7 @@ async def test_launch_stamps_template_spec_onto_instance():
     spec = instance.resolved_spec
     assert spec["image"] == "rocker/rstudio:4.4"
     assert spec["port"] == 8787
+    assert spec["tier"] == "large"
     assert spec["duration"] == "2h"  # the launch override, not the template default
     assert spec["env"] == {"DISABLE_AUTH": "false"}
     assert spec["args"] == ["--www-port=8787"]

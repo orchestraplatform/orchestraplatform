@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WorkshopResourceDefaults } from './WorkshopResourceDefaults';
-import type { WorkshopStorageDefaults } from './WorkshopStorageDefaults';
+import type { WorkshopResources } from './WorkshopResources';
+import type { WorkshopStorage } from './WorkshopStorage';
 /**
  * Request body for updating a workshop template (admin only).
  */
@@ -15,8 +15,10 @@ export type WorkshopTemplateUpdate = {
     port?: (number | null);
     env?: (Record<string, string> | null);
     args?: (Array<string> | null);
-    resources?: (WorkshopResourceDefaults | null);
-    storage?: (WorkshopStorageDefaults | null);
+    tier?: ('small' | 'large' | null);
+    resources?: (WorkshopResources | null);
+    storage?: (WorkshopStorage | null);
+    tags?: (Array<string> | null);
     isActive?: (boolean | null);
 };
 
