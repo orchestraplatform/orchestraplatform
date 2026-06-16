@@ -58,7 +58,7 @@ def forbid_when_git_managed(settings=Depends(get_settings)) -> None:
     if settings.use_file_templates:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Templates are managed in git (deploy/templates); edit via a "
+            detail="Templates are managed in git; edit the YAML files via a "
             "pull request rather than the API.",
         )
 

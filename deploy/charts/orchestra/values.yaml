@@ -55,6 +55,16 @@ api:
   devIdentity: null
   requireAuthentication: true
 
+  # ── Git-managed workshop templates (ADR-0006) ─────────────────────────────
+  # When enabled, the catalog is served from the YAML files in
+  # files/templates/ (projected into a ConfigMap and mounted at mountPath)
+  # instead of the database, and the imperative template API returns 409.
+  # The API pods roll automatically when a template file changes. Off by
+  # default; production overlays (values-prod.yaml) opt in.
+  fileTemplates:
+    enabled: false
+    mountPath: /etc/orchestra/templates
+
   # ── Database ──────────────────────────────────────────────────────────────
   # Preferred: reference an existing Secret that contains the database URL.
   #   kubectl create secret generic orchestra-db \

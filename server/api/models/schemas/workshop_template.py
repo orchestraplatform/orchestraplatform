@@ -127,7 +127,7 @@ class WorkshopTemplateFile(WorkshopTemplateCreate):
 
     Extends the create payload with an ``enabled`` flag (the declarative
     replacement for the runtime ``isActive`` toggle). This is the validation
-    contract for ``deploy/templates/*.yaml`` and the source the in-memory
+    contract for the git-managed template files and the source the in-memory
     registry loads from. ``model_config`` is inherited (``populate_by_name``),
     so files may use either camelCase (``defaultDuration``) or snake_case.
     """

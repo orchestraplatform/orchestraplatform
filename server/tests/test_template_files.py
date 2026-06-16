@@ -13,7 +13,14 @@ from pydantic import ValidationError
 
 from api.models.schemas.workshop_template import WorkshopTemplateFile
 
-_TEMPLATES_DIR = pathlib.Path(__file__).parents[2] / "deploy" / "templates"
+_TEMPLATES_DIR = (
+    pathlib.Path(__file__).parents[2]
+    / "deploy"
+    / "charts"
+    / "orchestra"
+    / "files"
+    / "templates"
+)
 
 
 def _template_files() -> list[pathlib.Path]:

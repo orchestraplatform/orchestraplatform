@@ -1,0 +1,20 @@
+{{- if .Values.api.fileTemplates.enabled }}
+---
+# Git-managed workshop templates (ADR-0006). Each files/templates/*.yaml is
+# projected into this ConfigMap and mounted into the API pod, which loads them
+# into its in-memory registry at startup. The API Deployment carries a
+# checksum/templates annotation so editing a template triggers a rolling restart
+# on `helm upgrade`.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestra-workshop-templates
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "orchestra.labels" . | nindent 4 }}
+data:
+{{- range $path, $_ := .Files.Glob "files/templates/*.yaml" }}
+  {{ base $path }}: |-
+{{ $.Files.Get $path | indent 4 }}
+{{- end }}
+{{- end }}
