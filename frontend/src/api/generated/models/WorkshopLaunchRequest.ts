@@ -13,6 +13,6 @@ export type WorkshopLaunchRequest = {
     /**
      * Kubernetes namespace
      */
-    namespace?: string;
+    namespace?: (string | null);
 };
 

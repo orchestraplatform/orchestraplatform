@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useCreateTemplate, useUpdateTemplate } from '../../hooks/useTemplates';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import type { WorkshopTemplateResponse, WorkshopTemplateCreate, WorkshopTemplateUpdate } from '../../api/generated';
+import { WorkshopTemplateCreate } from '../../api/generated';
+import type { WorkshopTemplateResponse, WorkshopTemplateUpdate } from '../../api/generated';
 import { parseArgs, parseEnv, serializeArgs, serializeEnv } from '../../utils/envArgs';
 
 interface TemplateModalProps {
@@ -18,6 +19,7 @@ const DEFAULT_CREATE_VALUES: WorkshopTemplateCreate = {
   image: 'rocker/rstudio:latest',
   defaultDuration: '4h',
   port: 8787,
+  tier: WorkshopTemplateCreate.tier.SMALL,
   resources: {
     cpu: '1',
     memory: '2Gi',
@@ -48,6 +50,7 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
         image: template.image,
         defaultDuration: template.defaultDuration,
         port: template.port ?? DEFAULT_CREATE_VALUES.port,
+        tier: (template.tier as unknown as WorkshopTemplateCreate.tier) ?? DEFAULT_CREATE_VALUES.tier,
         resources: template.resources || DEFAULT_CREATE_VALUES.resources,
         storage: template.storage || DEFAULT_CREATE_VALUES.storage,
       });
@@ -177,6 +180,20 @@ export function TemplateModal({ isOpen, onClose, template }: TemplateModalProps)
               onChange={e => setFormData({ ...formData, storage: { size: e.target.value } })}
             />
           </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium" htmlFor="tier">Tenant Tier</label>
+          <select
+            id="tier"
+            title="Node-pool tier. Small = e2-medium pool; large = e2-standard-4 pool. Only affects scheduling when tenant pools are enabled (GKE Standard)."
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            value={formData.tier ?? WorkshopTemplateCreate.tier.SMALL}
+            onChange={e => setFormData({ ...formData, tier: e.target.value as WorkshopTemplateCreate.tier })}
+          >
+            <option value={WorkshopTemplateCreate.tier.SMALL}>small — e2-medium (2 vCPU / 4 GB)</option>
+            <option value={WorkshopTemplateCreate.tier.LARGE}>large — e2-standard-4 (4 vCPU / 16 GB)</option>
+          </select>
         </div>
 
         <div className="space-y-2">

@@ -3,6 +3,7 @@
 import re
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -43,11 +44,16 @@ class WorkshopTemplateCreate(BaseModel):
         description="Container args, replacing the image's default CMD "
         "(e.g. JupyterLab launch flags). Leave empty to use the image default.",
     )
-    resources: WorkshopResources = Field(
-        default_factory=WorkshopResources
+    tier: Literal["small", "large"] = Field(
+        default="small",
+        description="Tenant node-pool tier (small/large). Maps to "
+        "nodeSelector/tolerations in the operator when tenant pools are enabled.",
     )
+    resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
-    tags: list[str] = Field(default_factory=list, description="Category tags for filtering")
+    tags: list[str] = Field(
+        default_factory=list, description="Category tags for filtering"
+    )
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -74,6 +80,7 @@ class WorkshopTemplateUpdate(BaseModel):
     port: int | None = Field(default=None, ge=1, le=65535)
     env: dict[str, str] | None = None
     args: list[str] | None = None
+    tier: Literal["small", "large"] | None = None
     resources: WorkshopResources | None = None
     storage: WorkshopStorage | None = None
     tags: list[str] | None = None
@@ -96,6 +103,7 @@ class WorkshopTemplateResponse(BaseModel):
     port: int = 8787
     env: dict[str, str] = Field(default_factory=dict)
     args: list[str] = Field(default_factory=list)
+    tier: Literal["small", "large"] = "small"
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
     tags: list[str] = Field(default_factory=list)

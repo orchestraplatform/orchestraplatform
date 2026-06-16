@@ -2,8 +2,8 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-import type { WorkshopResourceDefaults } from './WorkshopResourceDefaults';
-import type { WorkshopStorageDefaults } from './WorkshopStorageDefaults';
+import type { WorkshopResources } from './WorkshopResources';
+import type { WorkshopStorage } from './WorkshopStorage';
 /**
  * Request body for creating a workshop template (admin only).
  */
@@ -40,8 +40,24 @@ export type WorkshopTemplateCreate = {
      * Container args, replacing the image's default CMD (e.g. JupyterLab launch flags). Leave empty to use the image default.
      */
     args?: Array<string>;
-    resources?: WorkshopResourceDefaults;
-    storage?: (WorkshopStorageDefaults | null);
+    /**
+     * Tenant node-pool tier (small/large). Maps to nodeSelector/tolerations in the operator when tenant pools are enabled.
+     */
+    tier?: WorkshopTemplateCreate.tier;
+    resources?: WorkshopResources;
+    storage?: (WorkshopStorage | null);
+    /**
+     * Category tags for filtering
+     */
     tags?: Array<string>;
 };
+export namespace WorkshopTemplateCreate {
+    /**
+     * Tenant node-pool tier (small/large). Maps to nodeSelector/tolerations in the operator when tenant pools are enabled.
+     */
+    export enum tier {
+        SMALL = 'small',
+        LARGE = 'large',
+    }
+}
 

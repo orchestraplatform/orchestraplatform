@@ -75,3 +75,53 @@ class TestPortWiring:
         )
         target = {e.name: e.value for e in sidecar.env}["ORCHESTRA_TARGET_URL"]
         assert target == "http://localhost:8888"
+
+
+class TestTierScheduling:
+    """Tier maps to nodeSelector/tolerations ONLY when tenant pools are enabled.
+
+    On GKE Autopilot / single-node dev the feature is off (the default), so pods
+    must carry no scheduling constraints — otherwise they'd stay Pending.
+    """
+
+    def _pod_spec(self, deployment):
+        return deployment.spec.template.spec
+
+    def test_no_scheduling_by_default(self):
+        """Tenant pools disabled (default): tier is ignored, no constraints."""
+        pod = self._pod_spec(_make(tier="small"))
+        assert pod.node_selector is None
+        assert pod.tolerations is None
+
+    def test_scheduling_emitted_when_enabled(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
+        from config import get_settings
+
+        get_settings.cache_clear()
+        pod = self._pod_spec(_make(tier="large"))
+        assert pod.node_selector == {"tenant-tier": "large"}
+        assert len(pod.tolerations) == 1
+        tol = pod.tolerations[0]
+        assert tol.key == "tenant-size"
+        assert tol.value == "large"
+        assert tol.effect == "NoSchedule"
+
+    def test_no_scheduling_when_enabled_but_no_tier(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
+        from config import get_settings
+
+        get_settings.cache_clear()
+        pod = self._pod_spec(_make(tier=None))
+        assert pod.node_selector is None
+        assert pod.tolerations is None
+
+    def test_label_and_taint_keys_are_configurable(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
+        monkeypatch.setenv("ORCHESTRA_TENANT_TIER_LABEL_KEY", "pool")
+        monkeypatch.setenv("ORCHESTRA_TENANT_TIER_TAINT_KEY", "dedicated")
+        from config import get_settings
+
+        get_settings.cache_clear()
+        pod = self._pod_spec(_make(tier="small"))
+        assert pod.node_selector == {"pool": "small"}
+        assert pod.tolerations[0].key == "dedicated"

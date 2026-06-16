@@ -9,9 +9,17 @@ export type WorkshopInstanceResponse = {
     id: string;
     workshopId: string;
     /**
-     * Display name of the source template
+     * Display name of the source template (stamped at launch)
      */
     workshopName?: (string | null);
+    /**
+     * Slug of the source template, stamped at launch.
+     */
+    templateSlug: string;
+    /**
+     * Immutable snapshot of the resolved spec this instance launched with (image, port, duration, env, args, resources, storage).
+     */
+    resolvedSpec?: Record<string, any>;
     k8sName: string;
     namespace: string;
     ownerEmail: string;

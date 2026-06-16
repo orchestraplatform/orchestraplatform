@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { InstanceSummary } from '../models/InstanceSummary';
 import type { InstanceUtilization } from '../models/InstanceUtilization';
 import type { WorkshopInstanceList } from '../models/WorkshopInstanceList';
 import type { WorkshopInstanceResponse } from '../models/WorkshopInstanceResponse';
@@ -37,6 +38,34 @@ export class InstancesService {
             errors: {
                 422: `Validation Error`,
             },
+        });
+    }
+    /**
+     * Get Instance Summary
+     * Aggregate launch counts all-time and over the last 7 days (admin only).
+     * @returns InstanceSummary Successful Response
+     * @throws ApiError
+     */
+    public static getInstanceSummaryInstancesSummaryGet(): CancelablePromise<InstanceSummary> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/instances/summary',
+        });
+    }
+    /**
+     * Instance Events
+     * Stream workshop instance updates for the current user.
+     *
+     * Passes the session factory rather than a held session so the generator
+     * acquires and releases a connection on each poll cycle instead of holding
+     * one open for the entire stream lifetime.
+     * @returns any Successful Response
+     * @throws ApiError
+     */
+    public static instanceEventsInstancesEventsGet(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/instances/events',
         });
     }
     /**
@@ -85,6 +114,35 @@ export class InstancesService {
             },
             query: {
                 'namespace': namespace,
+            },
+            errors: {
+                422: `Validation Error`,
+            },
+        });
+    }
+    /**
+     * Extend Instance
+     * Extend an active workshop instance's expiry by extra_hours (default +1h).
+     * @param k8SName Workshop instance k8s name
+     * @param namespace
+     * @param extraHours
+     * @returns WorkshopInstanceResponse Successful Response
+     * @throws ApiError
+     */
+    public static extendInstanceInstancesK8SNameExtendPost(
+        k8SName: string,
+        namespace: string = 'default',
+        extraHours: number = 1,
+    ): CancelablePromise<WorkshopInstanceResponse> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/instances/{k8s_name}/extend',
+            path: {
+                'k8s_name': k8SName,
+            },
+            query: {
+                'namespace': namespace,
+                'extra_hours': extraHours,
             },
             errors: {
                 422: `Validation Error`,
@@ -141,18 +199,6 @@ export class InstancesService {
             errors: {
                 422: `Validation Error`,
             },
-        });
-    }
-    /**
-     * Instance Events
-     * Stream workshop instance updates for the current user.
-     * @returns any Successful Response
-     * @throws ApiError
-     */
-    public static instanceEventsInstancesEventsGet(): CancelablePromise<any> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/instances/events',
         });
     }
 }

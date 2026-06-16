@@ -12,6 +12,31 @@ from config import get_settings
 _DEFAULT_APP_ENV = {"DISABLE_AUTH": "true", "ROOT": "true"}
 
 
+def _tier_scheduling(
+    tier: str | None,
+) -> tuple[dict[str, str] | None, list[k8s.V1Toleration] | None]:
+    """Return (nodeSelector, tolerations) for a tenant tier, or (None, None).
+
+    Only emits scheduling constraints when tenant pools are enabled
+    (``ORCHESTRA_TENANT_POOLS_ENABLED``). On GKE Autopilot / single-node dev the
+    feature is off, so pods carry no nodeSelector/tolerations and schedule
+    anywhere — emitting them there would leave pods Pending (ADR-0005/0006).
+    """
+    settings = get_settings()
+    if not settings.tenant_pools_enabled or not tier:
+        return None, None
+    node_selector = {settings.tenant_tier_label_key: tier}
+    tolerations = [
+        k8s.V1Toleration(
+            key=settings.tenant_tier_taint_key,
+            operator="Equal",
+            value=tier,
+            effect="NoSchedule",
+        )
+    ]
+    return node_selector, tolerations
+
+
 def create_rstudio_deployment(
     workshop_name: str,
     namespace: str,
@@ -23,6 +48,7 @@ def create_rstudio_deployment(
     port: int = 8787,
     env: dict[str, str] | None = None,
     args: list[str] | None = None,
+    tier: str | None = None,
 ) -> k8s.V1Deployment:
     """Create a Kubernetes Deployment for a workshop app with an auth sidecar.
 
@@ -31,8 +57,12 @@ def create_rstudio_deployment(
 
     ``env`` is merged on top of the default app environment (template values
     win). ``args``, when given, replaces the image's default CMD.
+
+    ``tier`` selects a tenant node pool; it only affects scheduling when tenant
+    pools are enabled in operator config (see :func:`_tier_scheduling`).
     """
     settings = get_settings()
+    node_selector, tolerations = _tier_scheduling(tier)
 
     cpu_limit = resources.get("cpu", "1")
     memory_limit = resources.get("memory", "2Gi")
@@ -62,9 +92,7 @@ def create_rstudio_deployment(
         image_pull_policy=settings.sidecar_pull_policy,
         ports=[k8s.V1ContainerPort(container_port=8080, name="http-proxy")],
         env=[
-            k8s.V1EnvVar(
-                name="ORCHESTRA_TARGET_URL", value=f"http://localhost:{port}"
-            ),
+            k8s.V1EnvVar(name="ORCHESTRA_TARGET_URL", value=f"http://localhost:{port}"),
             k8s.V1EnvVar(name="ORCHESTRA_OWNER_EMAIL", value=owner_email),
             k8s.V1EnvVar(name="ORCHESTRA_LISTEN_ADDR", value=":8080"),
             k8s.V1EnvVar(
@@ -127,6 +155,8 @@ def create_rstudio_deployment(
                 spec=k8s.V1PodSpec(
                     containers=[app_container, sidecar_container],
                     volumes=volumes if volumes else None,
+                    node_selector=node_selector,
+                    tolerations=tolerations,
                 ),
             ),
         ),

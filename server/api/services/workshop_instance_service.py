@@ -24,13 +24,13 @@ from api.models.schemas.workshop_instance import (
 )
 from api.models.schemas.workshop_template import WorkshopTemplateResponse
 from api.models.workshop import (
+    WorkshopCondition,
     WorkshopCreate,
     WorkshopIngress,
     WorkshopPhase,
     WorkshopResources,
     WorkshopResponse,
     WorkshopStatus,
-    WorkshopCondition,
     WorkshopStorage,
 )
 
@@ -53,6 +53,7 @@ _TRANSITIONAL_PHASES = {"Pending", "Creating", "Starting"}
 # ---------------------------------------------------------------------------
 # K8s CRD helpers (previously WorkshopService)
 # ---------------------------------------------------------------------------
+
 
 def _parse_datetime(dt_str: str | None) -> datetime | None:
     if not dt_str:
@@ -83,6 +84,7 @@ def _to_kubernetes_crd(
             "duration": workshop.duration,
             "image": workshop.image,
             "port": workshop.port,
+            "tier": workshop.tier,
             "resources": {
                 "cpu": workshop.resources.cpu,
                 "memory": workshop.resources.memory,
@@ -157,6 +159,7 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             duration=spec.get("duration", "4h"),
             image=spec.get("image", "rocker/rstudio:latest"),
             port=spec.get("port", 8787),
+            tier=spec.get("tier", "small"),
             env=spec.get("env") or {},
             args=spec.get("args") or [],
             resources=WorkshopResources(
@@ -168,11 +171,15 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             storage=WorkshopStorage(
                 size=storage_spec.get("size", "10Gi"),
                 storageClass=storage_spec.get("storageClass"),
-            ) if storage_spec else None,
+            )
+            if storage_spec
+            else None,
             ingress=WorkshopIngress(
                 host=ingress_spec.get("host"),
                 annotations=ingress_spec.get("annotations", {}),
-            ) if ingress_spec else None,
+            )
+            if ingress_spec
+            else None,
         ),
         status=workshop_status,
         created_at=_parse_datetime(metadata.get("creationTimestamp")),
@@ -180,11 +187,16 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
     )
 
 
-async def _k8s_create(workshop: WorkshopCreate, owner_email: str, namespace: str) -> WorkshopResponse:
+async def _k8s_create(
+    workshop: WorkshopCreate, owner_email: str, namespace: str
+) -> WorkshopResponse:
     api = get_custom_objects_api()
     result = api.create_namespaced_custom_object(
-        group=_K8S_GROUP, version=_K8S_VERSION, namespace=namespace,
-        plural=_K8S_PLURAL, body=_to_kubernetes_crd(workshop, owner_email, namespace),
+        group=_K8S_GROUP,
+        version=_K8S_VERSION,
+        namespace=namespace,
+        plural=_K8S_PLURAL,
+        body=_to_kubernetes_crd(workshop, owner_email, namespace),
     )
     logger.info("Created k8s Workshop CRD %s in %s", workshop.name, namespace)
     return _from_kubernetes_crd(result)
@@ -194,8 +206,11 @@ async def _k8s_get(name: str, namespace: str) -> WorkshopResponse | None:
     api = get_custom_objects_api()
     try:
         result = api.get_namespaced_custom_object(
-            group=_K8S_GROUP, version=_K8S_VERSION, namespace=namespace,
-            plural=_K8S_PLURAL, name=name,
+            group=_K8S_GROUP,
+            version=_K8S_VERSION,
+            namespace=namespace,
+            plural=_K8S_PLURAL,
+            name=name,
         )
         return _from_kubernetes_crd(result)
     except ApiException as e:
@@ -208,8 +223,11 @@ async def _k8s_delete(name: str, namespace: str) -> bool:
     api = get_custom_objects_api()
     try:
         api.delete_namespaced_custom_object(
-            group=_K8S_GROUP, version=_K8S_VERSION, namespace=namespace,
-            plural=_K8S_PLURAL, name=name,
+            group=_K8S_GROUP,
+            version=_K8S_VERSION,
+            namespace=namespace,
+            plural=_K8S_PLURAL,
+            name=name,
         )
         logger.info("Deleted k8s Workshop CRD %s in %s", name, namespace)
         return True
@@ -223,8 +241,11 @@ async def _k8s_patch_status(name: str, namespace: str, patch: dict[str, Any]) ->
     """Patch the status subresource of a Workshop CRD."""
     api = get_custom_objects_api()
     api.patch_namespaced_custom_object_status(
-        group=_K8S_GROUP, version=_K8S_VERSION, namespace=namespace,
-        plural=_K8S_PLURAL, name=name,
+        group=_K8S_GROUP,
+        version=_K8S_VERSION,
+        namespace=namespace,
+        plural=_K8S_PLURAL,
+        name=name,
         body={"status": patch},
     )
 
@@ -232,6 +253,7 @@ async def _k8s_patch_status(name: str, namespace: str, patch: dict[str, Any]) ->
 # ---------------------------------------------------------------------------
 # Instance response builder
 # ---------------------------------------------------------------------------
+
 
 def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
     """Compute time-in-phase breakdown from a row's pre-loaded events."""
@@ -246,7 +268,9 @@ def _compute_utilization(row: "WorkshopInstance") -> InstanceUtilization:
         secs = max(0, int((end - start).total_seconds()))
         phase_seconds[event.phase] = phase_seconds.get(event.phase, 0) + secs
 
-    active_seconds = sum(s for phase, s in phase_seconds.items() if phase in _ACTIVE_PHASES)
+    active_seconds = sum(
+        s for phase, s in phase_seconds.items() if phase in _ACTIVE_PHASES
+    )
     total_elapsed = max(0, int((endpoint - row.launched_at).total_seconds()))
 
     return InstanceUtilization(
@@ -270,6 +294,7 @@ def _resolved_spec_dict(workshop: WorkshopCreate) -> dict[str, Any]:
         "image": workshop.image,
         "port": workshop.port,
         "duration": workshop.duration,
+        "tier": workshop.tier,
         "env": dict(workshop.env),
         "args": list(workshop.args),
         "resources": workshop.resources.model_dump(by_alias=False),
@@ -304,6 +329,7 @@ def _to_response(row: WorkshopInstance) -> WorkshopInstanceResponse:
 # WorkshopInstanceService
 # ---------------------------------------------------------------------------
 
+
 class WorkshopInstanceService:
     """Manages WorkshopInstance DB records and k8s CRD lifecycle."""
 
@@ -324,6 +350,7 @@ class WorkshopInstanceService:
             duration=duration,
             image=template.image,
             port=template.port,
+            tier=template.tier,
             env=template.env,
             args=template.args,
             resources=WorkshopResources(
@@ -335,7 +362,9 @@ class WorkshopInstanceService:
             storage=WorkshopStorage(
                 size=template.storage.size,
                 storageClass=template.storage.storage_class,
-            ) if template.storage else None,
+            )
+            if template.storage
+            else None,
             ingress=WorkshopIngress(),
         )
 
@@ -359,7 +388,9 @@ class WorkshopInstanceService:
         await db.commit()
         await db.refresh(row)
 
-        logger.info("Launched instance %s (k8s=%s) for %s", row.id, k8s_name, owner_email)
+        logger.info(
+            "Launched instance %s (k8s=%s) for %s", row.id, k8s_name, owner_email
+        )
         return _to_response(row)
 
     async def list_instances(
@@ -379,12 +410,20 @@ class WorkshopInstanceService:
         if owner_email:
             query = query.where(WorkshopInstance.owner_email == owner_email)
 
-        total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar_one()
-        rows = (await db.execute(query.offset((page - 1) * size).limit(size))).scalars().all()
+        total = (
+            await db.execute(select(func.count()).select_from(query.subquery()))
+        ).scalar_one()
+        rows = (
+            (await db.execute(query.offset((page - 1) * size).limit(size)))
+            .scalars()
+            .all()
+        )
 
         now = datetime.now(UTC)
         for row in rows:
-            if row.phase in _TRANSITIONAL_PHASES or (row.expires_at and row.expires_at <= now):
+            if row.phase in _TRANSITIONAL_PHASES or (
+                row.expires_at and row.expires_at <= now
+            ):
                 await self._sync_from_k8s(db, row)
 
         return [_to_response(r) for r in rows], total
@@ -393,8 +432,10 @@ class WorkshopInstanceService:
         self, db: AsyncSession, k8s_name: str, namespace: str = "default"
     ) -> WorkshopInstanceResponse | None:
         result = await db.execute(
-            select(WorkshopInstance)
-            .where(WorkshopInstance.k8s_name == k8s_name, WorkshopInstance.namespace == namespace)
+            select(WorkshopInstance).where(
+                WorkshopInstance.k8s_name == k8s_name,
+                WorkshopInstance.namespace == namespace,
+            )
         )
         row = result.scalar_one_or_none()
         if row is None:
@@ -438,8 +479,7 @@ class WorkshopInstanceService:
     ) -> WorkshopInstanceResponse | None:
         """Extend an active instance's expiry by extra_hours."""
         result = await db.execute(
-            select(WorkshopInstance)
-            .where(
+            select(WorkshopInstance).where(
                 WorkshopInstance.k8s_name == k8s_name,
                 WorkshopInstance.namespace == namespace,
                 WorkshopInstance.terminated_at.is_(None),
@@ -454,13 +494,19 @@ class WorkshopInstanceService:
 
         # Push new expiresAt into the CRD status so the operator picks it up
         try:
-            await _k8s_patch_status(k8s_name, namespace, {"expiresAt": new_expires.isoformat()})
+            await _k8s_patch_status(
+                k8s_name, namespace, {"expiresAt": new_expires.isoformat()}
+            )
         except Exception:
-            logger.warning("Could not patch CRD status for %s; DB updated anyway", k8s_name)
+            logger.warning(
+                "Could not patch CRD status for %s; DB updated anyway", k8s_name
+            )
 
         await db.commit()
         await db.refresh(row)
-        logger.info("Extended instance %s by %dh → %s", k8s_name, extra_hours, new_expires)
+        logger.info(
+            "Extended instance %s by %dh → %s", k8s_name, extra_hours, new_expires
+        )
         return _to_response(row)
 
     async def get_status(
@@ -468,7 +514,8 @@ class WorkshopInstanceService:
     ) -> WorkshopInstanceStatus | None:
         result = await db.execute(
             select(WorkshopInstance).where(
-                WorkshopInstance.k8s_name == k8s_name, WorkshopInstance.namespace == namespace
+                WorkshopInstance.k8s_name == k8s_name,
+                WorkshopInstance.namespace == namespace,
             )
         )
         row = result.scalar_one_or_none()
@@ -476,8 +523,11 @@ class WorkshopInstanceService:
             return None
         await self._sync_from_k8s(db, row)
         return WorkshopInstanceStatus(
-            id=row.id, k8sName=row.k8s_name, phase=row.phase,
-            url=row.url, expiresAt=row.expires_at,
+            id=row.id,
+            k8sName=row.k8s_name,
+            phase=row.phase,
+            url=row.url,
+            expiresAt=row.expires_at,
         )
 
     async def get_utilization(
@@ -486,7 +536,10 @@ class WorkshopInstanceService:
         result = await db.execute(
             select(WorkshopInstance)
             .options(selectinload(WorkshopInstance.events))
-            .where(WorkshopInstance.k8s_name == k8s_name, WorkshopInstance.namespace == namespace)
+            .where(
+                WorkshopInstance.k8s_name == k8s_name,
+                WorkshopInstance.namespace == namespace,
+            )
         )
         row = result.scalar_one_or_none()
         return _compute_utilization(row) if row else None
@@ -494,48 +547,74 @@ class WorkshopInstanceService:
     async def get_template_stats(
         self, db: AsyncSession, template_id: uuid.UUID
     ) -> TemplateStats | None:
-        if (await db.execute(select(Workshop).where(Workshop.id == template_id))).scalar_one_or_none() is None:
+        if (
+            await db.execute(select(Workshop).where(Workshop.id == template_id))
+        ).scalar_one_or_none() is None:
             return None
 
-        counts = (await db.execute(
-            select(
-                func.count().label("total"),
-                func.sum(case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)).label("active"),
-                func.count(distinct(WorkshopInstance.owner_email)).label("unique_users"),
-            ).where(WorkshopInstance.workshop_id == template_id)
-        )).one()
+        counts = (
+            await db.execute(
+                select(
+                    func.count().label("total"),
+                    func.sum(
+                        case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)
+                    ).label("active"),
+                    func.count(distinct(WorkshopInstance.owner_email)).label(
+                        "unique_users"
+                    ),
+                ).where(WorkshopInstance.workshop_id == template_id)
+            )
+        ).one()
 
-        instances = (await db.execute(
-            select(WorkshopInstance)
-            .options(selectinload(WorkshopInstance.events))
-            .where(WorkshopInstance.workshop_id == template_id)
-        )).scalars().all()
+        instances = (
+            (
+                await db.execute(
+                    select(WorkshopInstance)
+                    .options(selectinload(WorkshopInstance.events))
+                    .where(WorkshopInstance.workshop_id == template_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         return TemplateStats(
             template_id=template_id,
             total_launches=counts.total or 0,
             active_instances=counts.active or 0,
-            total_active_seconds=sum(_compute_utilization(i).active_seconds for i in instances),
+            total_active_seconds=sum(
+                _compute_utilization(i).active_seconds for i in instances
+            ),
             unique_users=counts.unique_users or 0,
         )
 
     async def get_instance_summary(self, db: AsyncSession) -> InstanceSummary:
         cutoff = datetime.now(UTC) - timedelta(days=7)
-        row = (await db.execute(
-            select(
-                func.count().label("total"),
-                func.sum(case((WorkshopInstance.launched_at >= cutoff, 1), else_=0)).label("last_7_days"),
+        row = (
+            await db.execute(
+                select(
+                    func.count().label("total"),
+                    func.sum(
+                        case((WorkshopInstance.launched_at >= cutoff, 1), else_=0)
+                    ).label("last_7_days"),
+                )
             )
-        )).one()
-        return InstanceSummary(total_launches=row.total or 0, launched_last_7_days=row.last_7_days or 0)
+        ).one()
+        return InstanceSummary(
+            total_launches=row.total or 0, launched_last_7_days=row.last_7_days or 0
+        )
 
     async def get_bulk_launch_counts(self, db: AsyncSession) -> list[TemplateStats]:
         result = await db.execute(
             select(
                 WorkshopInstance.workshop_id,
                 func.count().label("total"),
-                func.sum(case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)).label("active"),
-                func.count(distinct(WorkshopInstance.owner_email)).label("unique_users"),
+                func.sum(
+                    case((WorkshopInstance.terminated_at.is_(None), 1), else_=0)
+                ).label("active"),
+                func.count(distinct(WorkshopInstance.owner_email)).label(
+                    "unique_users"
+                ),
             ).group_by(WorkshopInstance.workshop_id)
         )
         return [
@@ -568,9 +647,13 @@ class WorkshopInstanceService:
                 await db.commit()
             return
 
-        new_phase = k8s_workshop.status.phase.value if k8s_workshop.status else row.phase
+        new_phase = (
+            k8s_workshop.status.phase.value if k8s_workshop.status else row.phase
+        )
         new_url = k8s_workshop.status.url if k8s_workshop.status else row.url
-        new_expires = k8s_workshop.status.expires_at if k8s_workshop.status else row.expires_at
+        new_expires = (
+            k8s_workshop.status.expires_at if k8s_workshop.status else row.expires_at
+        )
 
         changed = False
         if new_phase != row.phase:
@@ -609,7 +692,9 @@ class WorkshopInstanceService:
         while True:
             async with session_factory() as db:
                 items, total = await self.list_instances(db, owner_email=owner_email)
-            yield WorkshopInstanceList(items=items, total=total).model_dump_json(by_alias=True)
+            yield WorkshopInstanceList(items=items, total=total).model_dump_json(
+                by_alias=True
+            )
             has_transitional = any(i.phase in _TRANSITIONAL_PHASES for i in items)
             base = SSE_POLL_FAST_S if has_transitional else SSE_POLL_SLOW_S
             await asyncio.sleep(base + random.uniform(-SSE_JITTER_S, SSE_JITTER_S))

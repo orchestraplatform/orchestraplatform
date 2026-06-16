@@ -8,7 +8,6 @@ function or the CRD YAML (and re-run `helm upgrade` to apply the schema change).
 
 import pathlib
 
-import pytest
 import yaml
 
 from api.models.workshop import (
@@ -39,7 +38,9 @@ def _crd_spec_schema() -> dict:
 
 def _crd_status_schema() -> dict:
     crd = yaml.safe_load(_CRD_YAML.read_text())
-    return crd["spec"]["versions"][0]["schema"]["openAPIV3Schema"]["properties"]["status"]
+    return crd["spec"]["versions"][0]["schema"]["openAPIV3Schema"]["properties"][
+        "status"
+    ]
 
 
 def _minimal_workshop() -> WorkshopCreate:
@@ -62,10 +63,13 @@ def _full_workshop() -> WorkshopCreate:
 # Required-field contract
 # ---------------------------------------------------------------------------
 
+
 def test_required_spec_fields_present_minimal():
     """All CRD-required spec fields must be in the body for a minimal launch."""
     required = _crd_spec_schema().get("required", [])
-    spec = _to_kubernetes_crd(_minimal_workshop(), "user@example.com", "default")["spec"]
+    spec = _to_kubernetes_crd(_minimal_workshop(), "user@example.com", "default")[
+        "spec"
+    ]
     missing = [f for f in required if f not in spec]
     assert not missing, f"CRD body missing required spec fields: {missing}"
 
@@ -82,6 +86,7 @@ def test_required_spec_fields_present_full():
 # No unknown fields (catches typos like ownerEmail vs owner)
 # ---------------------------------------------------------------------------
 
+
 def test_no_unknown_top_level_spec_fields():
     """Every key in spec must be declared in the CRD schema properties."""
     known = set(_crd_spec_schema().get("properties", {}).keys())
@@ -93,6 +98,7 @@ def test_no_unknown_top_level_spec_fields():
 # ---------------------------------------------------------------------------
 # Value pass-through
 # ---------------------------------------------------------------------------
+
 
 def test_owner_email_is_passed_through():
     """The owner field in the CRD body must equal the email argument."""
@@ -108,7 +114,9 @@ def test_namespace_in_metadata():
 
 def test_port_default_passed_through():
     """A workshop with no explicit port defaults to 8787 in the CRD body."""
-    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")["spec"]
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")[
+        "spec"
+    ]
     assert spec["port"] == 8787
 
 
@@ -119,9 +127,26 @@ def test_port_override_passed_through():
     assert spec["port"] == 8888
 
 
+def test_tier_default_passed_through():
+    """A workshop with no explicit tier defaults to 'small' in the CRD body."""
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")[
+        "spec"
+    ]
+    assert spec["tier"] == "small"
+
+
+def test_tier_override_passed_through():
+    """An explicit tier is passed through to the CRD body."""
+    workshop = WorkshopCreate(name="test-abc123", tier="large")
+    spec = _to_kubernetes_crd(workshop, "alice@example.com", "default")["spec"]
+    assert spec["tier"] == "large"
+
+
 def test_env_and_args_omitted_when_empty():
     """Empty env/args must not appear in the CRD body (operator applies defaults)."""
-    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")["spec"]
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")[
+        "spec"
+    ]
     assert "env" not in spec
     assert "args" not in spec
 
@@ -141,6 +166,7 @@ def test_env_and_args_passed_through():
 # ---------------------------------------------------------------------------
 # Phase enum consistency
 # ---------------------------------------------------------------------------
+
 
 def test_status_phase_enum_contains_starting():
     """The CRD status.phase enum should include 'Starting' (operator sets this phase

@@ -39,6 +39,11 @@ spec:
                 minimum: 1
                 maximum: 65535
                 description: "Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)"
+              tier:
+                type: string
+                enum: ["small", "large"]
+                default: "small"
+                description: "Tenant node-pool tier. The operator maps this to nodeSelector/tolerations when tenant pools are enabled (ADR-0005)."
               env:
                 type: object
                 additionalProperties:
