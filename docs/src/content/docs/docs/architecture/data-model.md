@@ -75,7 +75,7 @@ Stores the reusable template configuration created and managed by admins.
 | `port` | int | Port the app listens on in-container (default `8787`) |
 | `env` | JSONB nullable | Extra env vars for the app container (`name -> value`) |
 | `args` | string[] nullable | Container args, replacing the image's default CMD |
-| `resources` | JSONB | `{cpu, memory, cpuRequest, memoryRequest}` |
+| `resources` | JSONB | `{cpu, memory, cpuRequest, memoryRequest, ephemeralStorage, ephemeralStorageRequest}` |
 | `storage` | JSONB nullable | `{size, storageClass}` |
 | `ingress` | JSONB nullable | Ingress overrides (`{host, annotations}`) |
 | `tags` | string[] | Catalog tags; defaults to empty list |

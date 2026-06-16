@@ -26,6 +26,18 @@
           "description": "Memory request",
           "title": "Memoryrequest",
           "type": "string"
+        },
+        "ephemeralStorage": {
+          "default": "4Gi",
+          "description": "Ephemeral storage limit. Covers everything written outside the /data PVC (package installs, /tmp, container writable layer); the kubelet evicts the pod if exceeded.",
+          "title": "Ephemeralstorage",
+          "type": "string"
+        },
+        "ephemeralStorageRequest": {
+          "default": "2Gi",
+          "description": "Ephemeral storage request",
+          "title": "Ephemeralstoragerequest",
+          "type": "string"
         }
       },
       "title": "WorkshopResources",
@@ -58,7 +70,7 @@
       "type": "object"
     }
   },
-  "description": "Schema for a git-managed template YAML file (ADR-0006).\n\nExtends the create payload with an ``enabled`` flag (the declarative\nreplacement for the runtime ``isActive`` toggle). This is the validation\ncontract for ``deploy/templates/*.yaml`` and the source the in-memory\nregistry loads from. ``model_config`` is inherited (``populate_by_name``),\nso files may use either camelCase (``defaultDuration``) or snake_case.",
+  "description": "Schema for a git-managed template YAML file (ADR-0006).\n\nExtends the create payload with an ``enabled`` flag (the declarative\nreplacement for the runtime ``isActive`` toggle). This is the validation\ncontract for the git-managed template files and the source the in-memory\nregistry loads from. ``model_config`` is inherited (``populate_by_name``),\nso files may use either camelCase (``defaultDuration``) or snake_case.",
   "properties": {
     "name": {
       "description": "Human-readable display name",

@@ -68,6 +68,14 @@ def create_rstudio_deployment(
     memory_limit = resources.get("memory", "2Gi")
     cpu_request = resources.get("cpuRequest", "500m")
     memory_request = resources.get("memoryRequest", "1Gi")
+    # Ephemeral storage covers everything written outside the /data PVC: R/Python
+    # package installs, compilation artifacts, /tmp, logs, and the container's
+    # writable layer. The limit is the kubelet's eviction threshold — exceeding it
+    # evicts the whole pod (not just a container restart). When unset, GKE Autopilot
+    # defaults this to 1Gi, which Bioconductor sessions blow past, so set it
+    # explicitly (incident 2026-06-16).
+    ephemeral_limit = resources.get("ephemeralStorage", "4Gi")
+    ephemeral_request = resources.get("ephemeralStorageRequest", "2Gi")
 
     app_env = {**_DEFAULT_APP_ENV, **(env or {})}
 
@@ -78,8 +86,16 @@ def create_rstudio_deployment(
         env=[k8s.V1EnvVar(name=k, value=v) for k, v in app_env.items()],
         args=list(args) if args else None,
         resources=k8s.V1ResourceRequirements(
-            requests={"cpu": cpu_request, "memory": memory_request},
-            limits={"cpu": cpu_limit, "memory": memory_limit},
+            requests={
+                "cpu": cpu_request,
+                "memory": memory_request,
+                "ephemeral-storage": ephemeral_request,
+            },
+            limits={
+                "cpu": cpu_limit,
+                "memory": memory_limit,
+                "ephemeral-storage": ephemeral_limit,
+            },
         ),
         volume_mounts=[k8s.V1VolumeMount(name="workshop-data", mount_path="/data")]
         if storage
