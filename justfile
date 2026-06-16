@@ -148,6 +148,14 @@ sync-types:
     cd server && uv run python generate_schema.py openapi.json
     cd frontend && npx openapi-typescript-codegen --input ../server/openapi.json --output ./src/api/generated --client axios
 
+# Regenerate deploy/templates/template.schema.json from the WorkshopTemplateFile model
+template-schema:
+    cd server && uv run python generate_template_schema.py
+
+# Validate the git-managed template files in deploy/templates/ against the schema
+validate-templates:
+    cd server && uv run python -m pytest tests/test_template_files.py -v
+
 # --- Quality & Testing ---
 
 # Run all linting and formatting checks

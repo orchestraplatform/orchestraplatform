@@ -1,0 +1,168 @@
+{
+  "$defs": {
+    "WorkshopResources": {
+      "description": "Workshop resource requirements.",
+      "properties": {
+        "cpu": {
+          "default": "1",
+          "description": "CPU limit",
+          "title": "Cpu",
+          "type": "string"
+        },
+        "memory": {
+          "default": "2Gi",
+          "description": "Memory limit",
+          "title": "Memory",
+          "type": "string"
+        },
+        "cpuRequest": {
+          "default": "500m",
+          "description": "CPU request",
+          "title": "Cpurequest",
+          "type": "string"
+        },
+        "memoryRequest": {
+          "default": "1Gi",
+          "description": "Memory request",
+          "title": "Memoryrequest",
+          "type": "string"
+        }
+      },
+      "title": "WorkshopResources",
+      "type": "object"
+    },
+    "WorkshopStorage": {
+      "description": "Workshop storage configuration.",
+      "properties": {
+        "size": {
+          "default": "10Gi",
+          "description": "Storage size",
+          "title": "Size",
+          "type": "string"
+        },
+        "storageClass": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Storage class name. Leave unset to use the cluster default.",
+          "title": "Storageclass"
+        }
+      },
+      "title": "WorkshopStorage",
+      "type": "object"
+    }
+  },
+  "description": "Schema for a git-managed template YAML file (ADR-0006).\n\nExtends the create payload with an ``enabled`` flag (the declarative\nreplacement for the runtime ``isActive`` toggle). This is the validation\ncontract for ``deploy/templates/*.yaml`` and the source the in-memory\nregistry loads from. ``model_config`` is inherited (``populate_by_name``),\nso files may use either camelCase (``defaultDuration``) or snake_case.",
+  "properties": {
+    "name": {
+      "description": "Human-readable display name",
+      "title": "Name",
+      "type": "string"
+    },
+    "slug": {
+      "description": "k8s-safe identifier used as prefix for instance names (max 40 chars)",
+      "title": "Slug",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional description",
+      "title": "Description"
+    },
+    "image": {
+      "default": "rocker/rstudio:latest",
+      "description": "Default Docker image",
+      "title": "Image",
+      "type": "string"
+    },
+    "defaultDuration": {
+      "default": "4h",
+      "description": "Default session duration",
+      "title": "Defaultduration",
+      "type": "string"
+    },
+    "port": {
+      "default": 8787,
+      "description": "Port the application listens on inside the container (e.g. 8787 for RStudio, 8888 for JupyterLab)",
+      "maximum": 65535,
+      "minimum": 1,
+      "title": "Port",
+      "type": "integer"
+    },
+    "env": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Extra environment variables for the app container (name -> value). Override operator defaults such as DISABLE_AUTH.",
+      "title": "Env",
+      "type": "object"
+    },
+    "args": {
+      "description": "Container args, replacing the image's default CMD (e.g. JupyterLab launch flags). Leave empty to use the image default.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Args",
+      "type": "array"
+    },
+    "tier": {
+      "default": "small",
+      "description": "Tenant node-pool tier (small/large). Maps to nodeSelector/tolerations in the operator when tenant pools are enabled.",
+      "enum": [
+        "small",
+        "large"
+      ],
+      "title": "Tier",
+      "type": "string"
+    },
+    "resources": {
+      "$ref": "#/$defs/WorkshopResources"
+    },
+    "storage": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/WorkshopStorage"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tags": {
+      "description": "Category tags for filtering",
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "enabled": {
+      "default": true,
+      "description": "Whether the template is shown in the catalog and launchable. Set false to retire a template without deleting its file.",
+      "title": "Enabled",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "name",
+    "slug"
+  ],
+  "title": "Orchestra Workshop Template",
+  "type": "object",
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
