@@ -122,6 +122,23 @@ class WorkshopTemplateList(BaseModel):
     size: int = 50
 
 
+class WorkshopTemplateFile(WorkshopTemplateCreate):
+    """Schema for a git-managed template YAML file (ADR-0006).
+
+    Extends the create payload with an ``enabled`` flag (the declarative
+    replacement for the runtime ``isActive`` toggle). This is the validation
+    contract for ``deploy/templates/*.yaml`` and the source the in-memory
+    registry loads from. ``model_config`` is inherited (``populate_by_name``),
+    so files may use either camelCase (``defaultDuration``) or snake_case.
+    """
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether the template is shown in the catalog and launchable. "
+        "Set false to retire a template without deleting its file.",
+    )
+
+
 class WorkshopLaunchRequest(BaseModel):
     """Request body for launching a workshop instance from a template."""
 

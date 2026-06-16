@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=./template.schema.json
+name: JupyterLab
+slug: jupyter
+description: >-
+  JupyterLab with the scientific Python stack (pandas, scikit-learn,
+  matplotlib). Authentication is handled by the platform, so the
+  notebook server token is disabled.
+image: quay.io/jupyter/datascience-notebook:latest
+defaultDuration: 4h
+port: 8888
+tier: small
+args:
+  - start-notebook.py
+  - --IdentityProvider.token=''
+resources:
+  cpu: "2"
+  memory: 4Gi
+  cpuRequest: "1"
+  memoryRequest: 2Gi
+storage:
+  size: 10Gi
+tags:
+  - jupyter
+  - python
+enabled: true

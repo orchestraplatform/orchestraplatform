@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=./template.schema.json
+name: RStudio (Bioconductor)
+slug: rstudio
+description: >-
+  RStudio Server on the Bioconductor base image, with the Bioconductor
+  package stack preinstalled. The default workshop environment.
+image: bioconductor/bioconductor_docker:RELEASE_3_20
+defaultDuration: 4h
+port: 8787
+tier: small
+resources:
+  cpu: "2"
+  memory: 4Gi
+  cpuRequest: "1"
+  memoryRequest: 2Gi
+storage:
+  size: 10Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
