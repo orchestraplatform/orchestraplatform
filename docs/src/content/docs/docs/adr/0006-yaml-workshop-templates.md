@@ -67,8 +67,9 @@ implemented as the additive first step in the instance-stamping change
 table (kept in sync from YAML) was rejected: a read-only, reconcile-on-deploy
 table is a cache pretending to be a model, and caches drift.
 
-**D. Stored as files, mounted via ConfigMap.** Templates live at
-`deploy/templates/*.yaml`. The Helm chart renders them into a ConfigMap
+**D. Stored as files, mounted via ConfigMap.** Templates live in the chart at
+`deploy/charts/orchestra/files/templates/*.yaml` (inside the chart so Helm can
+package them). The Helm chart renders them into a ConfigMap
 (`.Files.Glob`) mounted into the API pod (e.g. `/etc/orchestra/templates/`),
 read at startup. A `checksum/config` annotation on the API Deployment triggers a
 rolling restart when template content changes on `helm upgrade`. Templates are
@@ -124,7 +125,7 @@ and node-pool targeting stay coherent.
 1. **Done** — stamp `template_slug` / `template_name` / `resolved_spec` onto
    instances so they are self-describing (migration `d4e5f6a7b8c9`).
 2. Add `tier` to the template schema (with the ADR-0005 operator work).
-3. Define the YAML schema (Pydantic / JSON Schema), add `deploy/templates/*.yaml`,
+3. Define the YAML schema (Pydantic / JSON Schema), add the template files,
    and wire CI schema validation.
 4. In-memory registry loader in the API reading the ConfigMap mount; point
    `GET /templates` and launch at it.

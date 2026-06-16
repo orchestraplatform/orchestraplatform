@@ -1,6 +1,6 @@
 """In-memory registry of git-managed workshop templates (ADR-0006 phase 4).
 
-Loads ``deploy/templates/*.yaml`` (mounted via a ConfigMap in production) into
+Loads template YAML files (mounted via a ConfigMap in production) into
 memory and serves the read + launch paths. It mirrors the read-side interface of
 ``WorkshopTemplateService`` (async methods that accept a ``db`` they ignore), so
 routes can depend on either source uniformly while the migration is in flight.

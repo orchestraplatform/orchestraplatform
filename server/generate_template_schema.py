@@ -16,6 +16,9 @@ from api.models.schemas.workshop_template import WorkshopTemplateFile
 _OUT = (
     pathlib.Path(__file__).parent.parent
     / "deploy"
+    / "charts"
+    / "orchestra"
+    / "files"
     / "templates"
     / "template.schema.json"
 )

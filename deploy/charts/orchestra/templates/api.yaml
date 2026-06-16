@@ -14,6 +14,11 @@ spec:
       {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 6 }}
   template:
     metadata:
+      {{- if .Values.api.fileTemplates.enabled }}
+      annotations:
+        # Roll the API pods when any workshop template changes.
+        checksum/templates: {{ include (print $.Template.BasePath "/templates-configmap.yaml") . | sha256sum }}
+      {{- end }}
       labels:
         {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 8 }}
     spec:
@@ -55,14 +60,27 @@ spec:
         {{- end }}
         - name: ORCHESTRA_CORS_ORIGINS
           value: '["https://app.{{ .Values.global.domain }}"]'
+        {{- if .Values.api.fileTemplates.enabled }}
+        - name: ORCHESTRA_USE_FILE_TEMPLATES
+          value: "true"
+        - name: ORCHESTRA_TEMPLATES_DIR
+          value: {{ .Values.api.fileTemplates.mountPath | quote }}
+        {{- end }}
         {{- with .Values.api.extraEnv }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
         resources:
           {{- toYaml .Values.api.resources | nindent 10 }}
-        {{- with .Values.api.extraVolumeMounts }}
+        {{- if or .Values.api.fileTemplates.enabled .Values.api.extraVolumeMounts }}
         volumeMounts:
+        {{- if .Values.api.fileTemplates.enabled }}
+        - name: workshop-templates
+          mountPath: {{ .Values.api.fileTemplates.mountPath | quote }}
+          readOnly: true
+        {{- end }}
+        {{- with .Values.api.extraVolumeMounts }}
           {{- toYaml . | nindent 8 }}
+        {{- end }}
         {{- end }}
         livenessProbe:
           httpGet:
@@ -83,9 +101,16 @@ spec:
       {{- with .Values.api.extraContainers }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- with .Values.api.extraVolumes }}
+      {{- if or .Values.api.fileTemplates.enabled .Values.api.extraVolumes }}
       volumes:
+      {{- if .Values.api.fileTemplates.enabled }}
+      - name: workshop-templates
+        configMap:
+          name: orchestra-workshop-templates
+      {{- end }}
+      {{- with .Values.api.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- end }}
 ---
 apiVersion: v1
