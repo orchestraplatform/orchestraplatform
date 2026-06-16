@@ -38,11 +38,6 @@ api:
   adminEmails:
     - "TODO@example.edu"
   requireAuthentication: true
-  # Serve the catalog from the git-managed YAML templates (ADR-0006), not the
-  # database. The imperative template API returns 409 in this mode; edit the
-  # files in files/templates/ via a PR. To revert, set enabled: false.
-  fileTemplates:
-    enabled: true
   database:
     existingSecret: "orchestra-db"   # see docs/deployment/helm.md#database
     secretKey: "database-url"

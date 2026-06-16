@@ -28,13 +28,8 @@ class Settings(BaseSettings):
     kube_context: str | None = None
     default_namespace: str = "default"
 
-    # Git-managed templates (ADR-0006)
-    # When True, the catalog is served from YAML files in `templates_dir` (an
-    # in-memory registry) instead of the database, and the imperative template
-    # mutation endpoints are disabled. The Helm chart mounts the files and flips
-    # this on; it is off by default so the database remains the source until then.
-    use_file_templates: bool = False
-    # Directory the registry loads *.yaml templates from (the ConfigMap mount).
+    # Git-managed templates (ADR-0006): the catalog is loaded from YAML files in
+    # this directory (a ConfigMap mount in production) into an in-memory registry.
     templates_dir: str = "/etc/orchestra/templates"
 
     # Workshop defaults

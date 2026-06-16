@@ -18,10 +18,8 @@ export type { WorkshopInstanceStatus } from './models/WorkshopInstanceStatus';
 export type { WorkshopLaunchRequest } from './models/WorkshopLaunchRequest';
 export type { WorkshopResources } from './models/WorkshopResources';
 export type { WorkshopStorage } from './models/WorkshopStorage';
-export { WorkshopTemplateCreate } from './models/WorkshopTemplateCreate';
 export type { WorkshopTemplateList } from './models/WorkshopTemplateList';
 export { WorkshopTemplateResponse } from './models/WorkshopTemplateResponse';
-export type { WorkshopTemplateUpdate } from './models/WorkshopTemplateUpdate';
 
 export { AuthenticationService } from './services/AuthenticationService';
 export { DefaultService } from './services/DefaultService';

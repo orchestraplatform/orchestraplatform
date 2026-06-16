@@ -1,4 +1,9 @@
-"""Workshop template routes (admin CRUD + user launch)."""
+"""Workshop template routes — read + launch.
+
+Templates are git-managed YAML served from an in-memory registry (ADR-0006).
+There are no imperative create/update/delete endpoints: the catalog is changed
+by editing files under deploy/charts/orchestra/files/templates/ via a PR.
+"""
 
 import logging
 import random
@@ -14,19 +19,13 @@ from api.core.database import get_db
 from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
 from api.models.schemas.workshop_template import (
     WorkshopLaunchRequest,
-    WorkshopTemplateCreate,
     WorkshopTemplateList,
     WorkshopTemplateResponse,
-    WorkshopTemplateUpdate,
 )
 from api.services.template_registry import TemplateRegistry, get_registry
 from api.services.workshop_instance_service import (
     WorkshopInstanceService,
     get_instance_service,
-)
-from api.services.workshop_template_service import (
-    WorkshopTemplateService,
-    get_template_service,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,33 +37,13 @@ def _random_suffix(length: int = 6) -> str:
     return "".join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
 
-def get_template_reader(
-    settings=Depends(get_settings),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-) -> WorkshopTemplateService | TemplateRegistry:
-    """Source for read + launch: the file registry in file mode, else the DB.
-
-    Both expose the same read methods (``list_templates``/``get_template``/
-    ``get_template_by_slug``), so call sites are identical (ADR-0006 phase 4).
-    The DB service is resolved via ``Depends`` so test overrides still apply.
-    """
-    if settings.use_file_templates:
-        return get_registry()
-    return svc
-
-
-def forbid_when_git_managed(settings=Depends(get_settings)) -> None:
-    """Block imperative template mutations when templates are git-managed."""
-    if settings.use_file_templates:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Templates are managed in git; edit the YAML files via a "
-            "pull request rather than the API.",
-        )
+def get_template_reader() -> TemplateRegistry:
+    """Source for template reads + launch (the git-managed file registry)."""
+    return get_registry()
 
 
 # ---------------------------------------------------------------------------
-# Template endpoints (GET open to all; mutating endpoints require admin)
+# Template endpoints — read-only; the catalog is managed in git
 # ---------------------------------------------------------------------------
 
 
@@ -73,44 +52,21 @@ async def list_templates(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=50, ge=1, le=100),
     include_inactive: bool = Query(default=False),
-    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
-    reader: WorkshopTemplateService | TemplateRegistry = Depends(get_template_reader),
+    reader: TemplateRegistry = Depends(get_template_reader),
 ):
-    """List workshop templates. Inactive templates are hidden unless admin requests them."""
+    """List workshop templates. Disabled templates are hidden unless admin asks."""
     show_inactive = include_inactive and current_user.is_admin
     items, total = await reader.list_templates(
-        db, include_inactive=show_inactive, page=page, size=size
+        include_inactive=show_inactive, page=page, size=size
     )
     return WorkshopTemplateList(items=items, total=total, page=page, size=size)
 
 
-@router.post(
-    "/",
-    response_model=WorkshopTemplateResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
-)
-async def create_template(
-    data: WorkshopTemplateCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-):
-    """Create a new workshop template (admin only)."""
-    existing = await svc.get_template_by_slug(db, data.slug)
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"A template with slug '{data.slug}' already exists",
-        )
-    return await svc.create_template(db, data, created_by=current_user.email)
-
-
 @router.get("/stats", response_model=list[TemplateStats])
 async def list_template_stats(
-    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
     svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Launch counts for all templates (available to all authenticated users)."""
@@ -120,119 +76,22 @@ async def list_template_stats(
 @router.get("/{template_id}", response_model=WorkshopTemplateResponse)
 async def get_template(
     template_id: uuid.UUID = Path(...),
-    db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
-    reader: WorkshopTemplateService | TemplateRegistry = Depends(get_template_reader),
+    reader: TemplateRegistry = Depends(get_template_reader),
 ):
     """Get a workshop template by ID."""
-    template = await reader.get_template(db, template_id)
+    template = await reader.get_template(template_id=template_id)
     if not template:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
         )
     return template
-
-
-@router.put(
-    "/{template_id}",
-    response_model=WorkshopTemplateResponse,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
-)
-async def update_template(
-    data: WorkshopTemplateUpdate,
-    template_id: uuid.UUID = Path(...),
-    db: AsyncSession = Depends(get_db),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-):
-    """Update a workshop template (admin only)."""
-    template = await svc.update_template(db, template_id, data)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
-        )
-    return template
-
-
-@router.delete(
-    "/{template_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
-)
-async def delete_template(
-    template_id: uuid.UUID = Path(...),
-    hard: bool = Query(default=False),
-    db: AsyncSession = Depends(get_db),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-):
-    """Archive a workshop template (admin only).
-
-    Defaults to soft-delete (isActive=False). Use ?hard=true for permanent removal.
-    """
-    found = await svc.archive_template(db, template_id, hard_delete=hard)
-    if not found:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
-        )
-
-
-@router.patch(
-    "/{template_id}/toggle-active",
-    response_model=WorkshopTemplateResponse,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
-)
-async def toggle_template_active(
-    template_id: uuid.UUID = Path(...),
-    db: AsyncSession = Depends(get_db),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-):
-    """Toggle a template's isActive status (admin only)."""
-    template = await svc.get_template(db, template_id)
-    if not template:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
-        )
-
-    updated = await svc.update_template(
-        db, template_id, WorkshopTemplateUpdate(isActive=not template.is_active)
-    )
-    return updated
-
-
-# ---------------------------------------------------------------------------
-# Clone endpoint
-# ---------------------------------------------------------------------------
-
-
-@router.post(
-    "/{template_id}/clone",
-    response_model=WorkshopTemplateResponse,
-    status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
-)
-async def clone_template(
-    template_id: uuid.UUID = Path(...),
-    db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
-    svc: WorkshopTemplateService = Depends(get_template_service),
-):
-    """Clone a template (admin only). The copy starts inactive for review before publishing."""
-    clone = await svc.clone_template(db, template_id, created_by=current_user.email)
-    if not clone:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
-        )
-    return clone
-
-
-# ---------------------------------------------------------------------------
-# Template stats endpoints
-# ---------------------------------------------------------------------------
 
 
 @router.get(
     "/{template_id}/stats",
     response_model=TemplateStats,
-    dependencies=[Depends(require_admin), Depends(forbid_when_git_managed)],
+    dependencies=[Depends(require_admin)],
 )
 async def get_template_stats(
     template_id: uuid.UUID = Path(...),
@@ -264,7 +123,7 @@ async def launch_workshop(
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
     settings=Depends(get_settings),
-    reader: WorkshopTemplateService | TemplateRegistry = Depends(get_template_reader),
+    reader: TemplateRegistry = Depends(get_template_reader),
     instance_svc: WorkshopInstanceService = Depends(get_instance_service),
 ):
     """Launch a new workshop instance from a template.
@@ -272,7 +131,7 @@ async def launch_workshop(
     The instance name is auto-generated as ``{slug}-{6-char suffix}``.
     Duration defaults to the template's default if not supplied.
     """
-    template = await reader.get_template(db, template_id)
+    template = await reader.get_template(template_id=template_id)
     if not template or not template.is_active:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

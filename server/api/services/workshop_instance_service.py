@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from api.core.kubernetes import ApiException, get_custom_objects_api
-from api.models.db.workshop import Workshop
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_instance import (
     InstanceSummary,
@@ -547,9 +546,11 @@ class WorkshopInstanceService:
     async def get_template_stats(
         self, db: AsyncSession, template_id: uuid.UUID
     ) -> TemplateStats | None:
-        if (
-            await db.execute(select(Workshop).where(Workshop.id == template_id))
-        ).scalar_one_or_none() is None:
+        # Templates live in the file registry (ADR-0006); instances reference
+        # them by the same stable id stored in workshop_id.
+        from api.services.template_registry import get_registry
+
+        if await get_registry().get_template(template_id=template_id) is None:
             return None
 
         counts = (

@@ -61,8 +61,6 @@ spec:
         - name: ORCHESTRA_CORS_ORIGINS
           value: '["https://app.{{ .Values.global.domain }}"]'
         {{- if .Values.api.fileTemplates.enabled }}
-        - name: ORCHESTRA_USE_FILE_TEMPLATES
-          value: "true"
         - name: ORCHESTRA_TEMPLATES_DIR
           value: {{ .Values.api.fileTemplates.mountPath | quote }}
         {{- end }}

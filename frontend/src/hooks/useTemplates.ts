@@ -1,8 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { TemplatesService } from '../api/generated';
-import type { WorkshopLaunchRequest, TemplateStats, WorkshopTemplateCreate, WorkshopTemplateUpdate } from '../api/generated';
+import type { WorkshopLaunchRequest, TemplateStats } from '../api/generated';
 import { OpenAPI } from '../api/generated/core/OpenAPI';
 import { request as __request } from '../api/generated/core/request';
+
+// Templates are git-managed YAML served read-only by the API (ADR-0006); there
+// are no create/update/delete/clone hooks. Edit the files under
+// deploy/charts/orchestra/files/templates/ via a pull request.
 
 const TEMPLATES_KEY = ['templates'] as const;
 
@@ -33,67 +37,11 @@ export function useLaunchTemplate(templateId: string) {
   });
 }
 
-export function useCreateTemplate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: WorkshopTemplateCreate) =>
-      TemplatesService.createTemplateTemplatesPost(body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
-    },
-  });
-}
-
-export function useUpdateTemplate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: WorkshopTemplateUpdate }) =>
-      TemplatesService.updateTemplateTemplatesTemplateIdPut(id, body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
-    },
-  });
-}
-
-export function useToggleTemplateActive() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (templateId: string) =>
-      TemplatesService.toggleTemplateActiveTemplatesTemplateIdToggleActivePatch(templateId),
-    onSuccess: () => {
-      // Use exact: false (default) to match any query key that starts with TEMPLATES_KEY
-      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
-    },
-  });
-}
-
 export function useTemplateLaunchCounts() {
   return useQuery({
     queryKey: ['template-stats'],
     queryFn: () =>
       __request<TemplateStats[]>(OpenAPI, { method: 'GET', url: '/templates/stats' }),
     staleTime: 60_000,
-  });
-}
-
-export function useDeleteTemplate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, hard = false }: { id: string; hard?: boolean }) =>
-      TemplatesService.deleteTemplateTemplatesTemplateIdDelete(id, hard),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
-    },
-  });
-}
-
-export function useCloneTemplate() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (templateId: string) =>
-      __request(OpenAPI, { method: 'POST', url: `/templates/${templateId}/clone` }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TEMPLATES_KEY });
-    },
   });
 }

@@ -1,12 +1,11 @@
 """In-memory registry of git-managed workshop templates (ADR-0006 phase 4).
 
 Loads template YAML files (mounted via a ConfigMap in production) into
-memory and serves the read + launch paths. It mirrors the read-side interface of
-``WorkshopTemplateService`` (async methods that accept a ``db`` they ignore), so
-routes can depend on either source uniformly while the migration is in flight.
+memory and serves the read + launch paths. Read methods are async and accept an
+optional ``db`` (ignored) to match the route call sites.
 
-The registry is the source of truth in file mode; the database template table is
-retired in a later phase.
+The registry is the source of truth for templates; there is no database template
+table (ADR-0006).
 """
 
 import logging
@@ -87,7 +86,7 @@ class TemplateRegistry:
         logger.info("Loaded %d template(s) from %s", len(templates), directory)
         return cls(templates)
 
-    # ── Read interface (mirrors WorkshopTemplateService; db is ignored) ────────
+    # ── Read interface (db arg accepted for call-site parity; ignored) ─────────
 
     async def list_templates(
         self,

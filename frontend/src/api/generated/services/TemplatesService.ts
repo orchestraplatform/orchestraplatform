@@ -5,17 +5,15 @@
 import type { TemplateStats } from '../models/TemplateStats';
 import type { WorkshopInstanceResponse } from '../models/WorkshopInstanceResponse';
 import type { WorkshopLaunchRequest } from '../models/WorkshopLaunchRequest';
-import type { WorkshopTemplateCreate } from '../models/WorkshopTemplateCreate';
 import type { WorkshopTemplateList } from '../models/WorkshopTemplateList';
 import type { WorkshopTemplateResponse } from '../models/WorkshopTemplateResponse';
-import type { WorkshopTemplateUpdate } from '../models/WorkshopTemplateUpdate';
 import type { CancelablePromise } from '../core/CancelablePromise';
 import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class TemplatesService {
     /**
      * List Templates
-     * List workshop templates. Inactive templates are hidden unless admin requests them.
+     * List workshop templates. Disabled templates are hidden unless admin asks.
      * @param page
      * @param size
      * @param includeInactive
@@ -35,26 +33,6 @@ export class TemplatesService {
                 'size': size,
                 'include_inactive': includeInactive,
             },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Create Template
-     * Create a new workshop template (admin only).
-     * @param requestBody
-     * @returns WorkshopTemplateResponse Successful Response
-     * @throws ApiError
-     */
-    public static createTemplateTemplatesPost(
-        requestBody: WorkshopTemplateCreate,
-    ): CancelablePromise<WorkshopTemplateResponse> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/templates/',
-            body: requestBody,
-            mediaType: 'application/json',
             errors: {
                 422: `Validation Error`,
             },
@@ -85,101 +63,6 @@ export class TemplatesService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/templates/{template_id}',
-            path: {
-                'template_id': templateId,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Update Template
-     * Update a workshop template (admin only).
-     * @param templateId
-     * @param requestBody
-     * @returns WorkshopTemplateResponse Successful Response
-     * @throws ApiError
-     */
-    public static updateTemplateTemplatesTemplateIdPut(
-        templateId: string,
-        requestBody: WorkshopTemplateUpdate,
-    ): CancelablePromise<WorkshopTemplateResponse> {
-        return __request(OpenAPI, {
-            method: 'PUT',
-            url: '/templates/{template_id}',
-            path: {
-                'template_id': templateId,
-            },
-            body: requestBody,
-            mediaType: 'application/json',
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Delete Template
-     * Archive a workshop template (admin only).
-     *
-     * Defaults to soft-delete (isActive=False). Use ?hard=true for permanent removal.
-     * @param templateId
-     * @param hard
-     * @returns void
-     * @throws ApiError
-     */
-    public static deleteTemplateTemplatesTemplateIdDelete(
-        templateId: string,
-        hard: boolean = false,
-    ): CancelablePromise<void> {
-        return __request(OpenAPI, {
-            method: 'DELETE',
-            url: '/templates/{template_id}',
-            path: {
-                'template_id': templateId,
-            },
-            query: {
-                'hard': hard,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Toggle Template Active
-     * Toggle a template's isActive status (admin only).
-     * @param templateId
-     * @returns WorkshopTemplateResponse Successful Response
-     * @throws ApiError
-     */
-    public static toggleTemplateActiveTemplatesTemplateIdToggleActivePatch(
-        templateId: string,
-    ): CancelablePromise<WorkshopTemplateResponse> {
-        return __request(OpenAPI, {
-            method: 'PATCH',
-            url: '/templates/{template_id}/toggle-active',
-            path: {
-                'template_id': templateId,
-            },
-            errors: {
-                422: `Validation Error`,
-            },
-        });
-    }
-    /**
-     * Clone Template
-     * Clone a template (admin only). The copy starts inactive for review before publishing.
-     * @param templateId
-     * @returns WorkshopTemplateResponse Successful Response
-     * @throws ApiError
-     */
-    public static cloneTemplateTemplatesTemplateIdClonePost(
-        templateId: string,
-    ): CancelablePromise<WorkshopTemplateResponse> {
-        return __request(OpenAPI, {
-            method: 'POST',
-            url: '/templates/{template_id}/clone',
             path: {
                 'template_id': templateId,
             },
