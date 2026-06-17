@@ -107,7 +107,7 @@ spec:
           name: orchestra-workshop-templates
       {{- end }}
       {{- with .Values.api.extraVolumes }}
-        {{- toYaml . | nindent 8 }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- end }}
 ---
