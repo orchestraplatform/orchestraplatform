@@ -19,8 +19,12 @@ class WorkshopInstance(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
+    # Stable template id (deterministic uuid5) the instance was launched from.
+    # No longer a foreign key: the workshops table was dropped in ADR-0006
+    # phase 6 (migrations f6a7b8c9d0e1 + a7b8c9d0e1f2), so this is a plain
+    # column kept so per-template stats can group by it.
     workshop_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workshops.id"), nullable=False
+        UUID(as_uuid=True), nullable=False
     )
     # Denormalized snapshot of the source template, stamped at launch so an
     # instance is self-describing and no longer depends on the template row
