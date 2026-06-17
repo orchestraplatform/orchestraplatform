@@ -12,8 +12,11 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml uv.lock ./
 RUN pip install uv && uv sync --frozen && chown -R 1000:1000 /app/.venv
 
-# Copy source code
+# Copy source code. chmod so the files are world-readable regardless of the
+# build host's umask — a restrictive umask (e.g. 0027) otherwise bakes in
+# root-only files that the non-root runtime user cannot read.
 COPY . .
+RUN chmod -R a+rX /app
 
 # Set Python path to include the virtual environment
 ENV PYTHONPATH=/app

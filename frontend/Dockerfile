@@ -29,8 +29,12 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 
-# Allow the nginx user to write config.js at startup
-RUN chmod +x /docker-entrypoint.sh \
+# Make the entrypoint and config world-readable/executable regardless of the
+# build host's umask (`chmod +x` alone is masked by a restrictive umask, which
+# leaves the non-root nginx user unable to read the entrypoint), and let the
+# nginx user write config.js at startup.
+RUN chmod 0755 /docker-entrypoint.sh \
+    && chmod 0644 /etc/nginx/conf.d/default.conf \
     && chown -R nginx:nginx /usr/share/nginx/html
 
 # Expose port
