@@ -28,13 +28,13 @@
           "type": "string"
         },
         "ephemeralStorage": {
-          "default": "4Gi",
+          "default": "32Gi",
           "description": "Ephemeral storage limit. Covers everything written outside the /data PVC (package installs, /tmp, container writable layer); the kubelet evicts the pod if exceeded.",
           "title": "Ephemeralstorage",
           "type": "string"
         },
         "ephemeralStorageRequest": {
-          "default": "2Gi",
+          "default": "16Gi",
           "description": "Ephemeral storage request",
           "title": "Ephemeralstoragerequest",
           "type": "string"

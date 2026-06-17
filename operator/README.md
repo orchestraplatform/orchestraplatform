@@ -94,8 +94,8 @@ spec:
     memory: "4Gi"
     cpuRequest: "1"
     memoryRequest: "2Gi"
-    ephemeralStorage: "8Gi"
-    ephemeralStorageRequest: "4Gi"
+    ephemeralStorage: "32Gi"
+    ephemeralStorageRequest: "16Gi"
   storage:
     size: "20Gi"
     storageClass: "fast-ssd"
@@ -211,8 +211,8 @@ just test                       # Run test suite
 | `resources.memory` | string | `"2Gi"` | Memory limit |
 | `resources.cpuRequest` | string | `"500m"` | CPU request |
 | `resources.memoryRequest` | string | `"1Gi"` | Memory request |
-| `resources.ephemeralStorage` | string | `"4Gi"` | Ephemeral storage limit (pod eviction threshold for non-`/data` writes) |
-| `resources.ephemeralStorageRequest` | string | `"2Gi"` | Ephemeral storage request |
+| `resources.ephemeralStorage` | string | `"32Gi"` | Ephemeral storage limit (pod eviction threshold for non-`/data` writes) |
+| `resources.ephemeralStorageRequest` | string | `"16Gi"` | Ephemeral storage request |
 | `storage.size` | string | `"10Gi"` | Storage size |
 | `storage.storageClass` | string | `""` | Storage class name |
 | `ingress.host` | string | `""` | Ingress hostname |

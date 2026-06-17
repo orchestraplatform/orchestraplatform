@@ -54,8 +54,8 @@ Source of truth: `deploy/charts/orchestra-crds/templates/workshop-crd.yaml`.
 | `resources.memory` | string | no | `"2Gi"` | Memory **limit**. |
 | `resources.cpuRequest` | string | no | `"500m"` | CPU **request**. |
 | `resources.memoryRequest` | string | no | `"1Gi"` | Memory **request**. |
-| `resources.ephemeralStorage` | string | no | `"4Gi"` | Ephemeral storage **limit** — the kubelet's eviction threshold for everything written outside the `/data` PVC (package installs, `/tmp`, container writable layer). GKE Autopilot defaults this to 1Gi when unset, which Bioconductor sessions exceed. |
-| `resources.ephemeralStorageRequest` | string | no | `"2Gi"` | Ephemeral storage **request**. |
+| `resources.ephemeralStorage` | string | no | `"32Gi"` | Ephemeral storage **limit** — the kubelet's eviction threshold for everything written outside the `/data` PVC (package installs, `/tmp`, container writable layer). GKE Autopilot defaults this to 1Gi when unset, which Bioconductor sessions exceed. |
+| `resources.ephemeralStorageRequest` | string | no | `"16Gi"` | Ephemeral storage **request**. |
 | `storage` | object | no | — | Persistent storage for the session. When present, a PVC is created and mounted at `/data`; omit the whole block for an ephemeral session. |
 | `storage.size` | string | no | `"10Gi"` | Requested volume size (PVC access mode is `ReadWriteOnce`). |
 | `storage.storageClass` | string | no | — | StorageClass name; unset uses the cluster default. |
@@ -124,8 +124,8 @@ spec:
     memory: 4Gi
     cpuRequest: "1"
     memoryRequest: 2Gi
-    ephemeralStorage: 8Gi
-    ephemeralStorageRequest: 4Gi
+    ephemeralStorage: 32Gi
+    ephemeralStorageRequest: 16Gi
   storage:
     size: 20Gi
     storageClass: standard-rwo

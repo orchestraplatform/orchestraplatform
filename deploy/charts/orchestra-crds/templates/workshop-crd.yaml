@@ -71,11 +71,11 @@ spec:
                     default: "1Gi"
                   ephemeralStorage:
                     type: string
-                    default: "4Gi"
+                    default: "32Gi"
                     description: "Ephemeral storage limit (eviction threshold for non-/data writes: package installs, /tmp, container layer). Autopilot defaults to 1Gi when unset."
                   ephemeralStorageRequest:
                     type: string
-                    default: "2Gi"
+                    default: "16Gi"
                 description: "Resource limits for the workshop"
               storage:
                 type: object

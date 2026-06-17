@@ -168,8 +168,8 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
                 memory=res.get("memory", "2Gi"),
                 cpuRequest=res.get("cpuRequest", "500m"),
                 memoryRequest=res.get("memoryRequest", "1Gi"),
-                ephemeralStorage=res.get("ephemeralStorage", "4Gi"),
-                ephemeralStorageRequest=res.get("ephemeralStorageRequest", "2Gi"),
+                ephemeralStorage=res.get("ephemeralStorage", "32Gi"),
+                ephemeralStorageRequest=res.get("ephemeralStorageRequest", "16Gi"),
             ),
             storage=WorkshopStorage(
                 size=storage_spec.get("size", "10Gi"),
