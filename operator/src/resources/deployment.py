@@ -74,8 +74,13 @@ def create_rstudio_deployment(
     # evicts the whole pod (not just a container restart). When unset, GKE Autopilot
     # defaults this to 1Gi, which Bioconductor sessions blow past, so set it
     # explicitly (incident 2026-06-16).
-    ephemeral_limit = resources.get("ephemeralStorage", "32Gi")
-    ephemeral_request = resources.get("ephemeralStorageRequest", "16Gi")
+    #
+    # CAP: GKE Autopilot rejects pods whose *total* ephemeral-storage request
+    # across all containers exceeds 10Gi, and forces limit == request. With the
+    # sidecar requesting 1Gi, the app can request at most ~9Gi here. Going beyond
+    # 10Gi/pod needs Local SSD-backed ephemeral storage or GKE Standard (ADR-0005).
+    ephemeral_limit = resources.get("ephemeralStorage", "8Gi")
+    ephemeral_request = resources.get("ephemeralStorageRequest", "8Gi")
 
     app_env = {**_DEFAULT_APP_ENV, **(env or {})}
 

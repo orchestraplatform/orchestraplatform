@@ -37,7 +37,7 @@ class WorkshopResources(BaseModel):
         default="1Gi", description="Memory request", alias="memoryRequest"
     )
     ephemeral_storage: str = Field(
-        default="32Gi",
+        default="8Gi",
         description=(
             "Ephemeral storage limit. Covers everything written outside the /data "
             "PVC (package installs, /tmp, container writable layer); the kubelet "
@@ -46,7 +46,7 @@ class WorkshopResources(BaseModel):
         alias="ephemeralStorage",
     )
     ephemeral_storage_request: str = Field(
-        default="16Gi",
+        default="8Gi",
         description="Ephemeral storage request",
         alias="ephemeralStorageRequest",
     )

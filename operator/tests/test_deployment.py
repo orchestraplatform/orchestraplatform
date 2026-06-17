@@ -87,8 +87,8 @@ class TestResources:
 
     def test_ephemeral_storage_defaults_applied(self):
         app = _app_container(_make(resources={}))
-        assert app.resources.limits["ephemeral-storage"] == "32Gi"
-        assert app.resources.requests["ephemeral-storage"] == "16Gi"
+        assert app.resources.limits["ephemeral-storage"] == "8Gi"
+        assert app.resources.requests["ephemeral-storage"] == "8Gi"
 
     def test_ephemeral_storage_from_spec(self):
         app = _app_container(
