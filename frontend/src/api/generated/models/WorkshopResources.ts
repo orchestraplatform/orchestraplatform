@@ -22,5 +22,13 @@ export type WorkshopResources = {
      * Memory request
      */
     memoryRequest?: string;
+    /**
+     * Ephemeral storage limit. Covers everything written outside the /data PVC (package installs, /tmp, container writable layer); the kubelet evicts the pod if exceeded.
+     */
+    ephemeralStorage?: string;
+    /**
+     * Ephemeral storage request
+     */
+    ephemeralStorageRequest?: string;
 };
 

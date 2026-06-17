@@ -25,13 +25,13 @@ def _env_dict(container):
     return {e.name: e.value for e in (container.env or [])}
 
 
-def _make(**kwargs):
+def _make(resources=None, **kwargs):
     return create_rstudio_deployment(
         "test-ws",
         "default",
         "rocker/rstudio:latest",
         "user@example.com",
-        resources={},
+        resources=resources or {},
         storage={},
         **kwargs,
     )
@@ -75,6 +75,40 @@ class TestPortWiring:
         )
         target = {e.name: e.value for e in sidecar.env}["ORCHESTRA_TARGET_URL"]
         assert target == "http://localhost:8888"
+
+
+class TestResources:
+    """The app container must carry ephemeral-storage requests/limits.
+
+    GKE Autopilot defaults ephemeral-storage to 1Gi when unset, which Bioconductor
+    sessions exceed and get evicted (incident 2026-06-16). The operator sets it
+    explicitly, defaulting when the Workshop spec omits it.
+    """
+
+    def test_ephemeral_storage_defaults_applied(self):
+        app = _app_container(_make(resources={}))
+        assert app.resources.limits["ephemeral-storage"] == "32Gi"
+        assert app.resources.requests["ephemeral-storage"] == "16Gi"
+
+    def test_ephemeral_storage_from_spec(self):
+        app = _app_container(
+            _make(
+                resources={
+                    "ephemeralStorage": "16Gi",
+                    "ephemeralStorageRequest": "8Gi",
+                }
+            )
+        )
+        assert app.resources.limits["ephemeral-storage"] == "16Gi"
+        assert app.resources.requests["ephemeral-storage"] == "8Gi"
+
+    def test_cpu_memory_still_wired(self):
+        app = _app_container(
+            _make(resources={"cpu": "4", "memory": "8Gi", "memoryRequest": "4Gi"})
+        )
+        assert app.resources.limits["cpu"] == "4"
+        assert app.resources.limits["memory"] == "8Gi"
+        assert app.resources.requests["memory"] == "4Gi"
 
 
 class TestTierScheduling:

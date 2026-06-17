@@ -89,6 +89,8 @@ def _to_kubernetes_crd(
                 "memory": workshop.resources.memory,
                 "cpuRequest": workshop.resources.cpu_request,
                 "memoryRequest": workshop.resources.memory_request,
+                "ephemeralStorage": workshop.resources.ephemeral_storage,
+                "ephemeralStorageRequest": workshop.resources.ephemeral_storage_request,
             },
         },
     }
@@ -166,6 +168,8 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
                 memory=res.get("memory", "2Gi"),
                 cpuRequest=res.get("cpuRequest", "500m"),
                 memoryRequest=res.get("memoryRequest", "1Gi"),
+                ephemeralStorage=res.get("ephemeralStorage", "32Gi"),
+                ephemeralStorageRequest=res.get("ephemeralStorageRequest", "16Gi"),
             ),
             storage=WorkshopStorage(
                 size=storage_spec.get("size", "10Gi"),
@@ -357,6 +361,8 @@ class WorkshopInstanceService:
                 memory=res.memory,
                 cpuRequest=res.cpu_request,
                 memoryRequest=res.memory_request,
+                ephemeralStorage=res.ephemeral_storage,
+                ephemeralStorageRequest=res.ephemeral_storage_request,
             ),
             storage=WorkshopStorage(
                 size=template.storage.size,

@@ -13,6 +13,8 @@ resources:
   memory: 4Gi
   cpuRequest: "1"
   memoryRequest: 2Gi
+  ephemeralStorage: 32Gi
+  ephemeralStorageRequest: 16Gi
 storage:
   size: 10Gi
 tags:
