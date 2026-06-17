@@ -1,5 +1,6 @@
 import React from 'react';
 import { useInstances } from '../hooks/useInstances';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useExpiryNotifications } from '../hooks/useExpiryNotifications';
 import { WorkshopCard } from '../components/workshop/WorkshopCard';
 import { NotificationBanner } from '../components/ui/NotificationBanner';
@@ -11,7 +12,15 @@ import { Link } from 'react-router-dom';
 
 export function Dashboard() {
   const { data: instancesData, isLoading, error, refetch } = useInstances();
-  const instances = instancesData?.items ?? [];
+  const { data: currentUser } = useCurrentUser();
+  // "My Sessions" is owner-scoped. The /instances API returns all sessions to
+  // admins (for the AdminDashboard), so filter to the current user's own here —
+  // otherwise an admin sees other users' sessions with a Connect button that the
+  // session sidecar (owner-only) then rejects. For non-admins this is a no-op.
+  const allInstances = instancesData?.items ?? [];
+  const instances = currentUser
+    ? allInstances.filter((i) => i.ownerEmail === currentUser.email)
+    : allInstances;
   useExpiryNotifications(instances);
 
   if (isLoading) {
