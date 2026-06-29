@@ -17,7 +17,11 @@ dependencies = [
     "asyncpg>=0.29.0",
     "alembic>=1.13.0",
     "sse-starlette>=2.0.0",
+    "orchestra-template-tools",
 ]
+
+[tool.uv.sources]
+orchestra-template-tools = { path = "../template-tools", editable = true }
 
 [dependency-groups]
 dev = [

@@ -1,0 +1,16 @@
+# Root build context for the API image (server/Dockerfile). Keep the context
+# small and free of host-only/build artifacts.
+.git
+**/.venv
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.env
+**/.env.*
+**/node_modules
+frontend/dist
+docs/dist
+docs/.astro

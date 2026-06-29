@@ -524,6 +524,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "fastapi" },
     { name = "kubernetes" },
+    { name = "orchestra-template-tools" },
     { name = "pydantic", extra = ["email"] },
     { name = "pydantic-settings" },
     { name = "python-dateutil" },
@@ -549,6 +550,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.29.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "kubernetes", specifier = ">=29.0.0" },
+    { name = "orchestra-template-tools", editable = "../template-tools" },
     { name = "pydantic", specifier = ">=2.5.0" },
     { name = "pydantic", extras = ["email"], specifier = ">=2.5.0" },
     { name = "pydantic-settings", specifier = ">=2.0.0" },
@@ -566,6 +568,27 @@ dev = [
     { name = "pytest", specifier = ">=7.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.21.0" },
     { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "ruff", specifier = ">=0.3.0" },
+]
+
+[[package]]
+name = "orchestra-template-tools"
+version = "0.1.0"
+source = { editable = "../template-tools" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.5.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=7.0.0" },
     { name = "ruff", specifier = ">=0.3.0" },
 ]
 
