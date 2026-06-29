@@ -95,6 +95,7 @@ export default defineConfig({
             { label: 'ADR-0004: Template/instance split', link: '/docs/adr/0004-template-instance-split/' },
             { label: 'ADR-0005: GKE Standard tenant pools', link: '/docs/adr/0005-gke-standard-tenant-pools/' },
             { label: 'ADR-0006: YAML workshop templates', link: '/docs/adr/0006-yaml-workshop-templates/' },
+            { label: 'ADR-0007: External workshop-templates repo', link: '/docs/adr/0007-external-template-repo/' },
           ],
         },
       ],

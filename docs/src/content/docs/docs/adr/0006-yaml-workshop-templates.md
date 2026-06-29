@@ -3,7 +3,7 @@ title: "ADR-0006: Git-managed YAML workshop templates"
 description: Decision record — onboarding workshop templates as PR-reviewed YAML, with YAML as the source of truth instead of a database table.
 ---
 
-**Status:** Accepted
+**Status:** Accepted — decisions A and D superseded by [ADR-0007](/docs/adr/0007-external-template-repo/)
 **Date:** 2026-06-15
 
 ## Context
