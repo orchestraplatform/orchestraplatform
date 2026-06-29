@@ -105,7 +105,7 @@ build-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra"
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-api:${sha} \
         -t {{registry}}/orchestra-api:latest \
-        --push server/
+        -f server/Dockerfile --push .
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-operator:${sha} \
         -t {{registry}}/orchestra-operator:latest \
@@ -149,13 +149,14 @@ sync-types:
     cd server && uv run python generate_schema.py openapi.json
     cd frontend && npx openapi-typescript-codegen --input ../server/openapi.json --output ./src/api/generated --client axios
 
-# Regenerate deploy/templates/template.schema.json from the WorkshopTemplateFile model
+# Regenerate template.schema.json from the orchestra-template-tools schema
 template-schema:
     cd server && uv run python generate_template_schema.py
 
-# Validate the git-managed template files in deploy/templates/ against the schema
+# Validate the git-managed template files against the schema (same CLI the
+# workshop-templates repo's CI runs — ADR-0007).
 validate-templates:
-    cd server && uv run python -m pytest tests/test_template_files.py -v
+    cd template-tools && uv run orchestra-validate-templates ../deploy/charts/orchestra/files/templates
 
 # --- Local template rehearsal (ADR-0006) ---
 
@@ -289,7 +290,7 @@ ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-api:${sha} \
         -t {{registry}}/orchestra-api:latest \
-        --push server/
+        -f server/Dockerfile --push .
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-operator:${sha} \
         -t {{registry}}/orchestra-operator:latest \

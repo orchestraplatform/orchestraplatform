@@ -5,7 +5,16 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
+# WorkshopResources / WorkshopStorage are defined in orchestra-template-tools,
+# the single source of truth for the template schema (ADR-0007). Re-exported here
+# so existing ``from api.models.workshop import WorkshopResources`` keeps working.
+from orchestra_template_tools import WorkshopResources, WorkshopStorage
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+
+__all__ = [
+    "WorkshopResources",
+    "WorkshopStorage",
+]
 
 
 class WorkshopPhase(str, Enum):
@@ -21,53 +30,6 @@ class WorkshopPhase(str, Enum):
     # Not emitted by the operator on a CRD; used by the API to mark an
     # instance whose backing CRD has vanished (see workshop_instance_service).
     TERMINATED = "Terminated"
-
-
-class WorkshopResources(BaseModel):
-    """Workshop resource requirements."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    cpu: str = Field(default="1", description="CPU limit")
-    memory: str = Field(default="2Gi", description="Memory limit")
-    cpu_request: str = Field(
-        default="500m", description="CPU request", alias="cpuRequest"
-    )
-    memory_request: str = Field(
-        default="1Gi", description="Memory request", alias="memoryRequest"
-    )
-    ephemeral_storage: str = Field(
-        default="8Gi",
-        description=(
-            "Ephemeral storage limit. Covers everything written outside the /data "
-            "PVC (package installs, /tmp, container writable layer); the kubelet "
-            "evicts the pod if exceeded."
-        ),
-        alias="ephemeralStorage",
-    )
-    ephemeral_storage_request: str = Field(
-        default="8Gi",
-        description="Ephemeral storage request",
-        alias="ephemeralStorageRequest",
-    )
-
-
-class WorkshopStorage(BaseModel):
-    """Workshop storage configuration."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    size: str = Field(default="10Gi", description="Storage size")
-    storage_class: str | None = Field(
-        default=None,
-        description="Storage class name. Leave unset to use the cluster default.",
-        alias="storageClass",
-    )
-
-    @field_validator("storage_class", mode="before")
-    @classmethod
-    def empty_str_to_none(cls, v: str | None) -> str | None:
-        return None if v == "" else v
 
 
 class WorkshopIngress(BaseModel):

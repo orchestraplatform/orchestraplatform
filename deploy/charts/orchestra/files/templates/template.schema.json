@@ -70,7 +70,7 @@
       "type": "object"
     }
   },
-  "description": "Schema for a git-managed template YAML file (ADR-0006).\n\nExtends the create payload with an ``enabled`` flag (the declarative\nreplacement for the runtime ``isActive`` toggle). This is the validation\ncontract for the git-managed template files and the source the in-memory\nregistry loads from. ``model_config`` is inherited (``populate_by_name``),\nso files may use either camelCase (``defaultDuration``) or snake_case.",
+  "description": "Schema for a git-managed template YAML file (ADR-0006/0007).\n\nExtends the spec with an ``enabled`` flag (the declarative replacement for the\nruntime ``isActive`` toggle). This is the validation contract for the\ngit-managed template files and the source the in-memory registry loads from.\n``model_config`` is inherited (``populate_by_name``), so files may use either\ncamelCase (``defaultDuration``) or snake_case.",
   "properties": {
     "name": {
       "description": "Human-readable display name",
