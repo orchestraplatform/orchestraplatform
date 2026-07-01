@@ -2,6 +2,8 @@
 
 # Default Kubernetes context for local development
 dev_k8s_context := "docker-desktop"
+# Optional kube-context override for `just doctor` (empty = current context).
+context := ""
 api_port := "8080"
 frontend_port := "3000"
 docs_port := "3003"
@@ -242,6 +244,23 @@ rehearse-db-up:
 # Stop and remove the throwaway rehearsal Postgres.
 rehearse-db-down:
     -docker stop orchestra-rehearse-db
+
+# --- Deployment preflight ---
+
+# Read-only preflight for an Orchestra deploy. Checks the environment
+# interdependencies that make an install fail at runtime — tooling + cluster
+# reachability, node egress for external image pulls, ephemeral-storage headroom
+# vs the workshop templates, rendered request<=limit (Autopilot hides this,
+# Standard rejects it), external deps (IngressClass / cert-manager / oauth2-proxy),
+# required DB + oauth secrets, chart lint + template-schema sync, and migrate-hook
+# prerequisites. Prints PASS/WARN/FAIL with a concrete fix per item and exits
+# non-zero if anything FAILs. Changes NOTHING. Static checks (lint, schema,
+# resource-limit render, ephemeral-vs-template) still run with no cluster.
+#   just doctor                    # current kubectl context
+#   context=my-ctx just doctor     # override the kube context
+#   KUBECONFIG=/path just doctor   # or target a specific kubeconfig
+doctor:
+    @context="{{ context }}" bash scripts/doctor.sh
 
 # --- Quality & Testing ---
 
