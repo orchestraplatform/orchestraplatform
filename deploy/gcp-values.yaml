@@ -42,6 +42,12 @@ api:
   extraEnv:
     - name: UV_CACHE_DIR
       value: /tmp/uv-cache
+    # readOnlyRootFilesystem is on, so `uv run` must NOT try to re-sync the
+    # baked-in /app/.venv at startup (it fails writing to the read-only fs).
+    - name: UV_NO_SYNC
+      value: "1"
+    - name: UV_FROZEN
+      value: "1"
 
   extraVolumeMounts:
     - name: tmp

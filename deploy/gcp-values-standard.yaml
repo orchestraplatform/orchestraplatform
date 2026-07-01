@@ -1,0 +1,24 @@
+# GKE Standard-cluster overlay (ADR-0005). Layer this AFTER gcp-values.yaml on
+# the Standard cluster only:
+#   helm upgrade ... -f gcp-values.yaml -f gcp-values-secrets.yaml -f gcp-values-standard.yaml
+#
+# Do NOT apply against the Autopilot cluster — it has neither the tainted system
+# pool nor the tenant-compute ComputeClass these settings depend on, so pods
+# would go unschedulable.
+
+# Pin the platform's own pods (operator, API, frontend) to the always-on system
+# node pool (taint dedicated=system:NoSchedule, label pool=system).
+systemPool:
+  enabled: true
+
+operator:
+  # Workshop pods select the tenant-compute ComputeClass; NAP sizes a node to
+  # their requests. safe-to-evict=false + a 120s grace period are always stamped
+  # by the operator so consolidation never disconnects a live session.
+  tierMap:
+    small:
+      computeClass: tenant-compute
+    large:
+      computeClass: tenant-compute
+  computeClassLabelKey: cloud.google.com/compute-class
+  terminationGracePeriodSeconds: 120

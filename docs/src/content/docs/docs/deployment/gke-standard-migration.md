@@ -210,6 +210,34 @@ Once cutover is stable and Autopilot is idle:
    it).
 3. Record final Autopilot vs Standard cost to confirm the savings.
 
+## Gotchas found during the first stand-up
+
+Validated on `orchestraplatform-dev` (2026-07-01); fixes are in the tofu module
+and chart:
+
+- **Node egress.** The Autopilot cluster runs **public nodes** with no Cloud NAT
+  on the `default` VPC. Private nodes on GKE Standard therefore can't pull
+  external workshop images (Docker Hub `rocker/*`, `registry.k8s.io/pause`) —
+  the balloon and every workshop stay `ImagePullBackOff`. Fix: `enable_private_nodes = false`
+  (or add Cloud NAT). Note `enable_private_nodes` is **immutable** — changing it
+  replaces the cluster, which is blocked by `deletion_protection`; flip that off
+  in a separate apply first, or just delete + recreate.
+- **NAP disk vs ephemeral-storage.** A 30GB NAP node yields only ~7.8GiB
+  *allocatable* ephemeral-storage — under the templates' 8Gi request — so NAP
+  refuses to scale up (`NotTriggerScaleUp: Insufficient ephemeral-storage`). Use
+  `nap_boot_disk_size_gb = 50` (~18GiB allocatable).
+- **Fresh-install chart bug.** The `orchestra-migrate` pre-install hook must not
+  set `serviceAccountName: orchestra-operator` — that SA doesn't exist yet during
+  pre-install, so every fresh install fails `serviceaccount ... not found`. It
+  only runs `alembic`, so the default SA is correct (fixed in `migrate-job.yaml`).
+- **`uv` under `readOnlyRootFilesystem`.** Set `UV_CACHE_DIR=/tmp/uv-cache` **and**
+  `UV_NO_SYNC=1` / `UV_FROZEN=1` on the API — otherwise `uv run` tries to mutate
+  the baked-in `/app/.venv` at startup and crash-loops (in `gcp-values.yaml`).
+- **External DB + hooks ordering.** The migrate pre-install hook needs the
+  namespace and the database to already exist. Pre-create both (Postgres/Cloud
+  SQL reachable) before `helm install`; if you pre-create the namespace, add the
+  Helm-ownership label/annotations so the chart's `namespace.yaml` can adopt it.
+
 ## Rollback
 
 Because this is parallel stand-up, rollback is just **repoint DNS/LB back to
