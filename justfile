@@ -154,8 +154,8 @@ template-schema:
     cd server && uv run python generate_template_schema.py
 
 # Fail if the committed template.schema.json has drifted from the model
-# (single-source check for CI). Regenerates to a temp file and diffs; the
-# committed file is left untouched. Exits non-zero on drift.
+# (single-source check for CI, called by .github ci.yml). Regenerates to a temp
+# file and diffs; the committed file is left untouched. Exits non-zero on drift.
 check-schema:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -258,6 +258,15 @@ quality:
     @echo "--- Quality: Docs ---"
     cd docs && npm run lint
 
+# Non-mutating lint check for the Python server (CI gate; unlike `quality`,
+# does not rewrite files). Used by .github ci.yml.
+lint-server:
+    cd server && uv run ruff check . && uv run ruff format --check .
+
+# Non-mutating lint check for the template-tools package (CI gate).
+lint-template-tools:
+    cd template-tools && uv run ruff check . && uv run ruff format --check .
+
 # Run all tests
 test:
     @echo "--- Test: Server ---"
@@ -268,6 +277,14 @@ test:
     cd sidecar && go test ./... -v
     @echo "--- Test: Frontend ---"
     cd frontend && npm run test -- --run --passWithNoTests
+
+# Server Python test suite only (CI gate).
+test-server:
+    cd server && uv run python -m pytest tests/ -v
+
+# template-tools package test suite only (CI gate).
+test-template-tools:
+    cd template-tools && uv run python -m pytest tests/ -v
 
 # --- GCP / Production Deployment ---
 
