@@ -153,6 +153,23 @@ sync-types:
 template-schema:
     cd server && uv run python generate_template_schema.py
 
+# Fail if the committed template.schema.json has drifted from the model
+# (single-source check for CI). Regenerates to a temp file and diffs; the
+# committed file is left untouched. Exits non-zero on drift.
+check-schema:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    committed="deploy/charts/orchestra/files/templates/template.schema.json"
+    generated=$(mktemp)
+    trap 'rm -f "$generated"' EXIT
+    ( cd template-tools && uv run orchestra-validate-templates --print-schema ) > "$generated"
+    if ! diff -u "$committed" "$generated"; then
+        echo ""
+        echo "✗ $committed is stale — regenerate with 'just template-schema' and commit."
+        exit 1
+    fi
+    echo "✓ $committed is in sync with the orchestra-template-tools model."
+
 # Validate the git-managed template files against the schema (same CLI the
 # workshop-templates repo's CI runs — ADR-0007).
 validate-templates:
