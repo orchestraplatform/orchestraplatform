@@ -41,6 +41,34 @@ app.kubernetes.io/instance: {{ .context.Release.Name }}
 {{- end }}
 
 {{/*
+System node pool placement (GKE Standard, ADR-0005). Two granular helpers so a
+pod that already declares a nodeSelector (e.g. the operator's kubernetes.io/os)
+can add the pool key WITHOUT emitting a duplicate nodeSelector map. Config-driven
+and gated by systemPool.enabled, so single-node/Autopilot/kind installs are
+unaffected.
+
+Pod with no existing nodeSelector (api, frontend):
+  {{- if .Values.systemPool.enabled }}
+  nodeSelector:
+    {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+  {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+  {{- end }}
+
+Pod that already has a nodeSelector (operator): add the entry inside it, then the
+tolerations block after it — each gated by the flag.
+*/}}
+{{- define "orchestra.systemPoolNodeSelector" -}}
+{{ .Values.systemPool.nodeSelectorKey }}: {{ .Values.systemPool.nodeSelectorValue | quote }}
+{{- end }}
+{{- define "orchestra.systemPoolTolerations" -}}
+tolerations:
+- key: {{ .Values.systemPool.taintKey | quote }}
+  operator: Equal
+  value: {{ .Values.systemPool.taintValue | quote }}
+  effect: {{ .Values.systemPool.taintEffect }}
+{{- end }}
+
+{{/*
 oauth2-proxy service URL used by the Traefik ForwardAuth middleware.
 */}}
 {{- define "orchestra.oauth2ProxyAuthURL" -}}

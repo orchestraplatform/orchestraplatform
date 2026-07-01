@@ -10,6 +10,21 @@ global:
   # Required when images are in a private registry.
   imagePullSecrets: []
 
+# ── System node pool placement (GKE Standard, ADR-0005) ──────────────────────
+# Pin the platform's own pods (operator, API, frontend) to the always-on,
+# tainted system node pool so they never land on scale-to-zero NAP tenant nodes.
+# Disabled by default so single-node / Autopilot / kind installs are unaffected;
+# keys/values are config-driven to stay cloud-neutral. The GKE production
+# instance sets enabled: true with the values below, matching the tofu module's
+# system pool (label pool=system, taint dedicated=system:NoSchedule).
+systemPool:
+  enabled: false
+  nodeSelectorKey: pool
+  nodeSelectorValue: system
+  taintKey: dedicated
+  taintValue: system
+  taintEffect: NoSchedule
+
 # ── Operator ─────────────────────────────────────────────────────────────────
 operator:
   image:

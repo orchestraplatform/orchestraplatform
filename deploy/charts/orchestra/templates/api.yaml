@@ -22,6 +22,11 @@ spec:
       labels:
         {{- include "orchestra.selectorLabels" (dict "component" "api" "context" .) | nindent 8 }}
     spec:
+      {{- if .Values.systemPool.enabled }}
+      nodeSelector:
+        {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+      {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+      {{- end }}
       serviceAccountName: orchestra-operator
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:

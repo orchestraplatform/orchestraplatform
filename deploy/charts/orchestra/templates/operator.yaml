@@ -88,6 +88,9 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
+      {{- if .Values.systemPool.enabled }}
+      {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+      {{- end }}
       serviceAccountName: orchestra-operator
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -169,3 +172,6 @@ spec:
       terminationGracePeriodSeconds: 60
       nodeSelector:
         kubernetes.io/os: linux
+        {{- if .Values.systemPool.enabled }}
+        {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+        {{- end }}
