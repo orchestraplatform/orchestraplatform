@@ -286,6 +286,11 @@ test-server:
 test-template-tools:
     cd template-tools && uv run python -m pytest tests/ -v
 
+# operator test suite only (CI gate). Tests only — the operator carries
+# pre-existing ruff/format debt that is out of scope for the template work.
+test-operator:
+    cd operator && uv run python -m pytest tests/ -v
+
 # --- GCP / Production Deployment ---
 
 # GCP deployment config lives in:
