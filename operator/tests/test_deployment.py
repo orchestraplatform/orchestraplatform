@@ -111,27 +111,59 @@ class TestResources:
         assert app.resources.requests["memory"] == "4Gi"
 
 
-class TestTierScheduling:
-    """Tier maps to nodeSelector/tolerations ONLY when tenant pools are enabled.
+def _enable_tier_map(monkeypatch, tier_map_json):
+    """Set the ORCHESTRA_TIER_MAP env var and reset the settings cache."""
+    monkeypatch.setenv("ORCHESTRA_TIER_MAP", tier_map_json)
+    from config import get_settings
 
-    On GKE Autopilot / single-node dev the feature is off (the default), so pods
-    must carry no scheduling constraints — otherwise they'd stay Pending.
+    get_settings.cache_clear()
+
+
+# A representative GKE-style tier map: a `small` tier that only names a GKE
+# ComputeClass, a `large` tier that uses a static tainted/labelled pool, and an
+# empty `default` tier. All values are config strings — no GKE constants live in
+# the operator code.
+_TIER_MAP_JSON = (
+    '{"small": {"computeClass": "tenant-compute"},'
+    ' "large": {"nodeSelector": {"tenant-tier": "large"},'
+    '           "tolerations": [{"key": "tenant-size", "value": "large",'
+    '                            "effect": "NoSchedule"}]},'
+    ' "default": {}}'
+)
+
+
+class TestTierScheduling:
+    """A template selects a tier by name; the operator resolves it via the map.
+
+    The map is config-driven (ORCHESTRA_TIER_MAP). An empty map (the default,
+    correct for GKE Autopilot / single-node dev) emits no constraints so pods
+    schedule anywhere. No GKE constants appear in operator code.
     """
 
     def _pod_spec(self, deployment):
         return deployment.spec.template.spec
 
-    def test_no_scheduling_by_default(self):
-        """Tenant pools disabled (default): tier is ignored, no constraints."""
+    def test_no_scheduling_when_map_empty(self):
+        """Empty tier map (default): the tier is ignored, no constraints."""
         pod = self._pod_spec(_make(tier="small"))
         assert pod.node_selector is None
         assert pod.tolerations is None
 
-    def test_scheduling_emitted_when_enabled(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
-        from config import get_settings
+    def test_no_scheduling_for_none_tier(self, monkeypatch):
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
+        pod = self._pod_spec(_make(tier=None))
+        assert pod.node_selector is None
+        assert pod.tolerations is None
 
-        get_settings.cache_clear()
+    def test_empty_named_tier_emits_nothing(self, monkeypatch):
+        """A defined-but-empty tier (`default: {}`) schedules anywhere."""
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
+        pod = self._pod_spec(_make(tier="default"))
+        assert pod.node_selector is None
+        assert pod.tolerations is None
+
+    def test_nodeselector_and_tolerations_tier(self, monkeypatch):
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
         pod = self._pod_spec(_make(tier="large"))
         assert pod.node_selector == {"tenant-tier": "large"}
         assert len(pod.tolerations) == 1
@@ -139,23 +171,75 @@ class TestTierScheduling:
         assert tol.key == "tenant-size"
         assert tol.value == "large"
         assert tol.effect == "NoSchedule"
+        assert tol.operator == "Equal"
 
-    def test_no_scheduling_when_enabled_but_no_tier(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
-        from config import get_settings
-
-        get_settings.cache_clear()
-        pod = self._pod_spec(_make(tier=None))
-        assert pod.node_selector is None
+    def test_compute_class_tier(self, monkeypatch):
+        """A tier naming only a compute class emits the compute-class label."""
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
+        pod = self._pod_spec(_make(tier="small"))
+        assert pod.node_selector == {"cloud.google.com/compute-class": "tenant-compute"}
         assert pod.tolerations is None
 
-    def test_label_and_taint_keys_are_configurable(self, monkeypatch):
-        monkeypatch.setenv("ORCHESTRA_TENANT_POOLS_ENABLED", "true")
-        monkeypatch.setenv("ORCHESTRA_TENANT_TIER_LABEL_KEY", "pool")
-        monkeypatch.setenv("ORCHESTRA_TENANT_TIER_TAINT_KEY", "dedicated")
+    def test_compute_class_label_key_is_configurable(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_COMPUTE_CLASS_LABEL_KEY", "compute.example/class")
+        _enable_tier_map(monkeypatch, '{"small": {"computeClass": "tenant-compute"}}')
+        pod = self._pod_spec(_make(tier="small"))
+        assert pod.node_selector == {"compute.example/class": "tenant-compute"}
+
+    def test_compute_class_merges_with_node_selector(self, monkeypatch):
+        _enable_tier_map(
+            monkeypatch,
+            '{"big": {"nodeSelector": {"disk": "ssd"},'
+            ' "computeClass": "tenant-compute"}}',
+        )
+        pod = self._pod_spec(_make(tier="big"))
+        assert pod.node_selector == {
+            "disk": "ssd",
+            "cloud.google.com/compute-class": "tenant-compute",
+        }
+
+    def test_unknown_tier_falls_back_to_no_constraints(self, monkeypatch, caplog):
+        """An unknown tier name schedules anywhere and logs a warning (safer
+        than leaving the pod Pending on a bad nodeSelector)."""
+        import logging
+
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
+        with caplog.at_level(logging.WARNING):
+            pod = self._pod_spec(_make(tier="does-not-exist"))
+        assert pod.node_selector is None
+        assert pod.tolerations is None
+        assert any("does-not-exist" in r.message for r in caplog.records)
+
+
+class TestInteractiveSafety:
+    """safe-to-evict + grace period are stamped on EVERY workshop pod, always."""
+
+    def _template(self, deployment):
+        return deployment.spec.template
+
+    def test_safe_to_evict_annotation_always_present(self):
+        tmpl = self._template(_make())
+        assert (
+            tmpl.metadata.annotations["cluster-autoscaler.kubernetes.io/safe-to-evict"]
+            == "false"
+        )
+
+    def test_safe_to_evict_present_with_tier(self, monkeypatch):
+        _enable_tier_map(monkeypatch, _TIER_MAP_JSON)
+        tmpl = self._template(_make(tier="large"))
+        assert (
+            tmpl.metadata.annotations["cluster-autoscaler.kubernetes.io/safe-to-evict"]
+            == "false"
+        )
+
+    def test_grace_period_defaults_to_120(self):
+        tmpl = self._template(_make())
+        assert tmpl.spec.termination_grace_period_seconds == 120
+
+    def test_grace_period_is_configurable(self, monkeypatch):
+        monkeypatch.setenv("ORCHESTRA_TERMINATION_GRACE_PERIOD_SECONDS", "180")
         from config import get_settings
 
         get_settings.cache_clear()
-        pod = self._pod_spec(_make(tier="small"))
-        assert pod.node_selector == {"pool": "small"}
-        assert pod.tolerations[0].key == "dedicated"
+        tmpl = self._template(_make())
+        assert tmpl.spec.termination_grace_period_seconds == 180
