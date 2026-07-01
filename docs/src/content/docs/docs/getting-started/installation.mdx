@@ -6,9 +6,9 @@ description: Get an Orchestra instance running — a local cluster for evaluatio
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
 This page is a quick-start for **standing up an Orchestra instance**. For a local
-evaluation cluster, follow the local path. For a real deployment, the Helm and
-cloud guides under [Deployment](/docs/deployment/helm/) are the source of truth —
-this page just orients you.
+evaluation cluster, follow the local path. For a real deployment, the numbered
+[Deploying Orchestra](/docs/deployment/overview/) sequence is the authoritative
+operator runbook — this page just orients you.
 
 ## Prerequisites
 
@@ -93,9 +93,10 @@ The chart runs database migrations automatically as a Helm
 installs and upgrades.
 </Aside>
 
-See the [Helm Chart guide](/docs/deployment/helm/) for the full values reference,
-[Ingress Controller](/docs/deployment/ingress/) for routing and wildcard TLS, and
-[GCP Autopilot](/docs/deployment/gcp/) for an end-to-end cloud walkthrough.
+See [Deploying Orchestra](/docs/deployment/overview/) for the authoritative
+end-to-end runbook (cluster → Helm → ingress/TLS/auth → DNS), the
+[Helm Chart guide](/docs/deployment/helm/) for the full values reference, and
+[Ingress Controller](/docs/deployment/ingress/) for controller internals.
 
 </TabItem>
 </Tabs>

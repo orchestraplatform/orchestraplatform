@@ -42,6 +42,12 @@ api:
   extraEnv:
     - name: UV_CACHE_DIR
       value: /tmp/uv-cache
+    # readOnlyRootFilesystem is on, so `uv run` must NOT try to re-sync the
+    # baked-in /app/.venv at startup (it fails writing to the read-only fs).
+    - name: UV_NO_SYNC
+      value: "1"
+    - name: UV_FROZEN
+      value: "1"
 
   extraVolumeMounts:
     - name: tmp
@@ -70,9 +76,15 @@ frontend:
     tag: latest
     pullPolicy: Always
   replicas: 1
+  # limits must be >= requests: the base chart's frontend limits (200m/128Mi) are
+  # below these requests, which GKE Autopilot silently auto-fixes but Standard
+  # rejects. Set both explicitly so a fresh Standard install renders valid.
   resources:
     requests:
       cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
       memory: 512Mi
 
 persistence:
@@ -104,9 +116,14 @@ oauth2Proxy:
 # -f argument when running helm upgrade (see justfile deploy-gcp recipe).
 "oauth2-proxy":
   replicaCount: 1
+  # limits >= requests (see frontend note): the subchart's default limits
+  # (200m/128Mi) are below these requests and Standard rejects that.
   resources:
     requests:
       cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
       memory: 512Mi
   config:
     configFile: |-

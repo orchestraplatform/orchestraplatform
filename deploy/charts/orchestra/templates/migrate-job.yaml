@@ -19,7 +19,10 @@ spec:
         {{- include "orchestra.selectorLabels" (dict "component" "migrate" "context" .) | nindent 8 }}
     spec:
       restartPolicy: Never
-      serviceAccountName: orchestra-operator
+      # Runs `alembic upgrade head` only — no Kubernetes API access — so it uses
+      # the namespace default SA. (It must NOT reference the operator SA: this is
+      # a pre-install hook that runs before the chart's SA exists, which breaks
+      # every fresh install.)
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

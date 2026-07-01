@@ -1,0 +1,188 @@
+---
+title: "3. Install Orchestra (Helm)"
+description: Install the Orchestra chart with layered values, correct fresh-install ordering, the systemPool block, and the operator tier map.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Step 3 of the [deployment sequence](/docs/deployment/overview/). At this point the
+[GKE Standard cluster](/docs/deployment/cluster-setup/) exists and its system pool
+is Ready. This page installs the Orchestra platform (API, operator, frontend,
+bundled oauth2-proxy) via Helm.
+
+The [Helm Chart guide](/docs/deployment/helm/) is the full values reference; this
+page is the **ordered install procedure** and the GKE-Standard-specific blocks.
+Orchestra installs via Helm per [ADR-0003](/docs/adr/0003-helm-as-install-method/).
+
+## Values layering
+
+The reference deployment layers values files, most-general first (later files
+win):
+
+```bash
+-f deploy/charts/orchestra/values.yaml        # chart defaults
+-f deploy/gcp-values.yaml                      # GCP reference: domain, images, Cloud SQL, oauth2-proxy
+-f deploy/gcp-values-standard.yaml             # GKE Standard: systemPool + operator tierMap
+-f deploy/gcp-values-secrets.yaml              # gitignored: OAuth client id/secret
+```
+
+- `values.yaml` — chart defaults (cloud-neutral).
+- `gcp-values.yaml` — committed GCP reference: `global.domain`, image
+  repositories, the Cloud SQL Auth Proxy sidecar, `ingress.tls.existingSecret:
+  orchestra-wildcard-tls`, and the bundled `"oauth2-proxy"` subchart block.
+- `gcp-values-standard.yaml` — the GKE-Standard-only overlay: the
+  [`systemPool`](#pin-platform-pods-to-the-system-pool) block and the
+  [operator `tierMap`](#operator-tier-map). Kept separate so Autopilot/kind installs
+  don't pick it up.
+- `gcp-values-secrets.yaml` — **gitignored**; the OAuth `clientID`/`clientSecret`
+  for the oauth2-proxy subchart. Stored in Google Secret Manager.
+
+<Aside type="note">
+Image tags are pinned to the git SHA at deploy time via
+`--set {operator,api,frontend}.image.tag=$SHA`, so each Helm revision is
+traceable to an exact commit (`helm history orchestra -n orchestra-system`). This
+is what `just deploy-gcp` / `just ship-gcp` do.
+</Aside>
+
+## Fresh-install ordering (this matters)
+
+On a **fresh** cluster the order below avoids the two classic failures — the
+migrate hook running with no database, and Helm refusing to adopt a
+pre-existing namespace/secret. (Both are covered in
+[Troubleshooting](/docs/deployment/troubleshooting/).)
+
+<Steps>
+
+1. **Pre-create the namespace.** If you create it yourself (e.g. to attach
+   Workload Identity or secrets first), add Helm-ownership metadata so
+   `helm upgrade --install` will adopt it instead of erroring:
+
+   ```bash
+   kubectl create namespace orchestra-system
+   kubectl label   namespace orchestra-system app.kubernetes.io/managed-by=Helm
+   kubectl annotate namespace orchestra-system \
+     meta.helm.sh/release-name=orchestra \
+     meta.helm.sh/release-namespace=orchestra-system
+   ```
+
+2. **Make the database reachable BEFORE install.** The chart runs
+   `alembic upgrade head` as a **`pre-install,pre-upgrade` Job**; if the DB isn't
+   reachable the hook fails and the release never proceeds. For Cloud SQL, create
+   the instance/database and confirm the Cloud SQL Auth Proxy path works; for
+   in-cluster Postgres, install and be `Ready` first. Create the DB secret if you
+   use one:
+
+   ```bash
+   kubectl create secret generic orchestra-db \
+     --namespace orchestra-system \
+     --from-literal=database-url='postgresql+asyncpg://orchestra:...@host:5432/orchestra'
+   ```
+
+   <Aside type="caution">
+   On a fresh install the migrate Job's ServiceAccount may not yet have the
+   Workload Identity annotation, so the Cloud SQL proxy can't authenticate. See
+   the [migrate-job SA gotcha](/docs/deployment/troubleshooting/#migrate-job-serviceaccount-on-fresh-install).
+   </Aside>
+
+3. **Create the OAuth secret** (client id/secret + a generated cookie-secret):
+
+   ```bash
+   kubectl create secret generic orchestra-oauth-secrets \
+     --namespace orchestra-system \
+     --from-literal=client-id=<google-client-id> \
+     --from-literal=client-secret=<google-client-secret> \
+     --from-literal="cookie-secret=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+   ```
+
+4. **Apply the CRDs, then `helm upgrade --install`.** The CRDs ship as a separate
+   chart so the Workshop CRD is registered before the operator starts:
+
+   ```bash
+   kubectl apply -f deploy/charts/orchestra-crds/templates/
+
+   SHA=$(git rev-parse --short HEAD)
+   helm upgrade --install orchestra ./deploy/charts/orchestra \
+     -n orchestra-system --create-namespace \
+     -f deploy/charts/orchestra/values.yaml \
+     -f deploy/gcp-values.yaml \
+     -f deploy/gcp-values-standard.yaml \
+     -f deploy/gcp-values-secrets.yaml \
+     --set operator.image.tag="$SHA" \
+     --set api.image.tag="$SHA" \
+     --set frontend.image.tag="$SHA" \
+     --wait
+   ```
+
+   This is the same shape as `just deploy-gcp` (add `just build-push` first, or
+   use `just ship-gcp` to build+push+deploy atomically).
+
+</Steps>
+
+## Pin platform pods to the system pool
+
+On GKE Standard the platform's own pods must sit on the tainted, always-on
+[system pool](/docs/deployment/cluster-setup/#architecture-at-a-glance) — not on
+scale-to-zero NAP nodes. The chart's **`systemPool` block** adds the
+`pool=system` `nodeSelector` and the `dedicated=system:NoSchedule` toleration to
+the operator, API, and frontend. It's **off by default**, so kind/minikube/
+Autopilot installs are unaffected. This lives in `gcp-values-standard.yaml`:
+
+```yaml
+systemPool:
+  enabled: true
+  nodeSelectorKey: pool
+  nodeSelectorValue: system
+  taintKey: dedicated
+  taintValue: system
+  taintEffect: NoSchedule
+```
+
+<Aside type="note">
+Traefik and oauth2-proxy that you install **outside** this chart also need the
+same `nodeSelector`/toleration — see
+[Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/). (The **bundled**
+oauth2-proxy subchart runs inside the release and does not currently take the
+`systemPool` block automatically; pin it via its own subchart `nodeSelector`/
+`tolerations` if you need it off NAP.)
+</Aside>
+
+## Operator tier map
+
+Workshop pods get their scheduling from the operator's **config-driven tier map**
+([ADR-0005](/docs/adr/0005-gke-standard-tenant-pools/)), and always carry
+`cluster-autoscaler.kubernetes.io/safe-to-evict: "false"` +
+`terminationGracePeriodSeconds` (default 120) so a session isn't evicted
+mid-workshop by autoscaler consolidation. For GKE, point the tiers at the
+`tenant-compute` ComputeClass (also in `gcp-values-standard.yaml`):
+
+```yaml
+operator:
+  tierMap:
+    small: { computeClass: tenant-compute }
+    large: { computeClass: tenant-compute }
+  computeClassLabelKey: cloud.google.com/compute-class
+  terminationGracePeriodSeconds: 120
+```
+
+An empty `tierMap` (the default) emits no scheduling constraints, so single-node
+and non-GKE clusters keep working. Templates select a tier via their existing
+`tier:` field (`small`/`large`).
+
+## Verify
+
+```bash
+kubectl -n orchestra-system get pods -o wide             # platform pods on the system node
+kubectl -n orchestra-system rollout status deploy/orchestra-api
+kubectl logs -n orchestra-system job/orchestra-migrate-<revision>   # migration succeeded
+```
+
+Launch a **jupyter** and an **rstudio** session and confirm each lands on a
+**NAP-provisioned tenant node**, not the system pool:
+
+```bash
+kubectl get pods -A -o wide | grep -E 'jupyter|rstudio'
+kubectl get nodes -l cloud.google.com/compute-class=tenant-compute
+```
+
+Next: [Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/) to make it
+reachable and authenticated over HTTPS.

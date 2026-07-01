@@ -54,12 +54,45 @@ export default defineConfig({
           ],
         },
         {
-          label: 'Deployment',
+          label: 'Deploying Orchestra',
           items: [
-            { label: 'Helm Chart', link: '/docs/deployment/helm/' },
-            { label: 'Ingress Controller', link: '/docs/deployment/ingress/' },
-            { label: 'GCP Autopilot', link: '/docs/deployment/gcp/' },
+            {
+              label: '1. Overview & prerequisites',
+              link: '/docs/deployment/overview/',
+            },
+            {
+              label: '2. Cluster setup (GKE Standard)',
+              link: '/docs/deployment/cluster-setup/',
+            },
+            {
+              label: '3. Install Orchestra (Helm)',
+              link: '/docs/deployment/install/',
+            },
+            {
+              label: '4. Ingress, TLS & auth',
+              link: '/docs/deployment/ingress-tls-auth/',
+            },
+            { label: '5. DNS cutover', link: '/docs/deployment/dns-cutover/' },
+            { label: '6. CI/CD', link: '/docs/deployment/github-cicd/' },
+            {
+              label: '7. Troubleshooting & gotchas',
+              link: '/docs/deployment/troubleshooting/',
+            },
+          ],
+        },
+        {
+          label: 'Deployment reference',
+          items: [
+            { label: 'Helm chart values', link: '/docs/deployment/helm/' },
+            {
+              label: 'Ingress controllers',
+              link: '/docs/deployment/ingress/',
+            },
             { label: 'oauth2-proxy', link: '/docs/deployment/oauth2-proxy/' },
+            {
+              label: 'GCP Autopilot (legacy)',
+              link: '/docs/deployment/gcp/',
+            },
           ],
         },
         {

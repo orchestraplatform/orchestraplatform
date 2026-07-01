@@ -1,12 +1,23 @@
 ---
-title: GCP Autopilot Deployment
-description: Deploy Orchestra on a GKE Autopilot cluster with Cloud SQL, Workload Identity, and Traefik.
+title: "GCP Autopilot (legacy / simpler path)"
+description: Deploy Orchestra on a GKE Autopilot cluster with Cloud SQL, Workload Identity, and Traefik. The simpler-but-pricier alternative to the GKE Standard reference path.
 ---
 
 import { Aside, Steps, Tabs, TabItem } from '@astrojs/starlight/components';
 
-This guide covers a complete Orchestra deployment on GKE Autopilot — the
-recommended configuration for teams running on Google Cloud.
+:::caution[Not the primary path]
+The reference deployment is now **GKE Standard** — start at
+[Deploying Orchestra: overview](/docs/deployment/overview/) and follow the numbered
+sequence. This Autopilot walkthrough is kept as the **simpler, no-node-management**
+option (Autopilot absorbs node sizing/patching) at a **~1.7–2× compute premium
+under load** ([ADR-0005](/docs/adr/0005-gke-standard-tenant-pools/)). It's a good
+fit for evaluation or light usage; it is also the historical production setup being
+migrated away from. The ingress/TLS/auth and oauth2-proxy details here still apply
+generally — the numbered pages just make them GKE-Standard-accurate.
+:::
+
+This guide covers a complete Orchestra deployment on GKE Autopilot — the simpler
+configuration for teams running lightly on Google Cloud.
 
 ## Architecture overview
 

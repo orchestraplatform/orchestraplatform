@@ -1,0 +1,226 @@
+---
+title: "4. Ingress, TLS & auth"
+description: Reserve a static IP, install Traefik pinned to it on the system pool, issue a wildcard cert via cert-manager DNS-01 (Cloudflare), wire Traefik's default TLSStore, and configure oauth2-proxy.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Step 4 of the [deployment sequence](/docs/deployment/overview/). With
+[Orchestra installed](/docs/deployment/install/), this page makes it reachable and
+authenticated over HTTPS. It installs the two **external dependencies** the chart
+assumes — **Traefik** and **cert-manager** — and configures the **bundled
+oauth2-proxy**.
+
+For controller internals (the Traefik middlewares the chart creates, the auth
+flow, nginx-ingress) see the [Ingress Controller guide](/docs/deployment/ingress/)
+and the [oauth2-proxy setup](/docs/deployment/oauth2-proxy/). This page is the
+end-to-end procedure that actually works on GKE Standard.
+
+## The three host types (recap)
+
+All resolve to **one static IP** in front of Traefik:
+
+- `app.<domain>` — dashboard (frontend), behind oauth2-proxy full-proxy mode
+- `api.<domain>` — API, behind Traefik ForwardAuth (identity header injection)
+- `*.<domain>` — per-session workshop containers, one subdomain each
+
+The wildcard is why we need **DNS-01** (HTTP-01 cannot validate `*.<domain>`) and
+a Traefik **default `TLSStore`** (per-session `IngressRoute`s carry no explicit
+TLS secret).
+
+## 1. Reserve a static regional IP
+
+Reserve a regional external IP so the LoadBalancer keeps a stable address across
+reinstalls (and so DNS can be set up in parallel before cutover):
+
+```bash
+REGION=us-central1
+gcloud compute addresses create orchestra-ingress \
+  --region "$REGION" --project <project>
+
+gcloud compute addresses describe orchestra-ingress \
+  --region "$REGION" --format='value(address)'
+# → note this IP; it goes in the Traefik values and every DNS record
+```
+
+## 2. Install Traefik (pinned to the static IP, on the system pool)
+
+Install the **Traefik v3** chart, pin the service to the static IP, and place it
+on the [system pool](/docs/deployment/cluster-setup/#architecture-at-a-glance) so
+it doesn't ride a scale-to-zero NAP node:
+
+```bash
+helm repo add traefik https://helm.traefik.io/traefik && helm repo update
+
+helm install traefik traefik/traefik \
+  --namespace traefik --create-namespace \
+  --set service.type=LoadBalancer \
+  --set service.spec.loadBalancerIP=<STATIC_IP> \
+  --set 'nodeSelector.pool=system' \
+  --set 'tolerations[0].key=dedicated' \
+  --set 'tolerations[0].value=system' \
+  --set 'tolerations[0].effect=NoSchedule' \
+  --set 'tolerations[0].operator=Equal'
+```
+
+The Traefik v3 chart's default entrypoints are `web` (:80) and `websecure`
+(:443) — the chart's Ingress objects target these by default, so no extra
+entrypoint config is needed. Confirm the service picked up the reserved IP:
+
+```bash
+kubectl get svc -n traefik traefik -w   # EXTERNAL-IP should equal <STATIC_IP>
+```
+
+## 3. Install cert-manager + a DNS-01 wildcard cert
+
+```bash
+helm repo add jetstack https://charts.jetstack.io && helm repo update
+
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager --create-namespace \
+  --set crds.enabled=true
+```
+
+<Steps>
+
+1. **Store the Cloudflare API token** (scope `Zone → DNS → Edit` for the zone) as
+   a Secret:
+
+   ```bash
+   kubectl create secret generic cloudflare-api-token \
+     --namespace cert-manager \
+     --from-literal=api-token=<CLOUDFLARE_API_TOKEN>
+   ```
+
+2. **Create the Let's Encrypt ClusterIssuer with a Cloudflare DNS-01 solver.**
+   DNS-01 is required to issue the **wildcard** (per-session subdomains); HTTP-01
+   can't do `*.<domain>`.
+
+   ```yaml
+   # cluster-issuer.yaml
+   apiVersion: cert-manager.io/v1
+   kind: ClusterIssuer
+   metadata:
+     name: letsencrypt-prod
+   spec:
+     acme:
+       server: https://acme-v02.api.letsencrypt.org/directory
+       email: admin@example.edu
+       privateKeySecretRef:
+         name: letsencrypt-prod-key
+       solvers:
+         - dns01:
+             cloudflare:
+               apiTokenSecretRef:
+                 name: cloudflare-api-token
+                 key: api-token
+   ```
+
+   ```bash
+   kubectl apply -f cluster-issuer.yaml
+   ```
+
+3. **Issue the wildcard Certificate** for `*.<domain>` + apex into the Orchestra
+   namespace, secret `orchestra-wildcard-tls` (the name `gcp-values.yaml`'s
+   `ingress.tls.existingSecret` points at):
+
+   ```yaml
+   # wildcard-cert.yaml
+   apiVersion: cert-manager.io/v1
+   kind: Certificate
+   metadata:
+     name: orchestra-wildcard
+     namespace: orchestra-system
+   spec:
+     secretName: orchestra-wildcard-tls
+     dnsNames:
+       - "*.orchestraplatform.org"
+       - "orchestraplatform.org"
+     issuerRef:
+       name: letsencrypt-prod
+       kind: ClusterIssuer
+   ```
+
+   ```bash
+   kubectl apply -f wildcard-cert.yaml
+   kubectl get certificate -n orchestra-system orchestra-wildcard -w   # Ready=True
+   ```
+
+</Steps>
+
+## 4. Wire Traefik's default TLSStore for per-session routes
+
+Per-session workshop `IngressRoute`s are created by the operator and carry **no
+explicit TLS secret** — they rely on Traefik's **default `TLSStore`**. Traefik can
+only serve a certificate from a secret in **its own namespace**, so issue a
+**copy** of the wildcard into `traefik` and point the default store at it.
+
+Issue a second Certificate into the `traefik` namespace:
+
+```yaml
+# wildcard-cert-traefik.yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: orchestra-wildcard
+  namespace: traefik
+spec:
+  secretName: orchestra-wildcard-tls
+  dnsNames:
+    - "*.orchestraplatform.org"
+    - "orchestraplatform.org"
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+```
+
+Then set Traefik's default TLS store to that secret:
+
+```yaml
+# traefik-default-tls.yaml
+apiVersion: traefik.io/v1alpha1
+kind: TLSStore
+metadata:
+  name: default
+  namespace: traefik
+spec:
+  defaultCertificate:
+    secretName: orchestra-wildcard-tls
+```
+
+```bash
+kubectl apply -f wildcard-cert-traefik.yaml -f traefik-default-tls.yaml
+```
+
+Now every `*.<domain>` session route serves the wildcard automatically, while the
+`app.` and `api.` ingresses use the copy in `orchestra-system` via
+`ingress.tls.existingSecret`.
+
+## 5. oauth2-proxy (bundled subchart)
+
+The chart bundles oauth2-proxy and runs it in **full-proxy mode** in front of the
+frontend (recommended for Traefik — the login redirect is seamless). Credentials
+and domain rules are configured under the root-level `"oauth2-proxy"` subchart
+key; see [oauth2-proxy setup](/docs/deployment/oauth2-proxy/) and the reference
+`deploy/gcp-values.yaml`. The three host types are auth-wired as in the
+[recap](#the-three-host-types-recap).
+
+<Aside type="caution">
+**GKE Standard: requests must not exceed limits.** oauth2-proxy's (and the
+frontend's) chart defaults can set resource **requests above limits**, which
+Autopilot silently auto-fixes but **Standard rejects** (the pod won't schedule). A
+chart fix is landing separately; until then, set explicit
+`resources.requests ≤ resources.limits` in your values. See
+[Troubleshooting](/docs/deployment/troubleshooting/#requests-exceed-limits-on-gke-standard).
+</Aside>
+
+## Verify
+
+```bash
+kubectl get svc -n traefik traefik   # EXTERNAL-IP = <STATIC_IP>
+kubectl get certificate -A           # both orchestra-wildcard certs Ready
+kubectl get tlsstore -n traefik default
+```
+
+Next: [DNS cutover](/docs/deployment/dns-cutover/) — point `app`, `api`, and the
+`*` wildcard at the static IP.

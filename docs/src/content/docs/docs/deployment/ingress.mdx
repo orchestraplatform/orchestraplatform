@@ -15,6 +15,14 @@ All three require auth to be applied at the ingress, not inside the application.
 The chart automates auth wiring for Traefik and nginx-ingress. Choose one before
 installing.
 
+<Aside type="tip">
+This page is the **controller reference** (middlewares, auth flow, nginx). For the
+end-to-end GKE Standard procedure — static IP, Traefik pinned to it, cert-manager
+DNS-01 wildcard, and the default `TLSStore` — follow
+[4. Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/) in the
+[deployment sequence](/docs/deployment/overview/).
+</Aside>
+
 ## Why GKE native ingress is not supported
 
 GKE's built-in ingress controller (`ingressClassName: gce`) provisions a new
