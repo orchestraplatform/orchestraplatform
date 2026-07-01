@@ -179,6 +179,10 @@ export default defineConfig({
               label: 'ADR-0007: External workshop-templates repo',
               link: '/docs/adr/0007-external-template-repo/',
             },
+            {
+              label: 'ADR-0008: Cluster provisioning boundary',
+              link: '/docs/adr/0008-cluster-provisioning-boundary/',
+            },
           ],
         },
       ],
