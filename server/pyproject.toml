@@ -51,7 +51,14 @@ ignore = [
     "B904",    # raise from (not strictly needed for all HTTPExceptions)
     "N802",    # function name should be lowercase (overridden for Field)
     "PLC0415", # import should be at top-level (sometimes needed for circular imports)
+    "PLR0913", # too many arguments — several service/route entrypoints take >5 deps
+    "PLW0603", # global statement — deliberate for lazy engine/session singletons
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Alembic autogenerates migration files; its import ordering differs from ruff's
+# isort. Don't lint machine-generated revisions.
+"alembic/versions/*.py" = ["I001"]
 
 [tool.ruff.format]
 quote-style = "double"

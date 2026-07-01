@@ -11,18 +11,18 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = 'a1b2c3d4e5f6'
-down_revision: str | None = 'ff88c095ce42'
+revision: str = "a1b2c3d4e5f6"
+down_revision: str | None = "ff88c095ce42"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     op.add_column(
-        'workshops',
-        sa.Column('tags', sa.ARRAY(sa.String()), nullable=False, server_default='{}'),
+        "workshops",
+        sa.Column("tags", sa.ARRAY(sa.String()), nullable=False, server_default="{}"),
     )
 
 
 def downgrade() -> None:
-    op.drop_column('workshops', 'tags')
+    op.drop_column("workshops", "tags")
