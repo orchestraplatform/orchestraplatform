@@ -17,6 +17,11 @@ spec:
       labels:
         {{- include "orchestra.selectorLabels" (dict "component" "frontend" "context" .) | nindent 8 }}
     spec:
+      {{- if .Values.systemPool.enabled }}
+      nodeSelector:
+        {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+      {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}

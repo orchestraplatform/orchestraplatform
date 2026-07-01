@@ -10,6 +10,21 @@ global:
   # Required when images are in a private registry.
   imagePullSecrets: []
 
+# ── System node pool placement (GKE Standard, ADR-0005) ──────────────────────
+# Pin the platform's own pods (operator, API, frontend) to the always-on,
+# tainted system node pool so they never land on scale-to-zero NAP tenant nodes.
+# Disabled by default so single-node / Autopilot / kind installs are unaffected;
+# keys/values are config-driven to stay cloud-neutral. The GKE production
+# instance sets enabled: true with the values below, matching the tofu module's
+# system pool (label pool=system, taint dedicated=system:NoSchedule).
+systemPool:
+  enabled: false
+  nodeSelectorKey: pool
+  nodeSelectorValue: system
+  taintKey: dedicated
+  taintValue: system
+  taintEffect: NoSchedule
+
 # ── Operator ─────────────────────────────────────────────────────────────────
 operator:
   image:
@@ -27,6 +42,50 @@ operator:
   # Default container image for newly launched workshop sessions.
   # Override per-template via the WorkshopTemplate spec.image field.
   defaultWorkshopImage: "rocker/rstudio:latest"
+
+  # ── Tenant tier scheduling (ADR-0005) ─────────────────────────────────────
+  # Config-driven map: tier name -> where its workshop pods may schedule. A
+  # template selects a tier *by name* (its `tier:` field); the operator looks it
+  # up here and stamps nodeSelector / tolerations / compute-class on the pod.
+  #
+  # DEFAULT IS EMPTY ({}), which is correct for GKE Autopilot and single-node
+  # dev (kind, minikube): every tier resolves to "no constraints", so pods
+  # schedule anywhere with zero setup. This keeps the operator cloud-neutral —
+  # the values below are the GKE Standard production instance, not baked-in.
+  #
+  # Per-tier fields (all optional):
+  #   nodeSelector:  plain node labels the pod must match.
+  #   tolerations:   taints the tier's pool carries ({key,value,effect};
+  #                  operator defaults to Equal, effect to NoSchedule).
+  #   computeClass:  value for a single compute-class label (emitted under
+  #                  computeClassLabelKey). GKE Node-Auto-Provisioning selects a
+  #                  ComputeClass this way.
+  # An unknown tier name (not in this map) falls back to "no constraints" and
+  # logs a warning — a mistyped tier still runs rather than staying Pending.
+  #
+  # GKE Standard production example (NAP + ComputeClass, per deploy/tofu):
+  #   tierMap:
+  #     small:
+  #       computeClass: tenant-compute
+  #     large:
+  #       computeClass: tenant-compute
+  #   # Static-pool alternative (ADR-0005 "Not chosen" fallback):
+  #   #   small:
+  #   #     nodeSelector: { tenant-tier: small }
+  #   #     tolerations: [{ key: tenant-size, value: small, effect: NoSchedule }]
+  #   #   large:
+  #   #     nodeSelector: { tenant-tier: large }
+  #   #     tolerations: [{ key: tenant-size, value: large, effect: NoSchedule }]
+  tierMap: {}
+  # Label key used to emit each tier's `computeClass`. Default is GKE's
+  # ComputeClass selector; override for other schedulers.
+  computeClassLabelKey: "cloud.google.com/compute-class"
+  # Grace period (seconds) for a workshop pod to flush its work to the PVC on
+  # SIGTERM before being killed. ADR-0005 recommends 120 for interactive
+  # RStudio/Jupyter sessions. (safe-to-evict=false is always stamped and is not
+  # configurable — a live session must never be migrated for consolidation.)
+  terminationGracePeriodSeconds: 120
+
   # Sidecar proxy configuration for workshop sessions.
   sidecar:
     image:

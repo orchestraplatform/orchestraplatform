@@ -100,8 +100,11 @@ class WorkshopTemplateCreate(BaseModel):
     )
     tier: Literal["small", "large"] = Field(
         default="small",
-        description="Tenant node-pool tier (small/large). Maps to "
-        "nodeSelector/tolerations in the operator when tenant pools are enabled.",
+        description="Tenant scheduling tier, selected by name (small/large). The "
+        "operator resolves it against its configured tier map (ADR-0005) to a "
+        "nodeSelector / tolerations / compute-class. Unknown or unmapped tiers "
+        "schedule anywhere, so this is a cloud-neutral hint, not a hard "
+        "requirement.",
     )
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)

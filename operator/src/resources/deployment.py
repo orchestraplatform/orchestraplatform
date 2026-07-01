@@ -1,40 +1,75 @@
 """RStudio Deployment creation for workshops."""
 
+import logging
 from typing import Any
 
 import kubernetes.client as k8s
 
 from config import get_settings
 
+logger = logging.getLogger(__name__)
+
 # Default environment for the app container. These are rocker/rstudio flags
 # (auto-login + sudo); they are harmless no-ops on non-RStudio images. A
 # template's ``env`` overrides any of these by name.
 _DEFAULT_APP_ENV = {"DISABLE_AUTH": "true", "ROOT": "true"}
 
+# Cluster-autoscaler hint stamped on EVERY workshop pod. Interactive sessions
+# must never be migrated for bin-packing consolidation — that disconnects the
+# user and loses in-memory state (PVC files survive). Always-on, not per-tier
+# (ADR-0005 / deploy/tofu README). This is a plain Kubernetes annotation, so it
+# is a harmless no-op on clusters without the GKE cluster-autoscaler.
+_SAFE_TO_EVICT_ANNOTATION = {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+
 
 def _tier_scheduling(
     tier: str | None,
 ) -> tuple[dict[str, str] | None, list[k8s.V1Toleration] | None]:
-    """Return (nodeSelector, tolerations) for a tenant tier, or (None, None).
+    """Resolve a tenant tier name to (nodeSelector, tolerations), or (None, None).
 
-    Only emits scheduling constraints when tenant pools are enabled
-    (``ORCHESTRA_TENANT_POOLS_ENABLED``). On GKE Autopilot / single-node dev the
-    feature is off, so pods carry no nodeSelector/tolerations and schedule
-    anywhere — emitting them there would leave pods Pending (ADR-0005/0006).
+    The tier map lives in operator config (``ORCHESTRA_TIER_MAP``); a template
+    selects a tier *by name* and the operator looks it up here. Every value is a
+    config-supplied string, so this stays cloud-neutral — GKE's taint keys /
+    compute-class label are just one instance of the config.
+
+    Behaviour:
+    - No tier, or an empty tier map (the default — GKE Autopilot / single-node
+      dev): emit nothing, so pods schedule anywhere with zero config.
+    - A tier whose entry is empty (``{}``, e.g. a ``default`` tier): emit nothing.
+    - An **unknown** tier name (not present in the map): fall back to "no
+      constraints" and log a warning. This is the safer failure mode — a mistyped
+      tier still schedules and the session runs, rather than the pod staying
+      Pending forever on a bad nodeSelector. The warning surfaces the misconfig.
     """
     settings = get_settings()
-    if not settings.tenant_pools_enabled or not tier:
+    if not tier or not settings.tier_map:
         return None, None
-    node_selector = {settings.tenant_tier_label_key: tier}
+
+    tier_cfg = settings.tier_map.get(tier)
+    if tier_cfg is None:
+        logger.warning(
+            "Workshop tier %r is not in the operator tier map %s; scheduling "
+            "the pod with no nodeSelector/tolerations (falls back to default).",
+            tier,
+            sorted(settings.tier_map),
+        )
+        return None, None
+
+    node_selector = dict(tier_cfg.node_selector)
+    if tier_cfg.compute_class:
+        node_selector[settings.compute_class_label_key] = tier_cfg.compute_class
+
     tolerations = [
         k8s.V1Toleration(
-            key=settings.tenant_tier_taint_key,
-            operator="Equal",
-            value=tier,
-            effect="NoSchedule",
+            key=t["key"],
+            operator=t.get("operator", "Equal"),
+            value=t.get("value"),
+            effect=t.get("effect", "NoSchedule"),
         )
+        for t in tier_cfg.tolerations
     ]
-    return node_selector, tolerations
+
+    return (node_selector or None), (tolerations or None)
 
 
 def create_rstudio_deployment(
@@ -58,8 +93,15 @@ def create_rstudio_deployment(
     ``env`` is merged on top of the default app environment (template values
     win). ``args``, when given, replaces the image's default CMD.
 
-    ``tier`` selects a tenant node pool; it only affects scheduling when tenant
-    pools are enabled in operator config (see :func:`_tier_scheduling`).
+    ``tier`` selects a tenant node pool by name; the operator resolves it against
+    the configured tier map to a nodeSelector / tolerations / compute-class label
+    (see :func:`_tier_scheduling`). An empty tier map (the default) emits nothing,
+    so pods schedule anywhere.
+
+    Every workshop pod is also stamped with interactive-session safety settings
+    regardless of tier: the ``safe-to-evict=false`` annotation (never migrate a
+    live session for consolidation) and a longer ``terminationGracePeriodSeconds``
+    (flush to the PVC on SIGTERM) — see ADR-0005 / deploy/tofu README.
     """
     settings = get_settings()
     node_selector, tolerations = _tier_scheduling(tier)
@@ -171,13 +213,17 @@ def create_rstudio_deployment(
                         "app": workshop_name,
                         "component": "rstudio",
                         "workshop": workshop_name,
-                    }
+                    },
+                    annotations=dict(_SAFE_TO_EVICT_ANNOTATION),
                 ),
                 spec=k8s.V1PodSpec(
                     containers=[app_container, sidecar_container],
                     volumes=volumes if volumes else None,
                     node_selector=node_selector,
                     tolerations=tolerations,
+                    termination_grace_period_seconds=(
+                        settings.termination_grace_period_seconds
+                    ),
                 ),
             ),
         ),

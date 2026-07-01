@@ -88,6 +88,9 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
+      {{- if .Values.systemPool.enabled }}
+      {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+      {{- end }}
       serviceAccountName: orchestra-operator
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
@@ -129,6 +132,15 @@ spec:
           value: '["websecure"]'
         - name: ORCHESTRA_DEFAULT_WORKSHOP_IMAGE
           value: {{ .Values.operator.defaultWorkshopImage | quote }}
+        # Tenant tier scheduling (ADR-0005). JSON-encoded map, parsed by
+        # pydantic-settings into config.OperatorSettings.tier_map. Empty ({})
+        # by default so pods schedule anywhere on single-node / Autopilot.
+        - name: ORCHESTRA_TIER_MAP
+          value: {{ .Values.operator.tierMap | default dict | toJson | quote }}
+        - name: ORCHESTRA_COMPUTE_CLASS_LABEL_KEY
+          value: {{ .Values.operator.computeClassLabelKey | quote }}
+        - name: ORCHESTRA_TERMINATION_GRACE_PERIOD_SECONDS
+          value: {{ .Values.operator.terminationGracePeriodSeconds | quote }}
         - name: ORCHESTRA_SIDECAR_IMAGE
           value: "{{ .Values.operator.sidecar.image.repository }}:{{ .Values.operator.sidecar.image.tag }}"
         - name: ORCHESTRA_SIDECAR_PULL_POLICY
@@ -160,3 +172,6 @@ spec:
       terminationGracePeriodSeconds: 60
       nodeSelector:
         kubernetes.io/os: linux
+        {{- if .Values.systemPool.enabled }}
+        {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+        {{- end }}
