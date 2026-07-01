@@ -397,6 +397,22 @@ deploy-gcp-history:
     kubectl config use-context {{ gcp_context }}
     helm history orchestra -n {{ gcp_namespace }}
 
+# --- Warm capacity (GKE Standard) ---
+# The cluster-warmer balloon holds warm NAP tenant nodes so the first sessions of
+# a cohort start fast instead of cold-booting a node (~60-90s). Baseline is 0 (no
+# idle cost); scale up before a known conference/course, back to 0 afterward.
+# GKE-Standard specific (NAP construct); uses the current kube-context.
+
+# Pre-warm N tenant nodes for an upcoming cohort (e.g. `just warm 5`); `just warm 0` after.
+warm replicas:
+    kubectl scale deployment cluster-warmer -n default --replicas={{ replicas }}
+    @echo "cluster-warmer -> {{ replicas }} replica(s). Watch nodes come up with: just warm-status"
+
+# Show current warm capacity: balloon replicas + provisioned tenant nodes.
+warm-status:
+    @kubectl get deployment cluster-warmer -n default
+    @kubectl get nodes -l cloud.google.com/compute-class=tenant-compute --no-headers 2>/dev/null | wc -l | xargs echo "active tenant-compute nodes:"
+
 # --- Kubernetes Tools ---
 
 # Watch workshops in the cluster
