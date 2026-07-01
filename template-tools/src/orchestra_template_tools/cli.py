@@ -36,6 +36,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print the template JSON Schema to stdout and exit.",
     )
+    parser.add_argument(
+        "--format",
+        choices=("text", "github"),
+        default="text",
+        help=(
+            "Output format. 'text' (default) is human-readable; 'github' emits "
+            "GitHub Actions annotations (::error file=...) so each failing "
+            "document is flagged inline on the pull request."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if args.print_schema:
@@ -49,6 +59,12 @@ def main(argv: list[str] | None = None) -> int:
 
     result = validate_documents(_read_dir(directory))
 
+    if args.format == "github":
+        return _report_github(result, directory)
+    return _report_text(result, directory)
+
+
+def _report_text(result, directory: Path) -> int:
     for f in result.files:
         if f.ok:
             print(f"  ok    {f.name}")
@@ -64,6 +80,42 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\n✓ {n} template file(s) valid in {directory}")
         return 0
     print(f"\n✗ validation failed in {directory}", file=sys.stderr)
+    return 1
+
+
+def _gh_escape(message: str) -> str:
+    """Escape a message for a GitHub Actions workflow command (single line)."""
+    return message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def _report_github(result, directory: Path) -> int:
+    """Emit GitHub Actions ``::error file=...`` annotations, one per problem.
+
+    ``file=`` is anchored to the actual template path so the annotation renders
+    inline on the changed file in the PR. Catalog-level errors anchor to the
+    directory. Exit code matches the text formatter.
+    """
+    for f in result.files:
+        path = directory / f.name
+        if f.ok:
+            print(f"  ok    {f.name}")
+            continue
+        for err in f.errors:
+            print(
+                f"::error file={path},title=Invalid workshop template::"
+                f"{_gh_escape(f'{f.name}: {err}')}"
+            )
+
+    for err in result.errors:
+        print(
+            f"::error file={directory},title=Template catalog error::{_gh_escape(err)}"
+        )
+
+    n = len(result.files)
+    if result.ok:
+        print(f"✓ {n} template file(s) valid in {directory}")
+        return 0
+    print(f"✗ validation failed in {directory}", file=sys.stderr)
     return 1
 
 

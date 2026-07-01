@@ -4,7 +4,7 @@ import logging
 import os
 
 import kubernetes
-from kubernetes.client.rest import ApiException
+from kubernetes.client.rest import ApiException  # noqa: F401  re-exported for services
 
 from api.core.config import get_settings
 

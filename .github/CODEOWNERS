@@ -1,0 +1,23 @@
+# CODEOWNERS — automatic reviewers for matching paths.
+# Owners must be GitHub users/teams with write access. Rules are last-match-wins.
+#
+# TODO: replace the placeholder owners below with real GitHub handles/teams.
+#   - The org team @orchestraplatform/maintainers must exist (repo settings > Teams).
+#   - The org team @orchestraplatform/template-reviewers must exist and have write
+#     access, or CODEOWNERS review requirements will silently not apply.
+
+# Default owner for everything not matched by a more specific rule below.
+# Sean is responsible for the platform (see CLAUDE.md).
+*                                               @orchestraplatform/maintainers
+
+# CI/CD and deploy machinery stays with platform maintainers.
+/.github/**                                      @orchestraplatform/maintainers
+/deploy/**                                       @orchestraplatform/maintainers
+
+# Git-managed workshop templates (ADR-0006). Changes here are curriculum/content
+# and get an extra review from the template-reviewers group. Scope covers the
+# template YAML, the generated schema, and the shared validation package.
+# NOTE: rules are last-match-wins, so these stay *below* the broad /deploy rule
+# to keep the templates directory owned by template-reviewers.
+/deploy/charts/orchestra/files/templates/**     @orchestraplatform/template-reviewers
+/template-tools/**                              @orchestraplatform/template-reviewers

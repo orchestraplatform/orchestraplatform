@@ -48,7 +48,9 @@ async def list_instances(
     return WorkshopInstanceList(items=items, total=total, page=page, size=size)
 
 
-@router.get("/summary", response_model=InstanceSummary, dependencies=[Depends(require_admin)])
+@router.get(
+    "/summary", response_model=InstanceSummary, dependencies=[Depends(require_admin)]
+)
 async def get_instance_summary(
     db: AsyncSession = Depends(get_db),
     svc: WorkshopInstanceService = Depends(get_instance_service),
