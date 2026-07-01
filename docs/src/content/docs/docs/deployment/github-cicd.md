@@ -1,7 +1,11 @@
 ---
-title: GitHub CI/CD setup
+title: "6. CI/CD"
 description: Required GitHub repository settings for the CI and CD workflows — Workload Identity Federation, branch protection, and environment protection rules.
 ---
+
+Step 6 of the [deployment sequence](/docs/deployment/overview/). Once the instance
+is up, wire CI/CD so a merge to `main` (dev) or a `v*` tag (prod) runs the same
+`helm upgrade` you ran by hand in [step 3](/docs/deployment/install/).
 
 The repo ships three GitHub Actions workflows (ADR-0006 phases 2 & 3):
 

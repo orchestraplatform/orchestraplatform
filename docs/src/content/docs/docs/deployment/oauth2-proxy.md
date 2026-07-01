@@ -7,6 +7,12 @@ Orchestra's bundled oauth2-proxy is configured during `helm install` via the
 root-level `"oauth2-proxy"` subchart values block. This page walks you through
 creating the required credentials and wiring them in.
 
+:::tip
+This is the **credentials/provider reference**. It fits into
+[4. Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/#5-oauth2-proxy-bundled-subchart)
+in the [deployment sequence](/docs/deployment/overview/).
+:::
+
 ## Google OAuth (primary provider)
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
