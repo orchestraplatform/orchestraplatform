@@ -1,0 +1,190 @@
+---
+title: Authoring Workshop Templates
+description: Add or change the workshops Orchestra offers by editing a git-managed YAML template file, validated in your editor and by CI against a generated JSON Schema.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+A **workshop template** is a single YAML file that describes one entry in
+Orchestra's catalog — the RStudio, JupyterLab, or other environment a
+participant can launch. It's a friendly, hand-editable projection of the
+`Workshop` CRD spec: you set a handful of fields (image, port, resources,
+duration…) and the platform turns each launch into a fully-formed `Workshop`
+custom resource.
+
+Templates are **git-managed** (ADR-0006). They live in the Helm chart at:
+
+```
+deploy/charts/orchestra/files/templates/
+├── jupyter.yaml
+├── rstudio.yaml
+├── template.schema.json   # generated — do not hand-edit
+└── README.md
+```
+
+These files are the **source of truth**, not the database. The chart renders
+them into a ConfigMap mounted into the API pod, which loads them into an
+in-memory registry at startup. To change the catalog you edit a file and open a
+PR — there is no admin UI and no runtime database toggle.
+
+## The file-per-template model
+
+- **One file per template**, named `<slug>.yaml`. The filename stem must equal
+  the template's `slug` (validation enforces this).
+- Slugs must be **unique** across the directory.
+- To retire a template without deleting its file, set `enabled: false`.
+
+## Field reference
+
+Every field below is defined by the `WorkshopTemplateFile` model in the
+`orchestra-template-tools` package — the single source of truth from which
+`template.schema.json` is generated. Fields accept **camelCase** (shown here) or
+snake_case; the schema uses camelCase.
+
+### Top-level fields
+
+| Field             | Type                 | Required | Default                 | Notes                                                                                                                                               |
+| ----------------- | -------------------- | -------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`            | string               | **yes**  | —                       | Human-readable display name shown in the catalog.                                                                                                   |
+| `slug`            | string               | **yes**  | —                       | k8s-safe id: lowercase alphanumerics and `-`, must start/end alphanumeric, **max 40 chars**. Prefixes instance names; must match the filename stem. |
+| `description`     | string \| null       | no       | `null`                  | Optional catalog description.                                                                                                                       |
+| `image`           | string               | no       | `rocker/rstudio:latest` | Default container image for the session.                                                                                                            |
+| `defaultDuration` | string               | no       | `4h`                    | Default session lifetime (e.g. `2h`, `4h`).                                                                                                         |
+| `port`            | integer (1–65535)    | no       | `8787`                  | Port the app listens on inside the container (RStudio `8787`, JupyterLab `8888`). The sidecar proxies to `http://localhost:<port>`.                 |
+| `env`             | `map<string,string>` | no       | `{}`                    | Extra environment variables for the app container. Override operator defaults such as `DISABLE_AUTH`.                                               |
+| `args`            | `list<string>`       | no       | `[]`                    | Container args, **replacing** the image's default CMD (e.g. JupyterLab launch flags). Leave empty to use the image default.                         |
+| `tier`            | `small` \| `large`   | no       | `small`                 | Tenant node-pool tier. Maps to nodeSelector/tolerations in the operator when tenant pools are enabled.                                              |
+| `resources`       | object (see below)   | no       | model defaults          | CPU/memory/ephemeral-storage limits and requests.                                                                                                   |
+| `storage`         | object \| null       | no       | `null`                  | Per-session persistent volume. Unset means no dedicated PVC beyond the defaults.                                                                    |
+| `tags`            | `list<string>`       | no       | `[]`                    | Category tags for catalog filtering.                                                                                                                |
+| `enabled`         | boolean              | no       | `true`                  | Whether the template is shown and launchable. `false` retires it without deleting the file.                                                         |
+
+### `resources`
+
+All resource fields are strings using Kubernetes quantity notation (e.g. `"2"`,
+`500m`, `4Gi`).
+
+| Field                     | Type   | Required | Default | Notes                                                                                                                                                                      |
+| ------------------------- | ------ | -------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cpu`                     | string | no       | `1`     | CPU limit.                                                                                                                                                                 |
+| `memory`                  | string | no       | `2Gi`   | Memory limit.                                                                                                                                                              |
+| `cpuRequest`              | string | no       | `500m`  | CPU request.                                                                                                                                                               |
+| `memoryRequest`           | string | no       | `1Gi`   | Memory request.                                                                                                                                                            |
+| `ephemeralStorage`        | string | no       | `8Gi`   | Ephemeral-storage limit — everything written outside the `/data` PVC (package installs, `/tmp`, the container writable layer). The kubelet **evicts** the pod if exceeded. |
+| `ephemeralStorageRequest` | string | no       | `8Gi`   | Ephemeral-storage request.                                                                                                                                                 |
+
+<Aside type="caution" title="Keep ephemeral storage at 8Gi on GKE Autopilot">
+  Autopilot caps a pod's total ephemeral storage at 10Gi. The templates ship
+  with `ephemeralStorage: 8Gi` for this reason; raising it can make pods
+  unschedulable. Package installs that need lots of space belong on the `/data`
+  PVC, not the ephemeral layer.
+</Aside>
+
+### `storage`
+
+| Field          | Type           | Required | Default | Notes                                                                  |
+| -------------- | -------------- | -------- | ------- | ---------------------------------------------------------------------- |
+| `size`         | string         | no       | `10Gi`  | Persistent volume size for the session's `/data`.                      |
+| `storageClass` | string \| null | no       | `null`  | Storage class name. Leave unset (or empty) to use the cluster default. |
+
+## Starter template
+
+Copy this to `<slug>.yaml`, rename the `slug` (and file) to match, and edit. It
+validates as-is:
+
+```yaml
+# yaml-language-server: $schema=./template.schema.json
+name: My Workshop
+slug: my-workshop
+description: >-
+  A one-line description of what participants get.
+image: bioconductor/bioconductor_docker:RELEASE_3_20
+defaultDuration: 4h
+port: 8787
+tier: small
+resources:
+  cpu: '2'
+  memory: 4Gi
+  cpuRequest: '1'
+  memoryRequest: 2Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+storage:
+  size: 10Gi
+tags:
+  - bioconductor
+enabled: true
+```
+
+For JupyterLab and other stock images, see
+[Configuring a Workshop Image](/docs/user-guide/configuring-images/) for the
+exact `port`, `env`, and `args` needed to start the app unauthenticated behind
+the proxy.
+
+## Validating your template
+
+### In your editor
+
+The first line of every template is a schema directive:
+
+```yaml
+# yaml-language-server: $schema=./template.schema.json
+```
+
+This is a **repo-relative path** to the generated `template.schema.json` that
+sits next to the templates — so validation works offline, in any checkout, with
+no URL to rot. With the [YAML extension](https://marketplace.visualstudio.com/items?itemName=redhat.vscode-yaml)
+(VS Code, or any editor speaking the YAML language server), you get
+autocomplete, type checking, and required-field warnings as you type.
+
+The schema is **generated**, never hand-edited. Regenerate it after changing the
+model:
+
+```sh
+just template-schema
+```
+
+### From the command line
+
+Validate every file in the directory with the same CLI that CI runs:
+
+```sh
+just validate-templates
+```
+
+This checks each file against the schema, and catalog-level rules: unique slugs
+and filename-matches-slug. It exits non-zero on any error.
+
+<Aside type="tip">
+  CI also runs `just check-schema`, which regenerates the schema from the model
+  and fails if the committed `template.schema.json` has drifted — so the schema
+  your editor uses can never fall out of sync with the contract.
+</Aside>
+
+## Contribution workflow
+
+<Steps>
+
+1. **Edit a YAML file.** Copy an existing template (e.g. `rstudio.yaml`) to
+   `<slug>.yaml` and change the fields. Your editor validates against the schema
+   as you go.
+
+2. **Validate locally** with `just validate-templates` (and `just check-schema`
+   if you touched the model).
+
+3. **Open a PR.** CI runs the same validation on every file.
+
+4. **An admin reviews and merges.** Templates are the platform's catalog, so
+   changes go through review.
+
+5. **Deploy rolls it out.** The next `helm upgrade` re-renders the ConfigMap and
+   restarts the API pod, which reloads the registry from the files. The new or
+   changed template appears in the catalog.
+
+</Steps>
+
+<Aside type="note">
+  Because the registry loads at API startup, a template change is live once the
+  API pod restarts — there's no separate cache to bust and no database
+  migration.
+</Aside>

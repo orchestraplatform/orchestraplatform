@@ -7,7 +7,8 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'Orchestra Platform',
-      description: 'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
+      description:
+        'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
       customCss: ['./src/styles/custom.css'],
       head: [
         // Adding google analytics
@@ -42,8 +43,14 @@ export default defineConfig({
         {
           label: 'Getting Started',
           items: [
-            { label: 'Introduction', link: '/docs/getting-started/introduction/' },
-            { label: 'Installation', link: '/docs/getting-started/installation/' },
+            {
+              label: 'Introduction',
+              link: '/docs/getting-started/introduction/',
+            },
+            {
+              label: 'Installation',
+              link: '/docs/getting-started/installation/',
+            },
           ],
         },
         {
@@ -58,17 +65,36 @@ export default defineConfig({
         {
           label: 'Operating an Instance',
           items: [
-            { label: 'Configuring Workshop Images', link: '/docs/user-guide/configuring-images/' },
+            {
+              label: 'Configuring Workshop Images',
+              link: '/docs/user-guide/configuring-images/',
+            },
+            {
+              label: 'Authoring Workshop Templates',
+              link: '/docs/user-guide/authoring-workshop-templates/',
+            },
           ],
         },
         {
           label: 'Architecture',
           items: [
-            { label: 'Platform Overview', link: '/docs/architecture/platform-overview/' },
-            { label: 'Domain Structure', link: '/docs/architecture/domain-structure/' },
+            {
+              label: 'Platform Overview',
+              link: '/docs/architecture/platform-overview/',
+            },
+            {
+              label: 'Domain Structure',
+              link: '/docs/architecture/domain-structure/',
+            },
             { label: 'Data Model', link: '/docs/architecture/data-model/' },
-            { label: 'Authentication', link: '/docs/architecture/authentication/' },
-            { label: 'Authorization', link: '/docs/architecture/authorization/' },
+            {
+              label: 'Authentication',
+              link: '/docs/architecture/authentication/',
+            },
+            {
+              label: 'Authorization',
+              link: '/docs/architecture/authorization/',
+            },
           ],
         },
         {
@@ -81,7 +107,10 @@ export default defineConfig({
         {
           label: 'Development',
           items: [
-            { label: 'Local Development', link: '/docs/development/local-development/' },
+            {
+              label: 'Local Development',
+              link: '/docs/development/local-development/',
+            },
             { label: 'Contributing', link: '/docs/development/contributing/' },
             { label: 'Testing', link: '/docs/contributing/testing/' },
           ],
@@ -89,13 +118,34 @@ export default defineConfig({
         {
           label: 'Architecture Decision Records',
           items: [
-            { label: 'ADR-0001: oauth2-proxy at ingress', link: '/docs/adr/0001-oauth2-proxy-at-ingress/' },
-            { label: 'ADR-0002: spec.owner on CRD', link: '/docs/adr/0002-spec-owner-on-crd/' },
-            { label: 'ADR-0003: Helm install method', link: '/docs/adr/0003-helm-as-install-method/' },
-            { label: 'ADR-0004: Template/instance split', link: '/docs/adr/0004-template-instance-split/' },
-            { label: 'ADR-0005: GKE Standard tenant pools', link: '/docs/adr/0005-gke-standard-tenant-pools/' },
-            { label: 'ADR-0006: YAML workshop templates', link: '/docs/adr/0006-yaml-workshop-templates/' },
-            { label: 'ADR-0007: External workshop-templates repo', link: '/docs/adr/0007-external-template-repo/' },
+            {
+              label: 'ADR-0001: oauth2-proxy at ingress',
+              link: '/docs/adr/0001-oauth2-proxy-at-ingress/',
+            },
+            {
+              label: 'ADR-0002: spec.owner on CRD',
+              link: '/docs/adr/0002-spec-owner-on-crd/',
+            },
+            {
+              label: 'ADR-0003: Helm install method',
+              link: '/docs/adr/0003-helm-as-install-method/',
+            },
+            {
+              label: 'ADR-0004: Template/instance split',
+              link: '/docs/adr/0004-template-instance-split/',
+            },
+            {
+              label: 'ADR-0005: GKE Standard tenant pools',
+              link: '/docs/adr/0005-gke-standard-tenant-pools/',
+            },
+            {
+              label: 'ADR-0006: YAML workshop templates',
+              link: '/docs/adr/0006-yaml-workshop-templates/',
+            },
+            {
+              label: 'ADR-0007: External workshop-templates repo',
+              link: '/docs/adr/0007-external-template-repo/',
+            },
           ],
         },
       ],
@@ -108,7 +158,7 @@ export default defineConfig({
         'dev-docs.orchestraplatform.org',
         'docs.orchestraplatform.org',
         'localhost',
-        '127.0.0.1'
+        '127.0.0.1',
       ],
     },
   },
