@@ -3,8 +3,32 @@ title: "ADR-0007: External workshop-templates repo, fetched via UPath"
 description: Decision record — moving workshop templates out of the platform chart into a separate git repo that the API fetches over a UPath source at runtime, with a published validator package and no offline fallback.
 ---
 
-**Status:** Accepted
+**Status:** Deferred (2026-06-30) — superseded plan retained for reference
 **Date:** 2026-06-29
+
+> **Deferral note (2026-06-30).** After implementing phase 1 (the extracted
+> `orchestra-template-tools` package, [#33](https://github.com/orchestraplatform/orchestraplatform/pull/33)),
+> we paused the remaining phases (2–6) and **stay on [ADR-0006](/docs/adr/0006-yaml-workshop-templates/)**:
+> templates remain git-managed YAML packaged in the platform chart. Rationale:
+> the runtime-fetch machinery in this ADR (external repo, UPath loader, background
+> refresh, atomic swap, `stale`/`degraded` status, readiness gating, two cross-repo
+> version pins) exists almost entirely to serve the *weakest* of the four driving
+> requirements — **edit-the-catalog-without-a-platform-redeploy**. ADR-0006 already
+> delivers the three strong ones (review gate, reproducibility, contribution path)
+> with far less machinery, and a `helm upgrade` already rolls the API pod via the
+> `checksum/templates` annotation, so a catalog edit does propagate without shelling
+> in. A database-backed store was also reconsidered and rejected again — it would
+> trade away the three strong requirements to serve the weak one.
+> **What we kept:** the `orchestra-template-tools` package (schema + validator + CLI)
+> is useful regardless and remains the single source of truth for the template
+> contract. **Escalation path if cadence pain ever materializes:** adopt a *reduced*
+> version of this ADR — **fetch-on-startup only** from an external repo (drop the
+> background refresh, admin reload/validate endpoints, and atomic-swap/`degraded`
+> machinery); a catalog change then propagates on a `kubectl rollout restart`, not a
+> full `helm upgrade`. That captures most of the benefit for a fraction of the
+> complexity. Because 0007 is deferred, **ADR-0006 decisions A and D remain in
+> force** (the "Supersedes" line below describes the deferred plan, not current
+> state).
 
 **Supersedes:** [ADR-0006](/docs/adr/0006-yaml-workshop-templates/) decisions **A**
 (contribution via PR against the platform repo) and **D** (templates packaged in
