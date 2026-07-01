@@ -104,6 +104,23 @@ The cluster sets `deletion_protection = true`. To ever tear it down you must fli
 that to `false` and re-apply before `tofu destroy`.
 :::
 
+### Warm capacity for cohorts
+
+The balloon (`cluster-warmer`) baseline is **0 replicas** — no standing warm-node
+cost while idle (the first session of a burst cold-boots a node, ~60–90s). Warm
+capacity is an **operational lever**, not tofu-managed state (tofu `ignore_changes`
+on the replicas), so scale it with the `just` recipes before/after a known cohort:
+
+```bash
+just warm 5        # pre-warm 5 tenant nodes before a conference/course
+just warm-status   # watch replicas + tenant nodes come up
+just warm 0        # back to zero idle cost afterward
+```
+
+Each replica is sized to the largest expected workshop pod, so it holds one
+right-sized NAP node warm. `just warm` is GKE-Standard-specific and uses the
+current kube-context.
+
 ## 2. Confirm the system pool is ready for platform pods
 
 The system pool is labelled `pool=system` and **tainted**
