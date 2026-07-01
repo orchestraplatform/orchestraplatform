@@ -23,6 +23,14 @@ spec:
       # the namespace default SA. (It must NOT reference the operator SA: this is
       # a pre-install hook that runs before the chart's SA exists, which breaks
       # every fresh install.)
+      {{- if .Values.systemPool.enabled }}
+      # Pin to the system pool alongside the API: on GKE Standard that's where the
+      # nodes carry the Cloud SQL scope, so the migrate hook's cloud-sql-proxy
+      # init sidecar can reach the database (a NAP tenant node would fail auth).
+      nodeSelector:
+        {{- include "orchestra.systemPoolNodeSelector" . | nindent 8 }}
+      {{- include "orchestra.systemPoolTolerations" . | nindent 6 }}
+      {{- end }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
