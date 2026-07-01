@@ -76,7 +76,9 @@ def validate_documents(docs: Mapping[str, str]) -> CatalogResult:
         try:
             data = yaml.safe_load(text)
         except yaml.YAMLError as exc:
-            files.append(FileResult(name=name, ok=False, errors=[f"invalid YAML: {exc}"]))
+            files.append(
+                FileResult(name=name, ok=False, errors=[f"invalid YAML: {exc}"])
+            )
             continue
         if data is None:
             files.append(FileResult(name=name, ok=False, errors=["file is empty"]))
@@ -100,9 +102,7 @@ def validate_documents(docs: Mapping[str, str]) -> CatalogResult:
                 f"filename stem '{stem}' does not match slug '{tmpl.slug}' "
                 "(expected <slug>.yaml)"
             )
-        files.append(
-            FileResult(name=name, ok=not errors, errors=errors, template=tmpl)
-        )
+        files.append(FileResult(name=name, ok=not errors, errors=errors, template=tmpl))
 
     if not docs:
         catalog_errors.append("no template files found")

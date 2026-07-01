@@ -1,0 +1,165 @@
+name: Deploy
+
+# CD (ADR-0006 phase 3). Push to `main` -> deploy to the **dev** GKE cluster.
+# Pushing a `v*` tag / publishing a release -> deploy to **prod**.
+#
+# Auth is via Workload Identity Federation (google-github-actions/auth): the job
+# mints a short-lived token from GitHub's OIDC identity — there is NO long-lived
+# JSON service-account key stored in the repo.
+#
+# The helm flags mirror `just deploy-gcp` / `deploy-gcp-dry-run` in the justfile
+# (values files + per-component image tags pinned to the commit SHA) so a Helm
+# revision stays traceable to a commit. The one difference vs. the local recipe:
+# on a GH runner there is no kubeconfig, so we obtain cluster credentials with
+# `google-github-actions/get-gke-credentials` instead of `kubectl config
+# use-context`.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+# Serialize deploys per environment so two pushes can't race a Helm release.
+concurrency:
+  group: deploy-${{ github.ref_type == 'tag' && 'prod' || 'dev' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for WIF / OIDC token minting
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Tag push -> prod (attach a protection rule to the `prod` environment in
+    # repo settings so it requires manual approval). Everything else -> dev.
+    environment: ${{ github.ref_type == 'tag' && 'prod' || 'dev' }}
+
+    env:
+      # These come from GitHub *environment* variables/secrets so dev and prod
+      # can differ. See docs/deployment/github-cicd.md for the full checklist.
+      # TODO: set GCP_PROJECT           in the dev/prod environment (repo settings > Environments)
+      # TODO: set GCP_REGION            in the dev/prod environment (e.g. us-central1)
+      # TODO: set GKE_CLUSTER           in the dev/prod environment (e.g. orchestra-dev)
+      # TODO: set GKE_LOCATION          in the dev/prod environment (cluster zone/region, e.g. us-central1)
+      # TODO: set ARTIFACT_REGISTRY     in the dev/prod environment
+      #        (e.g. us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra)
+      GCP_PROJECT: ${{ vars.GCP_PROJECT }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GKE_CLUSTER: ${{ vars.GKE_CLUSTER }}
+      GKE_LOCATION: ${{ vars.GKE_LOCATION }}
+      REGISTRY: ${{ vars.ARTIFACT_REGISTRY }}
+      NAMESPACE: orchestra-system
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tag (short SHA)
+        id: vars
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # ---- Authenticate to GCP via Workload Identity Federation (no JSON key) ----
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          # TODO: set WIF_PROVIDER as a repo/environment secret — the full provider
+          #   resource name, e.g.
+          #   projects/123456789/locations/global/workloadIdentityPools/github/providers/orchestra
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          # TODO: set WIF_SERVICE_ACCOUNT as a repo/environment secret — the deploy
+          #   service-account email, e.g. orchestra-deployer@<project>.iam.gserviceaccount.com
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      # get-gke-credentials writes a kubeconfig using the WIF token (uses the
+      # gke-gcloud-auth-plugin under the hood). Replaces `kubectl config
+      # use-context` from the local recipe.
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_LOCATION }}
+
+      - uses: azure/setup-helm@v4
+      - uses: extractions/setup-just@v2
+
+      # ---- Reconstruct the gitignored OAuth secrets values file ----
+      # `deploy/gcp-values-secrets.yaml` is gitignored (local-only); on CI it is
+      # materialized from a GitHub secret so the same 3-values-file helm command
+      # from `just deploy-gcp` works unchanged.
+      - name: Write gcp-values-secrets.yaml
+        run: |
+          # TODO: set GCP_VALUES_SECRETS as an environment secret — the full
+          #   contents of deploy/gcp-values-secrets.yaml (OAuth client id/secret).
+          printf '%s' "${{ secrets.GCP_VALUES_SECRETS }}" > deploy/gcp-values-secrets.yaml
+
+      # ---- Build & push the three images at this SHA (matches `ship-gcp`) ----
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push images
+        env:
+          SHA: ${{ steps.vars.outputs.sha }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/amd64 \
+            -t "${REGISTRY}/orchestra-api:${SHA}" \
+            -t "${REGISTRY}/orchestra-api:latest" \
+            -f server/Dockerfile --push .
+          docker buildx build --platform linux/amd64 \
+            -t "${REGISTRY}/orchestra-operator:${SHA}" \
+            -t "${REGISTRY}/orchestra-operator:latest" \
+            --push operator/
+          docker buildx build --platform linux/amd64 \
+            -t "${REGISTRY}/orchestra-frontend:${SHA}" \
+            -t "${REGISTRY}/orchestra-frontend:latest" \
+            --push frontend/
+
+      - name: Apply CRDs
+        run: kubectl apply -f ./deploy/charts/orchestra-crds/templates/
+
+      # ---- Dry-run pre-step: render + validate against the live cluster ----
+      # Mirrors `just deploy-gcp-dry-run` flags; fails the job before any real
+      # change if the render is invalid.
+      - name: Helm upgrade (dry-run)
+        env:
+          SHA: ${{ steps.vars.outputs.sha }}
+        run: |
+          set -euo pipefail
+          helm upgrade --install orchestra ./deploy/charts/orchestra \
+            -n "${NAMESPACE}" --create-namespace \
+            -f deploy/charts/orchestra/values.yaml \
+            -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-secrets.yaml \
+            --set operator.image.tag="${SHA}" \
+            --set api.image.tag="${SHA}" \
+            --set frontend.image.tag="${SHA}" \
+            --dry-run --debug
+
+      # ---- Real deploy (matches `just deploy-gcp`) ----
+      - name: Helm upgrade (apply)
+        env:
+          SHA: ${{ steps.vars.outputs.sha }}
+        run: |
+          set -euo pipefail
+          helm upgrade --install orchestra ./deploy/charts/orchestra \
+            -n "${NAMESPACE}" --create-namespace \
+            -f deploy/charts/orchestra/values.yaml \
+            -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-secrets.yaml \
+            --set operator.image.tag="${SHA}" \
+            --set api.image.tag="${SHA}" \
+            --set frontend.image.tag="${SHA}" \
+            --wait
+
+      - name: Clean up secrets file
+        if: always()
+        run: rm -f deploy/gcp-values-secrets.yaml

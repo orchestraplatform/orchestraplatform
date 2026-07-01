@@ -1,0 +1,46 @@
+name: Validate workshop templates
+
+# Runs only when a PR touches the git-managed templates (ADR-0006 phase 2).
+# Validates every template document and emits GitHub annotations so a bad
+# `foo.yaml` fails with a file-anchored inline error on the PR's Files tab.
+
+on:
+  pull_request:
+    paths:
+      - deploy/charts/orchestra/files/templates/**
+      - template-tools/**
+      - .github/workflows/validate-templates.yml
+
+concurrency:
+  group: validate-templates-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: orchestra-validate-templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: template-tools/uv.lock
+
+      # Install the CLI into an isolated tool env — no full server sync needed.
+      - name: Install template-tools CLI
+        run: uv tool install ./template-tools
+
+      # `--format=github` prints `::error file=<path>::<msg>` for each failing
+      # document (see template-tools/src/orchestra_template_tools/cli.py), so the
+      # validator reports per-file even though it validates the whole dir once.
+      # It also prints `ok <file>` lines and exits non-zero on any failure.
+      - name: Validate templates (per-file annotations)
+        run: >-
+          orchestra-validate-templates
+          deploy/charts/orchestra/files/templates
+          --format github
