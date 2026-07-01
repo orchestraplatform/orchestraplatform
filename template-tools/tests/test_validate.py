@@ -121,3 +121,33 @@ def test_cli_missing_dir_returns_2(tmp_path):
 def test_cli_print_schema(capsys):
     assert cli_main(["--print-schema"]) == 0
     assert '"title": "Orchestra Workshop Template"' in capsys.readouterr().out
+
+
+def test_cli_github_format_valid(tmp_path, capsys):
+    (tmp_path / "rstudio.yaml").write_text(RSTUDIO)
+    rc = cli_main([str(tmp_path), "--format", "github"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "::error" not in out
+    assert "ok    rstudio.yaml" in out
+
+
+def test_cli_github_format_emits_file_anchored_annotation(tmp_path, capsys):
+    # Filename does not match slug -> per-file error anchored to that file.
+    bad = tmp_path / "wrong-name.yaml"
+    bad.write_text(RSTUDIO)
+    rc = cli_main([str(tmp_path), "--format", "github"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert f"::error file={bad}," in out
+    assert "does not match slug" in out
+
+
+def test_cli_github_format_escapes_newlines(tmp_path, capsys):
+    # An annotation message must be a single line; newlines are percent-encoded.
+    (tmp_path / "broken.yaml").write_text("name: X\n  bad: : :\n")
+    cli_main([str(tmp_path), "--format", "github"])
+    for line in capsys.readouterr().out.splitlines():
+        if line.startswith("::error"):
+            # message portion (after the last '::') carries no raw newline
+            assert "\n" not in line

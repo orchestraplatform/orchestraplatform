@@ -153,6 +153,18 @@ sync-types:
 template-schema:
     cd server && uv run python generate_template_schema.py
 
+# CI gate: fail if template.schema.json is stale (out of sync with the model).
+# Regenerates in place and asserts git sees no diff. Called by .github ci.yml.
+check-schema:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just template-schema
+    if ! git diff --exit-code -- deploy/charts/orchestra/files/templates/template.schema.json; then
+        echo "✗ template.schema.json is stale — run 'just template-schema' and commit the result" >&2
+        exit 1
+    fi
+    echo "✓ template.schema.json is in sync with the model"
+
 # Validate the git-managed template files against the schema (same CLI the
 # workshop-templates repo's CI runs — ADR-0007).
 validate-templates:
@@ -241,6 +253,15 @@ quality:
     @echo "--- Quality: Docs ---"
     cd docs && npm run lint
 
+# Non-mutating lint check for the Python server (CI gate; unlike `quality`,
+# does not rewrite files). Used by .github ci.yml.
+lint-server:
+    cd server && uv run ruff check . && uv run ruff format --check .
+
+# Non-mutating lint check for the template-tools package (CI gate).
+lint-template-tools:
+    cd template-tools && uv run ruff check . && uv run ruff format --check .
+
 # Run all tests
 test:
     @echo "--- Test: Server ---"
@@ -251,6 +272,14 @@ test:
     cd sidecar && go test ./... -v
     @echo "--- Test: Frontend ---"
     cd frontend && npm run test -- --run --passWithNoTests
+
+# Server Python test suite only (CI gate).
+test-server:
+    cd server && uv run python -m pytest tests/ -v
+
+# template-tools package test suite only (CI gate).
+test-template-tools:
+    cd template-tools && uv run python -m pytest tests/ -v
 
 # --- GCP / Production Deployment ---
 
