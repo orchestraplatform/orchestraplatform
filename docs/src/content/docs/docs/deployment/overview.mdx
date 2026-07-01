@@ -1,0 +1,99 @@
+---
+title: "Deploying Orchestra: overview & prerequisites"
+description: The inputs an operator must supply, the external dependencies the chart assumes, and the sequential deployment path — start here.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This is the **authoritative operator runbook** for standing up an Orchestra
+instance. The pages under **Deployment** are a single, numbered sequence — follow
+them in order:
+
+1. **Overview & prerequisites** (this page)
+2. [Cluster setup (GKE Standard)](/docs/deployment/cluster-setup/)
+3. [Install Orchestra (Helm)](/docs/deployment/install/)
+4. [Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/)
+5. [DNS cutover](/docs/deployment/dns-cutover/)
+6. [CI/CD](/docs/deployment/github-cicd/)
+7. [Troubleshooting & gotchas](/docs/deployment/troubleshooting/)
+
+The reference deployment is **GKE Standard** (per
+[ADR-0005](/docs/adr/0005-gke-standard-tenant-pools/)). The operator and Helm
+chart are **cloud-neutral** — see the
+[generic Kubernetes note](/docs/deployment/cluster-setup/#generic-kubernetes--non-gke)
+for kind/EKS/AKS. The legacy [GCP Autopilot](/docs/deployment/gcp/) walkthrough is
+kept as the simpler-but-pricier alternative.
+
+<Aside type="tip">
+**Run `just doctor` first.** It is a no-cluster preflight that checks your
+toolchain (`gcloud`, `kubectl`, `helm`, `tofu`), authentication, and that the
+required inputs/secrets below are present before you touch a cluster. Fix
+anything it flags before continuing.
+</Aside>
+
+## Inputs you must supply
+
+Gather these before you begin. Where they live in the reference deployment is
+noted so you can adapt.
+
+| Input | What / where | Notes |
+|---|---|---|
+| **GCP project(s)** | Cluster + Artifact Registry images live in **one** project (`orchestraplatform-dev`). TF remote state and secrets may live **elsewhere**. | Multi-project is the real-world layout; the tofu module and the image repo can target different projects. |
+| **Base domain** | `global.domain`, e.g. `orchestraplatform.org`. | Derives `app.<domain>`, `api.<domain>`, and `*.<domain>`. Not tied to any one domain — pick your own. |
+| **DNS provider + API token** | Where the zone is hosted (Cloudflare in the reference deploy) and where the token lives. | cert-manager's DNS-01 solver needs a token with `Zone → DNS → Edit`. Stored as a k8s Secret in the `cert-manager` namespace. |
+| **Image registry** | Artifact Registry, e.g. `us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra`. | Images: `orchestra-api`, `orchestra-operator`, `orchestra-frontend`, `orchestra-sidecar`. |
+| **Database choice** | **Cloud SQL** (managed Postgres, reference deploy) *or* an **in-cluster Postgres** ([#27](https://github.com/orchestraplatform/orchestraplatform/issues/27)). | Cloud SQL uses the Cloud SQL Auth Proxy sidecar + Workload Identity — no password in a Secret. The DB must be reachable **before** install (the migrate hook needs it). |
+| **OAuth client** | Google OAuth 2.0 Client ID + secret. | Client id/secret + a generated cookie-secret go in a k8s Secret (`orchestra-oauth-secrets`) referenced by the bundled oauth2-proxy. Register redirect URI `https://app.<domain>/oauth2/callback`. |
+| **Static IP** | A reserved **regional** external IP for the Traefik LoadBalancer. | `gcloud compute addresses create ... --region <region>`. All three host types resolve here. See [Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/). |
+
+Secrets for the reference deployment live in **Google Secret Manager**; the
+gitignored `deploy/gcp-values-secrets.yaml` (OAuth client id/secret) is the third
+`-f` file passed to `helm upgrade` (see the
+[install page](/docs/deployment/install/)).
+
+## External dependencies the chart assumes
+
+The Orchestra chart installs the API, operator, frontend, and a **bundled
+oauth2-proxy subchart**. It does **not** install the cluster-wide infrastructure
+below — you install these yourself (covered in
+[Ingress, TLS & auth](/docs/deployment/ingress-tls-auth/)):
+
+| Dependency | Role | Installed by |
+|---|---|---|
+| **Traefik** | Ingress controller. Required for per-session workshop routing (GKE native ingress provisions one LB per session — not viable). Traefik v3 chart, pinned to the static IP, on the system pool. | You (Helm) |
+| **cert-manager** | Issues the **wildcard** TLS cert via a Let's Encrypt **DNS-01** ClusterIssuer (HTTP-01 cannot do wildcards). | You (Helm) |
+| **oauth2-proxy** | Auth at the ingress. The **bundled subchart** is the default; you can disable it and bring your own (Cloudflare Access, IAP, a corporate proxy). | The chart (bundled) |
+
+<Aside type="note">
+On **GKE Standard**, oauth2-proxy and the frontend must have resource
+**requests ≤ limits** (Autopilot silently auto-fixes this; Standard rejects it).
+A chart fix is landing separately — see
+[Troubleshooting](/docs/deployment/troubleshooting/#requests-exceed-limits-on-gke-standard).
+</Aside>
+
+## The three host types
+
+Everything Orchestra serves resolves to the **one static IP** in front of
+Traefik:
+
+| Host | Serves | Auth |
+|---|---|---|
+| `app.<domain>` | Dashboard (frontend) | oauth2-proxy (full-proxy mode) |
+| `api.<domain>` | Orchestra API | ForwardAuth (identity header injection) |
+| `*.<domain>` | Per-session workshop containers (one subdomain each) | Wildcard TLS via Traefik's default `TLSStore` |
+
+## Why these choices (the "why" lives in the ADRs)
+
+These pages are the **how**; the rationale is in the ADRs — cross-linked, not
+duplicated:
+
+- [ADR-0003](/docs/adr/0003-helm-as-install-method/) — Helm as the install method.
+- [ADR-0005](/docs/adr/0005-gke-standard-tenant-pools/) — GKE Standard and the
+  config-driven tenant tier map (portability across clouds).
+- [ADR-0006](/docs/adr/0006-yaml-workshop-templates/) /
+  [ADR-0007](/docs/adr/0007-external-template-repo/) — git-managed YAML workshop
+  templates shipped in the chart.
+- [ADR-0001](/docs/adr/0001-oauth2-proxy-at-ingress/) — oauth2-proxy at the
+  ingress rather than in the app.
+
+Next: [Cluster setup (GKE Standard)](/docs/deployment/cluster-setup/).
