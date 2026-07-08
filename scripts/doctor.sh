@@ -431,7 +431,9 @@ if have just && have uv; then
     if just check-schema >/tmp/doctor-schema-err 2>&1; then
         pass "template.schema.json in sync with the model"
     else
-        fail "template.schema.json is stale" "regenerate with 'just template-schema' and commit"
+        # Non-zero can mean drift OR a broken invocation — don't assert which;
+        # surface the recipe's own last line so the operator sees the cause.
+        fail "template-schema check failed: $(tail -n1 /tmp/doctor-schema-err 2>/dev/null)" "if stale: 'just template-schema' and commit; full output: /tmp/doctor-schema-err"
     fi
 else
     warn "skipping template-schema sync check" "needs 'just' + 'uv' (dev toolchain) — run 'just check-schema' directly"
