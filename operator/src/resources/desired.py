@@ -5,7 +5,6 @@ result to the OperatorCluster adapter (cluster.py); tests exercise the full
 manifest/naming/owner-reference logic without a cluster.
 """
 
-import logging
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -22,8 +21,6 @@ from resources.pvc import create_workshop_pvc
 from resources.service import create_workshop_service
 from utils.phases import WorkshopPhase
 from utils.time_utils import get_expiration_time
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass

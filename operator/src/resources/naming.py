@@ -26,7 +26,10 @@ def auth_middleware_name(workshop_name: str) -> str:
 
 
 def workshop_labels(workshop_name: str) -> dict[str, str]:
-    """Full label set stamped on workshop child resources."""
+    """Label set for the deployment/pod template and Traefik objects.
+
+    Not universal: the Service carries only selector_labels(), and the PVC
+    uses component=storage (see resources/pvc.py)."""
     return {"app": workshop_name, "component": "rstudio", "workshop": workshop_name}
 
 
