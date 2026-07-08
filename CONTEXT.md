@@ -41,8 +41,9 @@ _Avoid_: k8s helpers, api clients
 
 **Phase**:
 The lifecycle state of a WorkshopInstance (Pending, Creating, Starting, Ready,
-Running, Terminating, Failed; Terminated exists server-side only — a known
-mismatch).
+Running, Terminating, Failed; plus Terminated, a server-only synthetic phase
+for instances whose Workshop CRD has vanished — contract-tested, never written
+to a CRD).
 _Avoid_: status (for the state value), state
 
 **Template front door**:
