@@ -45,6 +45,12 @@ Running, Terminating, Failed; Terminated exists server-side only — a known
 mismatch).
 _Avoid_: status (for the state value), state
 
+**Template front door**:
+The structured GitHub issue form through which instructors submit or update
+Workshop templates; a bot converts a valid submission into a pull request
+with generated YAML (ADR-0009). Git remains the source of truth.
+_Avoid_: template API, self-service portal, template upload
+
 **Tier map**:
 Operator configuration mapping a template's tier name to node-targeting
 constraints, keeping the operator cloud-neutral (ADR-0005).
