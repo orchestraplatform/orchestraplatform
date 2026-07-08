@@ -7,18 +7,21 @@ import { useToast } from '../components/ui/Toast';
 import { RefreshCw, Search, X, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { formatAbsoluteTime, getTimeRemaining } from '../utils';
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../hooks/useExpiryNotifications';
+import { WorkshopPhase } from '../api/generated';
 import type { WorkshopInstanceResponse } from '../api/generated';
 
 type SortField = 'ownerEmail' | 'workshopName' | 'k8sName' | 'phase' | 'launchedAt' | 'expiresAt';
 type SortDir = 'asc' | 'desc';
 
-const PHASE_COLORS: Record<string, string> = {
-  Ready:       'bg-green-100 text-green-800 border-green-200',
-  Running:     'bg-green-100 text-green-800 border-green-200',
-  Pending:     'bg-yellow-100 text-yellow-800 border-yellow-200',
-  Creating:    'bg-yellow-100 text-yellow-800 border-yellow-200',
-  Failed:      'bg-red-100 text-red-800 border-red-200',
-  Terminating: 'bg-gray-100 text-gray-800 border-gray-200',
+const PHASE_COLORS: Record<WorkshopPhase, string> = {
+  [WorkshopPhase.READY]:       'bg-green-100 text-green-800 border-green-200',
+  [WorkshopPhase.RUNNING]:     'bg-green-100 text-green-800 border-green-200',
+  [WorkshopPhase.PENDING]:     'bg-yellow-100 text-yellow-800 border-yellow-200',
+  [WorkshopPhase.CREATING]:    'bg-yellow-100 text-yellow-800 border-yellow-200',
+  [WorkshopPhase.STARTING]:    'bg-yellow-100 text-yellow-800 border-yellow-200',
+  [WorkshopPhase.FAILED]:      'bg-red-100 text-red-800 border-red-200',
+  [WorkshopPhase.TERMINATING]: 'bg-gray-100 text-gray-800 border-gray-200',
+  [WorkshopPhase.TERMINATED]:  'bg-gray-100 text-gray-800 border-gray-200',
 };
 
 function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: SortField; sortDir: SortDir }) {
@@ -53,9 +56,9 @@ export function AdminDashboard() {
 
   const stats = useMemo(() => ({
     total:       instances.length,
-    ready:       instances.filter(i => i.phase === 'Ready' || i.phase === 'Running').length,
-    transitional: instances.filter(i => i.phase === 'Pending' || i.phase === 'Creating').length,
-    failed:      instances.filter(i => i.phase === 'Failed').length,
+    ready:       instances.filter(i => i.phase === WorkshopPhase.READY || i.phase === WorkshopPhase.RUNNING).length,
+    transitional: instances.filter(i => i.phase === WorkshopPhase.PENDING || i.phase === WorkshopPhase.CREATING || i.phase === WorkshopPhase.STARTING).length,
+    failed:      instances.filter(i => i.phase === WorkshopPhase.FAILED).length,
   }), [instances]);
 
   const phases = useMemo(() =>

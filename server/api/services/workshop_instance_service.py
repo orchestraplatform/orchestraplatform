@@ -37,8 +37,12 @@ SSE_POLL_FAST_S: int = 5
 SSE_POLL_SLOW_S: int = 30
 SSE_JITTER_S: int = 5
 
-_ACTIVE_PHASES = {"Ready", "Running"}
-_TRANSITIONAL_PHASES = {"Pending", "Creating", "Starting"}
+_ACTIVE_PHASES = {WorkshopPhase.READY.value, WorkshopPhase.RUNNING.value}
+_TRANSITIONAL_PHASES = {
+    WorkshopPhase.PENDING.value,
+    WorkshopPhase.CREATING.value,
+    WorkshopPhase.STARTING.value,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -178,13 +182,13 @@ class WorkshopInstanceService:
             k8s_name=k8s_name,
             namespace=namespace,
             owner_email=owner_email,
-            phase="Pending",
+            phase=WorkshopPhase.PENDING.value,
             duration_requested=duration,
             launched_at=datetime.now(UTC),
         )
         db.add(row)
         await db.flush()
-        db.add(InstanceEvent(instance_id=row.id, phase="Pending"))
+        db.add(InstanceEvent(instance_id=row.id, phase=WorkshopPhase.PENDING.value))
         await db.flush()
 
         await self._cluster.create(
@@ -286,8 +290,8 @@ class WorkshopInstanceService:
         await self._cluster.delete(k8s_name, namespace)
 
         row.terminated_at = datetime.now(UTC)
-        row.phase = "Terminating"
-        db.add(InstanceEvent(instance_id=row.id, phase="Terminating"))
+        row.phase = WorkshopPhase.TERMINATING.value
+        db.add(InstanceEvent(instance_id=row.id, phase=WorkshopPhase.TERMINATING.value))
         await db.commit()
         logger.info("Terminated instance %s (k8s=%s)", row.id, k8s_name)
         return True
