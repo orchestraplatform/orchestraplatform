@@ -5,13 +5,15 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-# WorkshopResources / WorkshopStorage are defined in orchestra-template-tools,
-# the single source of truth for the template schema (ADR-0007). Re-exported here
-# so existing ``from api.models.workshop import WorkshopResources`` keeps working.
-from orchestra_template_tools import WorkshopResources, WorkshopStorage
+# WorkshopResources / WorkshopStorage / WorkshopIngress are defined in
+# orchestra-template-tools, the single source of truth for the template and CRD
+# spec shapes (ADR-0007, #51). Re-exported here so existing
+# ``from api.models.workshop import WorkshopResources`` keeps working.
+from orchestra_template_tools import WorkshopIngress, WorkshopResources, WorkshopStorage
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 __all__ = [
+    "WorkshopIngress",
     "WorkshopResources",
     "WorkshopStorage",
 ]
@@ -30,25 +32,6 @@ class WorkshopPhase(str, Enum):
     # Not emitted by the operator on a CRD; used by the API to mark an
     # instance whose backing CRD has vanished (see workshop_instance_service).
     TERMINATED = "Terminated"
-
-
-class WorkshopIngress(BaseModel):
-    """Workshop ingress configuration."""
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    host: str | None = Field(
-        default=None,
-        description="Custom ingress hostname. Leave unset to use the environment default.",
-    )
-    annotations: dict[str, str] = Field(
-        default_factory=dict, description="Ingress annotations"
-    )
-
-    @field_validator("host", mode="before")
-    @classmethod
-    def empty_str_to_none(cls, v: str | None) -> str | None:
-        return None if v == "" else v
 
 
 _K8S_NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")

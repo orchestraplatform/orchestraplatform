@@ -111,7 +111,7 @@ build-push registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra"
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-operator:${sha} \
         -t {{registry}}/orchestra-operator:latest \
-        --push operator/
+        -f operator/Dockerfile --push .
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-frontend:${sha} \
         -t {{registry}}/orchestra-frontend:latest \
@@ -392,7 +392,7 @@ ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-operator:${sha} \
         -t {{registry}}/orchestra-operator:latest \
-        --push operator/
+        -f operator/Dockerfile --push .
     docker buildx build --platform linux/amd64 \
         -t {{registry}}/orchestra-frontend:${sha} \
         -t {{registry}}/orchestra-frontend:latest \

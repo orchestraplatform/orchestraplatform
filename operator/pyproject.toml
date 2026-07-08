@@ -12,7 +12,11 @@ dependencies = [
     "jinja2>=3.1.0",
     "python-dateutil>=2.8.0",
     "pydantic-settings>=2.14.0",
+    "orchestra-template-tools",
 ]
+
+[tool.uv.sources]
+orchestra-template-tools = { path = "../template-tools", editable = true }
 
 [dependency-groups]
 dev = [

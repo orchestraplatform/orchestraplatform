@@ -10,9 +10,10 @@ from datetime import datetime
 from typing import Any
 
 import kubernetes.client as k8s_client
+from orchestra_template_tools import WorkshopSpec
 
 from config import get_settings
-from crd import GROUP, VERSION
+from crd import GROUP, KIND, VERSION
 from resources.deployment import create_rstudio_deployment
 from resources.ingress import create_workshop_ingress
 from resources.middleware import create_auth_middleware
@@ -42,7 +43,7 @@ def _owner_reference_dict(meta: dict[str, Any]) -> dict[str, Any]:
     """ownerReference for raw custom-object manifests (Traefik dicts)."""
     return {
         "apiVersion": f"{GROUP}/{VERSION}",
-        "kind": "Workshop",
+        "kind": KIND,
         "name": meta["name"],
         "uid": meta["uid"],
         "blockOwnerDeletion": True,
@@ -79,19 +80,28 @@ def desired_children(
     """Build every child manifest for a Workshop CRD, owner-referenced so
     Kubernetes GC removes them when the Workshop is deleted."""
     settings = get_settings()
+    ws = WorkshopSpec.model_validate(spec)
 
-    workshop_name = spec.get("name", meta["name"])
-    duration = spec.get("duration", "4h")
-    image = spec.get("image", settings.default_workshop_image)
-    port = spec.get("port", 8787)
-    tier = spec.get("tier")
-    env = spec.get("env") or {}
-    args = spec.get("args") or None
-    resources = spec.get("resources", {})
-    storage = spec.get("storage", {})
-    ingress_config = spec.get("ingress", {})
-    # Support both new 'ownerEmail' and legacy 'owner' CRD field names
-    owner_email = spec.get("ownerEmail") or spec.get("owner", "unknown")
+    workshop_name = ws.name
+    duration = ws.duration
+    # CRD admission defaults spec.image, so the settings fallback only fires
+    # for specs that never passed the API server (e.g. direct calls in tests).
+    image = (
+        ws.image if "image" in ws.model_fields_set else settings.default_workshop_image
+    )
+    port = ws.port
+    tier = ws.tier
+    env = ws.env
+    args = ws.args or None
+    resources = ws.resources.model_dump(by_alias=True)
+    storage = (
+        ws.storage.model_dump(by_alias=True, exclude_none=True) if ws.storage else {}
+    )
+    ingress_config = (
+        ws.ingress.model_dump(by_alias=True, exclude_none=True) if ws.ingress else {}
+    )
+    # None for legacy CRs created before ownership was added (ADR-0002)
+    owner_email = ws.owner or "unknown"
 
     owner_ref = _owner_reference(meta)
     owner_ref_dict = _owner_reference_dict(meta)

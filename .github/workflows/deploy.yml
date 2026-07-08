@@ -122,7 +122,7 @@ jobs:
           docker buildx build --platform linux/amd64 \
             -t "${REGISTRY}/orchestra-operator:${SHA}" \
             -t "${REGISTRY}/orchestra-operator:latest" \
-            --push operator/
+            -f operator/Dockerfile --push .
           docker buildx build --platform linux/amd64 \
             -t "${REGISTRY}/orchestra-frontend:${SHA}" \
             -t "${REGISTRY}/orchestra-frontend:latest" \

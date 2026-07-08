@@ -5,6 +5,14 @@ platform API (which depends on this package), the ``orchestra-validate-templates
 CLI, and the workshop-templates repo's CI.
 """
 
+from .crd import (
+    GROUP,
+    KIND,
+    PLURAL,
+    VERSION,
+    WorkshopIngress,
+    WorkshopSpec,
+)
 from .models import (
     WorkshopResources,
     WorkshopStorage,
@@ -26,10 +34,16 @@ from .validate import (
 )
 
 __all__ = [
+    "GROUP",
+    "KIND",
+    "PLURAL",
+    "VERSION",
     "CatalogResult",
     "FileResult",
     "RenderResult",
+    "WorkshopIngress",
     "WorkshopResources",
+    "WorkshopSpec",
     "WorkshopStorage",
     "WorkshopTemplateCreate",
     "WorkshopTemplateFile",

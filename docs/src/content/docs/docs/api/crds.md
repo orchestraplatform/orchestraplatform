@@ -64,10 +64,10 @@ Source of truth: `deploy/charts/orchestra-crds/templates/workshop-crd.yaml`.
 | `ingress.annotations` | map[string]string | no | — | Extra annotations placed on the generated `IngressRoute`. |
 
 :::note
-The CRD schema requires `owner`. The operator handler also accepts a legacy
-`ownerEmail` key for backward compatibility (`spec.ownerEmail or spec.owner`),
-but `owner` is the authoritative field defined in the schema and the one the
-API writes.
+`owner` is the authoritative field: the CRD schema requires it and the API
+writes it. (An `ownerEmail` dual-read once tolerated in the server and
+operator was removed in #51 — `owner` is the only spec field either side
+reads.)
 :::
 
 ## `status`
