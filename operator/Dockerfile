@@ -6,9 +6,8 @@ FROM python:3.13-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    && rm -rf /var/lib/apt/lists/*
+# No extra system packages needed; the base image suffices. (Left as a no-op
+# rather than an empty `apt-get install -y`, which errors on an empty list.)
 
 # The local path dependency must exist before `uv sync`. operator/pyproject.toml
 # references it as ../template-tools, so relative to /app that is /template-tools.

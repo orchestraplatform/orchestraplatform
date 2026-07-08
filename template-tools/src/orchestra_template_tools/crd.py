@@ -13,6 +13,7 @@ uses (:mod:`.models`) — ADR-0006 defines a template as a friendly projection o
 the CRD spec — so template<->CRD drift is a type error, not a silent divergence.
 """
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -23,6 +24,9 @@ GROUP = "orchestra.io"
 VERSION = "v1"
 PLURAL = "workshops"
 KIND = "Workshop"
+
+# Mirrors the spec.owner pattern in the CRD schema (workshop-crd.yaml).
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$")
 
 
 class WorkshopIngress(BaseModel):
@@ -61,6 +65,17 @@ class WorkshopSpec(BaseModel):
         description="Email address of the workshop owner (set by the API from "
         "the authenticated user)",
     )
+
+    @field_validator("owner")
+    @classmethod
+    def owner_is_email(cls, v: str | None) -> str | None:
+        # Mirror the CRD schema's email pattern (workshop-crd.yaml) so an
+        # invalid owner fails here rather than at Kubernetes admission. None is
+        # allowed for legacy CRs created before ownership existed (ADR-0002).
+        if v is not None and not _EMAIL_RE.match(v):
+            raise ValueError("owner must be an email address")
+        return v
+
     duration: str = Field(default="4h", description="Workshop duration")
     image: str = Field(default="rocker/rstudio:latest", description="Docker image")
     port: int = Field(
