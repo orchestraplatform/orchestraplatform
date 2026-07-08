@@ -5,8 +5,6 @@ from datetime import datetime, timezone
 from typing import Any
 
 import kopf
-import kubernetes.client as k8s_client
-from kubernetes.client.rest import ApiException
 
 from crd import GROUP, PLURAL, VERSION
 
@@ -15,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @kopf.timer(GROUP, VERSION, PLURAL, interval=30, idle=10)  # type: ignore
 async def workshop_expiration_timer(
-    spec: dict, status: dict, namespace: str, name: str, **kwargs: Any
+    spec: dict, status: dict, namespace: str, name: str, memo: kopf.Memo, **kwargs: Any
 ) -> None:
     """Periodic timer to delete workshops that have passed their expiresAt time.
 
@@ -37,20 +35,12 @@ async def workshop_expiration_timer(
 
     logger.info("Workshop %s has expired — deleting CRD", name)
     try:
-        custom_api = k8s_client.CustomObjectsApi()
-        custom_api.delete_namespaced_custom_object(
-            group=GROUP,
-            version=VERSION,
-            namespace=namespace,
-            plural=PLURAL,
-            name=name,
-        )
-        logger.info("Workshop %s CRD deleted", name)
-    except ApiException as e:
-        if e.status == 404:
-            logger.info("Workshop %s already gone", name)
+        if await memo.cluster.delete_workshop(name, namespace):
+            logger.info("Workshop %s CRD deleted", name)
         else:
-            logger.error("Failed to delete expired workshop %s: %s", name, e)
+            logger.info("Workshop %s already gone", name)
+    except Exception as e:
+        logger.error("Failed to delete expired workshop %s: %s", name, e)
 
 
 @kopf.on.field(GROUP, VERSION, PLURAL, field="status.phase")  # type: ignore

@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from resources.naming import auth_middleware_name, workshop_labels
+
 
 def create_auth_middleware(
     workshop_name: str,
@@ -18,13 +20,9 @@ def create_auth_middleware(
         "apiVersion": "traefik.io/v1alpha1",
         "kind": "Middleware",
         "metadata": {
-            "name": f"{workshop_name}-auth",
+            "name": auth_middleware_name(workshop_name),
             "namespace": namespace,
-            "labels": {
-                "app": workshop_name,
-                "component": "rstudio",
-                "workshop": workshop_name,
-            },
+            "labels": workshop_labels(workshop_name),
         },
         "spec": {
             "forwardAuth": {

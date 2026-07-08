@@ -4,6 +4,8 @@ from typing import Any
 
 import kubernetes.client as k8s
 
+from resources.naming import pvc_name
+
 
 def create_workshop_pvc(
     workshop_name: str, namespace: str, storage_config: dict[str, Any]
@@ -26,7 +28,7 @@ def create_workshop_pvc(
         api_version="v1",
         kind="PersistentVolumeClaim",
         metadata=k8s.V1ObjectMeta(
-            name=f"{workshop_name}-pvc",
+            name=pvc_name(workshop_name),
             namespace=namespace,
             labels={"app": workshop_name, "component": "storage"},
         ),

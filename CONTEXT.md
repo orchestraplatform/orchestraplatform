@@ -33,6 +33,12 @@ delete, set expiry). Two adapters: the real Kubernetes one and an in-memory
 fake for tests. The CRD wire format is hidden behind it.
 _Avoid_: k8s helpers, cluster client, kube service
 
+**OperatorCluster**:
+The operator's seam to the cluster for a Workshop's child resources (apply
+children, read readiness, delete the Workshop CRD). Mirrors WorkshopCluster:
+a real Kubernetes adapter and an in-memory fake for tests.
+_Avoid_: k8s helpers, api clients
+
 **Phase**:
 The lifecycle state of a WorkshopInstance (Pending, Creating, Starting, Ready,
 Running, Terminating, Failed; Terminated exists server-side only — a known
