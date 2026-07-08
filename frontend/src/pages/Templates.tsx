@@ -6,9 +6,16 @@ import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
 import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, LayoutGrid, List, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { WorkshopPhase } from '../api/generated';
 import type { WorkshopTemplateResponse, WorkshopInstanceResponse } from '../api/generated';
 
-const ACTIVE_PHASES = new Set(['Pending', 'Creating', 'Starting', 'Ready', 'Running']);
+const ACTIVE_PHASES = new Set<WorkshopPhase>([
+  WorkshopPhase.PENDING,
+  WorkshopPhase.CREATING,
+  WorkshopPhase.STARTING,
+  WorkshopPhase.READY,
+  WorkshopPhase.RUNNING,
+]);
 
 interface TemplateCardProps {
   template: WorkshopTemplateResponse;
@@ -20,7 +27,7 @@ function TemplateCard({ template, launchCount, activeInstance }: TemplateCardPro
   const navigate = useNavigate();
   const extend = useExtendInstance();
 
-  const isOpen = activeInstance?.phase === 'Ready' || activeInstance?.phase === 'Running';
+  const isOpen = activeInstance?.phase === WorkshopPhase.READY || activeInstance?.phase === WorkshopPhase.RUNNING;
 
   return (
     <Card className="flex flex-col">
@@ -114,7 +121,7 @@ function TemplateRow({ template, launchCount, activeInstance }: TemplateRowProps
   const navigate = useNavigate();
   const extend = useExtendInstance();
 
-  const isOpen = activeInstance?.phase === 'Ready' || activeInstance?.phase === 'Running';
+  const isOpen = activeInstance?.phase === WorkshopPhase.READY || activeInstance?.phase === WorkshopPhase.RUNNING;
 
   return (
     <div className="flex items-center gap-4 px-4 py-2.5 border-b last:border-b-0 hover:bg-muted/30 transition-colors">

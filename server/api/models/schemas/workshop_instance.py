@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from api.models.workshop import WorkshopPhase
+
 
 class WorkshopInstanceResponse(BaseModel):
     """Response schema for a single workshop instance."""
@@ -32,7 +34,7 @@ class WorkshopInstanceResponse(BaseModel):
     k8s_name: str = Field(alias="k8sName")
     namespace: str
     owner_email: str = Field(alias="ownerEmail")
-    phase: str
+    phase: WorkshopPhase
     url: str | None = None
     duration_requested: str = Field(alias="durationRequested")
     launched_at: datetime = Field(alias="launchedAt")
@@ -65,7 +67,7 @@ class WorkshopInstanceStatus(BaseModel):
 
     id: uuid.UUID
     k8s_name: str = Field(alias="k8sName")
-    phase: str
+    phase: WorkshopPhase
     url: str | None = None
     expires_at: datetime | None = Field(default=None, alias="expiresAt")
 

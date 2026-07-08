@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { WorkshopPhase } from './WorkshopPhase';
 /**
  * Response schema for a single workshop instance.
  */
@@ -23,7 +24,7 @@ export type WorkshopInstanceResponse = {
     k8sName: string;
     namespace: string;
     ownerEmail: string;
-    phase: string;
+    phase: WorkshopPhase;
     url?: (string | null);
     durationRequested: string;
     launchedAt: string;

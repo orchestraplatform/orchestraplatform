@@ -16,6 +16,7 @@ export type { WorkshopInstanceList } from './models/WorkshopInstanceList';
 export type { WorkshopInstanceResponse } from './models/WorkshopInstanceResponse';
 export type { WorkshopInstanceStatus } from './models/WorkshopInstanceStatus';
 export type { WorkshopLaunchRequest } from './models/WorkshopLaunchRequest';
+export { WorkshopPhase } from './models/WorkshopPhase';
 export type { WorkshopResources } from './models/WorkshopResources';
 export type { WorkshopStorage } from './models/WorkshopStorage';
 export type { WorkshopTemplateList } from './models/WorkshopTemplateList';

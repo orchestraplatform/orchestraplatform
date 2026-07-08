@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { ExternalLink, Trash2, CalendarClock, AlertTriangle, PlusCircle } from 'lucide-react';
-import { WorkshopInstanceResponse } from '../../api/generated';
+import { WorkshopInstanceResponse, WorkshopPhase } from '../../api/generated';
 import { formatAbsoluteTime, getTimeRemaining } from '../../utils';
 import { useTerminateInstance, useExtendInstance } from '../../hooks/useInstances';
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
@@ -41,18 +41,19 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
     }
   };
 
-  const phaseColor = (phase: string) => {
+  const phaseColor = (phase: WorkshopPhase) => {
     switch (phase) {
-      case 'Ready':
-      case 'Running':
+      case WorkshopPhase.READY:
+      case WorkshopPhase.RUNNING:
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'Pending':
-      case 'Creating':
-      case 'Starting':
+      case WorkshopPhase.PENDING:
+      case WorkshopPhase.CREATING:
+      case WorkshopPhase.STARTING:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'Failed':
+      case WorkshopPhase.FAILED:
         return 'bg-red-100 text-red-800 border-red-200';
-      case 'Terminating':
+      case WorkshopPhase.TERMINATING:
+      case WorkshopPhase.TERMINATED:
         return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
         return 'bg-blue-100 text-blue-800 border-blue-200';
@@ -61,7 +62,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
 
   useTick();
 
-  const isOpen = instance.phase === 'Ready' || instance.phase === 'Running';
+  const isOpen = instance.phase === WorkshopPhase.READY || instance.phase === WorkshopPhase.RUNNING;
   const minsLeft = minutesRemaining(instance.expiresAt);
   const isCritical = minsLeft <= EXPIRY_CRITICAL_MINUTES;
   const isWarning = !isCritical && minsLeft <= EXPIRY_WARN_MINUTES;
