@@ -16,7 +16,7 @@ from api.models.workshop import (
     WorkshopPhase,
     WorkshopStorage,
 )
-from api.services.workshop_instance_service import (
+from api.services.workshop_cluster import (
     _from_kubernetes_crd,
     _to_kubernetes_crd,
 )

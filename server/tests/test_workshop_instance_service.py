@@ -13,6 +13,7 @@ from api.services.workshop_instance_service import (
     _TRANSITIONAL_PHASES,
     WorkshopInstanceService,
 )
+from tests.fakes import FakeWorkshopCluster
 
 
 def _instance(**overrides) -> WorkshopInstance:
@@ -42,18 +43,14 @@ def _instance(**overrides) -> WorkshopInstance:
 
 @pytest.mark.asyncio
 async def test_sync_from_k8s_marks_missing_crd_terminated():
-    service = WorkshopInstanceService()
+    service = WorkshopInstanceService(FakeWorkshopCluster())
     db = MagicMock()
     db.add = MagicMock()
     db.commit = AsyncMock()
 
     row = _instance(phase="Running")
 
-    with patch(
-        "api.services.workshop_instance_service._k8s_get",
-        AsyncMock(return_value=None),
-    ):
-        await service._sync_from_k8s(db, row)
+    await service._sync_from_k8s(db, row)
 
     assert row.phase == "Terminated"
     assert row.terminated_at is not None
@@ -74,7 +71,7 @@ async def test_list_instances_syncs_transitional_phases(phase: str):
     workshops whose pods were up but not yet marked Ready were never synced
     and stayed frozen in the UI.
     """
-    service = WorkshopInstanceService()
+    service = WorkshopInstanceService(FakeWorkshopCluster())
     row = _instance(phase=phase)
 
     total_result = MagicMock()
@@ -95,7 +92,7 @@ async def test_list_instances_syncs_transitional_phases(phase: str):
 @pytest.mark.asyncio
 async def test_list_instances_does_not_sync_stable_phases(phase: str):
     """_sync_from_k8s must not be called for stable (non-transitional) phases."""
-    service = WorkshopInstanceService()
+    service = WorkshopInstanceService(FakeWorkshopCluster())
     row = _instance(phase=phase)
 
     total_result = MagicMock()
@@ -136,17 +133,11 @@ def _template(**overrides) -> WorkshopTemplateResponse:
     return WorkshopTemplateResponse(**data)
 
 
-@pytest.mark.asyncio
-async def test_launch_stamps_template_spec_onto_instance():
-    """launch() must denormalize the template onto the instance row so it is
-    self-describing and independent of the template row (ADR-0006)."""
-    service = WorkshopInstanceService()
-    template = _template()
-
-    captured: list = []
+def _launch_db(captured: list) -> MagicMock:
+    """Mock AsyncSession for launch tests: captures add()ed objects and
+    simulates server-side defaults on refresh."""
 
     def _refresh(obj):
-        # Simulate the DB assigning server-side defaults on flush/refresh.
         if isinstance(obj, WorkshopInstance):
             now = datetime.now(UTC)
             obj.id = obj.id or uuid.uuid4()
@@ -155,23 +146,36 @@ async def test_launch_stamps_template_spec_onto_instance():
 
     db = MagicMock()
     db.add = MagicMock(side_effect=captured.append)
-    db.flush = AsyncMock()
+    db.flush = AsyncMock(
+        side_effect=lambda: _refresh(captured[0] if captured else None)
+    )
     db.commit = AsyncMock()
     db.refresh = AsyncMock(side_effect=_refresh)
+    db.rollback = AsyncMock()
+    return db
 
-    with patch(
-        "api.services.workshop_instance_service._k8s_create",
-        AsyncMock(),
-    ):
-        resp = await service.launch(
-            db,
-            template=template,
-            k8s_name="rstudio-abc123",
-            namespace="default",
-            owner_email="alice@example.com",
-            duration="2h",
-        )
 
+@pytest.mark.asyncio
+async def test_launch_stamps_template_spec_onto_instance():
+    """launch() must denormalize the template onto the instance row so it is
+    self-describing and independent of the template row (ADR-0006)."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+    template = _template()
+
+    captured: list = []
+    db = _launch_db(captured)
+
+    resp = await service.launch(
+        db,
+        template=template,
+        k8s_name="rstudio-abc123",
+        namespace="default",
+        owner_email="alice@example.com",
+        duration="2h",
+    )
+
+    assert ("default", "rstudio-abc123") in cluster.workshops
     instance = next(o for o in captured if isinstance(o, WorkshopInstance))
     assert instance.workshop_id == template.id
     assert instance.template_slug == "rstudio"
@@ -196,7 +200,7 @@ async def test_launch_stamps_template_spec_onto_instance():
 
 @pytest.mark.asyncio
 async def test_sync_from_k8s_does_not_reterminate_existing_row():
-    service = WorkshopInstanceService()
+    service = WorkshopInstanceService(FakeWorkshopCluster())
     db = MagicMock()
     db.add = MagicMock()
     db.commit = AsyncMock()
@@ -204,13 +208,108 @@ async def test_sync_from_k8s_does_not_reterminate_existing_row():
     terminated_at = datetime.now(UTC) - timedelta(minutes=1)
     row = _instance(phase="Terminated", terminated_at=terminated_at)
 
-    with patch(
-        "api.services.workshop_instance_service._k8s_get",
-        AsyncMock(return_value=None),
-    ):
-        await service._sync_from_k8s(db, row)
+    await service._sync_from_k8s(db, row)
 
     assert row.phase == "Terminated"
     assert row.terminated_at == terminated_at
     db.add.assert_not_called()
     db.commit.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Launch atomicity: no orphaned Workshop CRDs, no phantom rows
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_launch_compensates_on_commit_failure():
+    """If the commit fails after the Workshop CRD is created, launch must delete the CRD
+    (no orphan) and propagate the failure."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+
+    db = _launch_db([])
+    db.commit = AsyncMock(side_effect=RuntimeError("db down"))
+
+    with pytest.raises(RuntimeError, match="db down"):
+        await service.launch(
+            db,
+            template=_template(),
+            k8s_name="rstudio-abc123",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    db.rollback.assert_awaited_once()  # failed tx cleared before the k8s call
+    assert ("default", "rstudio-abc123") in cluster.deleted
+    assert cluster.workshops == {}
+
+
+@pytest.mark.asyncio
+async def test_launch_does_not_commit_when_create_fails():
+    """If the CRD create fails, nothing may be committed to the DB."""
+    cluster = FakeWorkshopCluster()
+    cluster.raise_on_create = RuntimeError("k8s down")
+    service = WorkshopInstanceService(cluster)
+
+    db = _launch_db([])
+
+    with pytest.raises(RuntimeError, match="k8s down"):
+        await service.launch(
+            db,
+            template=_template(),
+            k8s_name="rstudio-abc123",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_launch_does_not_create_cr_when_flush_fails():
+    """DB-side failures (constraints, connection) must surface before any Workshop CRD
+    is created in the cluster."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+
+    db = _launch_db([])
+    db.flush = AsyncMock(side_effect=RuntimeError("constraint violation"))
+
+    with pytest.raises(RuntimeError, match="constraint violation"):
+        await service.launch(
+            db,
+            template=_template(),
+            k8s_name="rstudio-abc123",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    assert cluster.workshops == {}
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_launch_logs_orphan_when_compensating_delete_fails(caplog):
+    """The double-failure case must at least leave a loud trace of the orphan."""
+    cluster = FakeWorkshopCluster()
+    cluster.raise_on_delete = RuntimeError("k8s also down")
+    service = WorkshopInstanceService(cluster)
+
+    db = _launch_db([])
+    db.commit = AsyncMock(side_effect=RuntimeError("db down"))
+
+    with pytest.raises(RuntimeError, match="db down"):
+        await service.launch(
+            db,
+            template=_template(),
+            k8s_name="rstudio-abc123",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    assert any("ORPHANED" in r.message for r in caplog.records)

@@ -11,7 +11,6 @@ from sqlalchemy import case, distinct, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
-from api.core.kubernetes import ApiException, get_custom_objects_api
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_instance import (
     InstanceSummary,
@@ -23,22 +22,15 @@ from api.models.schemas.workshop_instance import (
 )
 from api.models.schemas.workshop_template import WorkshopTemplateResponse
 from api.models.workshop import (
-    WorkshopCondition,
     WorkshopCreate,
     WorkshopIngress,
     WorkshopPhase,
     WorkshopResources,
-    WorkshopResponse,
-    WorkshopStatus,
     WorkshopStorage,
 )
+from api.services.workshop_cluster import K8sWorkshopCluster, WorkshopCluster
 
 logger = logging.getLogger(__name__)
-
-# Kubernetes CRD constants
-_K8S_GROUP = "orchestra.io"
-_K8S_VERSION = "v1"
-_K8S_PLURAL = "workshops"
 
 # SSE polling configuration
 SSE_POLL_FAST_S: int = 5
@@ -47,210 +39,6 @@ SSE_JITTER_S: int = 5
 
 _ACTIVE_PHASES = {"Ready", "Running"}
 _TRANSITIONAL_PHASES = {"Pending", "Creating", "Starting"}
-
-
-# ---------------------------------------------------------------------------
-# K8s CRD helpers (previously WorkshopService)
-# ---------------------------------------------------------------------------
-
-
-def _parse_datetime(dt_str: str | None) -> datetime | None:
-    if not dt_str:
-        return None
-    try:
-        if dt_str.endswith("Z"):
-            dt_str = dt_str[:-1] + "+00:00"
-        return datetime.fromisoformat(dt_str)
-    except ValueError:
-        return None
-
-
-def _to_kubernetes_crd(
-    workshop: WorkshopCreate, owner_email: str, namespace: str
-) -> dict[str, Any]:
-    """Convert a WorkshopCreate model to a Kubernetes CRD body."""
-    crd: dict[str, Any] = {
-        "apiVersion": f"{_K8S_GROUP}/{_K8S_VERSION}",
-        "kind": "Workshop",
-        "metadata": {
-            "name": workshop.name,
-            "namespace": namespace,
-            "labels": {"app": "orchestra-operator", "managed-by": "orchestra-api"},
-        },
-        "spec": {
-            "name": workshop.name,
-            "owner": owner_email,
-            "duration": workshop.duration,
-            "image": workshop.image,
-            "port": workshop.port,
-            "tier": workshop.tier,
-            "resources": {
-                "cpu": workshop.resources.cpu,
-                "memory": workshop.resources.memory,
-                "cpuRequest": workshop.resources.cpu_request,
-                "memoryRequest": workshop.resources.memory_request,
-                "ephemeralStorage": workshop.resources.ephemeral_storage,
-                "ephemeralStorageRequest": workshop.resources.ephemeral_storage_request,
-            },
-        },
-    }
-    if workshop.env:
-        crd["spec"]["env"] = dict(workshop.env)
-    if workshop.args:
-        crd["spec"]["args"] = list(workshop.args)
-    if workshop.storage:
-        crd["spec"]["storage"] = {"size": workshop.storage.size}
-        if workshop.storage.storage_class:
-            crd["spec"]["storage"]["storageClass"] = workshop.storage.storage_class
-    if workshop.ingress:
-        crd["spec"]["ingress"] = {}
-        if workshop.ingress.host:
-            crd["spec"]["ingress"]["host"] = workshop.ingress.host
-        if workshop.ingress.annotations:
-            crd["spec"]["ingress"]["annotations"] = workshop.ingress.annotations
-    return crd
-
-
-def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
-    """Convert a Kubernetes CRD dict to a WorkshopResponse."""
-    metadata = crd.get("metadata", {})
-    spec = crd.get("spec", {})
-    status = crd.get("status", {})
-
-    workshop_status = None
-    if status:
-        conditions = [
-            WorkshopCondition(
-                type=c.get("type"),
-                status=c.get("status"),
-                reason=c.get("reason"),
-                message=c.get("message"),
-                last_transition_time=c.get("lastTransitionTime"),
-            )
-            for c in status.get("conditions", [])
-        ]
-        raw_phase = status.get("phase", "Pending")
-        try:
-            phase = WorkshopPhase(raw_phase)
-        except ValueError:
-            logger.warning(
-                "Unknown workshop phase %r from CRD; falling back to Pending",
-                raw_phase,
-            )
-            phase = WorkshopPhase.PENDING
-        workshop_status = WorkshopStatus(
-            phase=phase,
-            url=status.get("url"),
-            created_at=_parse_datetime(status.get("createdAt")),
-            expires_at=_parse_datetime(status.get("expiresAt")),
-            conditions=conditions,
-        )
-
-    res = spec.get("resources", {})
-    storage_spec = spec.get("storage")
-    ingress_spec = spec.get("ingress")
-
-    return WorkshopResponse(
-        name=metadata.get("name"),
-        namespace=metadata.get("namespace"),
-        # Support both old "owner" and new "ownerEmail" CRD field names
-        owner=spec.get("ownerEmail") or spec.get("owner") or None,
-        spec=WorkshopCreate(
-            name=spec.get("name"),
-            duration=spec.get("duration", "4h"),
-            image=spec.get("image", "rocker/rstudio:latest"),
-            port=spec.get("port", 8787),
-            tier=spec.get("tier", "small"),
-            env=spec.get("env") or {},
-            args=spec.get("args") or [],
-            resources=WorkshopResources(
-                cpu=res.get("cpu", "1"),
-                memory=res.get("memory", "2Gi"),
-                cpuRequest=res.get("cpuRequest", "500m"),
-                memoryRequest=res.get("memoryRequest", "1Gi"),
-                ephemeralStorage=res.get("ephemeralStorage", "8Gi"),
-                ephemeralStorageRequest=res.get("ephemeralStorageRequest", "8Gi"),
-            ),
-            storage=WorkshopStorage(
-                size=storage_spec.get("size", "10Gi"),
-                storageClass=storage_spec.get("storageClass"),
-            )
-            if storage_spec
-            else None,
-            ingress=WorkshopIngress(
-                host=ingress_spec.get("host"),
-                annotations=ingress_spec.get("annotations", {}),
-            )
-            if ingress_spec
-            else None,
-        ),
-        status=workshop_status,
-        created_at=_parse_datetime(metadata.get("creationTimestamp")),
-        updated_at=None,
-    )
-
-
-async def _k8s_create(
-    workshop: WorkshopCreate, owner_email: str, namespace: str
-) -> WorkshopResponse:
-    api = get_custom_objects_api()
-    result = api.create_namespaced_custom_object(
-        group=_K8S_GROUP,
-        version=_K8S_VERSION,
-        namespace=namespace,
-        plural=_K8S_PLURAL,
-        body=_to_kubernetes_crd(workshop, owner_email, namespace),
-    )
-    logger.info("Created k8s Workshop CRD %s in %s", workshop.name, namespace)
-    return _from_kubernetes_crd(result)
-
-
-async def _k8s_get(name: str, namespace: str) -> WorkshopResponse | None:
-    api = get_custom_objects_api()
-    try:
-        result = api.get_namespaced_custom_object(
-            group=_K8S_GROUP,
-            version=_K8S_VERSION,
-            namespace=namespace,
-            plural=_K8S_PLURAL,
-            name=name,
-        )
-        return _from_kubernetes_crd(result)
-    except ApiException as e:
-        if e.status == 404:
-            return None
-        raise
-
-
-async def _k8s_delete(name: str, namespace: str) -> bool:
-    api = get_custom_objects_api()
-    try:
-        api.delete_namespaced_custom_object(
-            group=_K8S_GROUP,
-            version=_K8S_VERSION,
-            namespace=namespace,
-            plural=_K8S_PLURAL,
-            name=name,
-        )
-        logger.info("Deleted k8s Workshop CRD %s in %s", name, namespace)
-        return True
-    except ApiException as e:
-        if e.status == 404:
-            return False
-        raise
-
-
-async def _k8s_patch_status(name: str, namespace: str, patch: dict[str, Any]) -> None:
-    """Patch the status subresource of a Workshop CRD."""
-    api = get_custom_objects_api()
-    api.patch_namespaced_custom_object_status(
-        group=_K8S_GROUP,
-        version=_K8S_VERSION,
-        namespace=namespace,
-        plural=_K8S_PLURAL,
-        name=name,
-        body={"status": patch},
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -336,6 +124,9 @@ def _to_response(row: WorkshopInstance) -> WorkshopInstanceResponse:
 class WorkshopInstanceService:
     """Manages WorkshopInstance DB records and k8s CRD lifecycle."""
 
+    def __init__(self, cluster: WorkshopCluster):
+        self._cluster = cluster
+
     async def launch(
         self,
         db: AsyncSession,
@@ -373,8 +164,12 @@ class WorkshopInstanceService:
             ingress=WorkshopIngress(),
         )
 
-        await _k8s_create(workshop_create, owner_email=owner_email, namespace=namespace)
-
+        # Flush all DB work before touching the cluster so DB-side failures
+        # (constraints, connection) abort the launch with no Workshop CRD
+        # created; the k8s create happens inside the still-open transaction,
+        # leaving commit as the only failure point after the CRD exists —
+        # compensated below. A create failure propagates with the transaction
+        # uncommitted; the get_db session teardown rolls it back.
         row = WorkshopInstance(
             workshop_id=template.id,
             template_slug=template.slug,
@@ -390,7 +185,33 @@ class WorkshopInstanceService:
         db.add(row)
         await db.flush()
         db.add(InstanceEvent(instance_id=row.id, phase="Pending"))
-        await db.commit()
+        await db.flush()
+
+        await self._cluster.create(
+            workshop_create, owner_email=owner_email, namespace=namespace
+        )
+
+        try:
+            await db.commit()
+        except Exception:
+            # Clear the failed transaction and return the connection to the
+            # pool before the (potentially slow) compensating cluster call.
+            try:
+                await db.rollback()
+            except Exception:
+                logger.warning(
+                    "Rollback after failed commit also failed for %s", k8s_name
+                )
+            try:
+                await self._cluster.delete(k8s_name, namespace)
+            except Exception:
+                logger.exception(
+                    "ORPHANED Workshop CRD %s/%s: commit failed and the "
+                    "compensating delete also failed",
+                    namespace,
+                    k8s_name,
+                )
+            raise
         await db.refresh(row)
 
         logger.info(
@@ -462,11 +283,7 @@ class WorkshopInstanceService:
         if row is None:
             return False
 
-        try:
-            await _k8s_delete(k8s_name, namespace)
-        except ApiException as e:
-            if e.status != 404:
-                raise
+        await self._cluster.delete(k8s_name, namespace)
 
         row.terminated_at = datetime.now(UTC)
         row.phase = "Terminating"
@@ -499,9 +316,7 @@ class WorkshopInstanceService:
 
         # Push new expiresAt into the CRD status so the operator picks it up
         try:
-            await _k8s_patch_status(
-                k8s_name, namespace, {"expiresAt": new_expires.isoformat()}
-            )
+            await self._cluster.set_expiry(k8s_name, namespace, new_expires)
         except Exception:
             logger.warning(
                 "Could not patch CRD status for %s; DB updated anyway", k8s_name
@@ -638,7 +453,7 @@ class WorkshopInstanceService:
     async def _sync_from_k8s(self, db: AsyncSession, row: WorkshopInstance) -> None:
         """Pull phase/url/expiresAt from the live k8s CRD and update DB if changed."""
         try:
-            k8s_workshop = await _k8s_get(row.k8s_name, row.namespace)
+            k8s_workshop = await self._cluster.get(row.k8s_name, row.namespace)
         except Exception:
             return
 
@@ -708,4 +523,4 @@ class WorkshopInstanceService:
 
 
 def get_instance_service() -> WorkshopInstanceService:
-    return WorkshopInstanceService()
+    return WorkshopInstanceService(K8sWorkshopCluster())
