@@ -14,6 +14,13 @@
 # (helm lint, schema sync, template resource-limit parse, ephemeral-vs-template)
 # still run. Exits non-zero if any check FAILs.
 #
+# Dedup policy (issue #50): checks that only need kubectl/helm stay
+# self-contained here, so a bare-cluster operator can run them without the dev
+# toolchain. Checks that REQUIRE the dev toolchain regardless (schema
+# regeneration needs uv + the template-tools package — unrunnable on a bare
+# cluster either way) delegate to their single `just` implementation and SKIP
+# with a message when just/uv is absent, rather than reimplementing it.
+#
 # Usage:
 #   just doctor                       # current kubectl context
 #   context=my-ctx just doctor        # override the kube context
@@ -416,23 +423,20 @@ else
     warn "helm absent — helm lint skipped" "install helm"
 fi
 
-# Template schema drift: regenerate to a temp file and diff (never touch the
-# committed file). Mirrors the check-schema recipe but is self-contained here.
-SCHEMA="$TEMPLATES_DIR/template.schema.json"
-if [ -f "$SCHEMA" ] && [ -d template-tools ] && have uv; then
-    GEN="$(mktemp)"
-    if ( cd template-tools && uv run orchestra-validate-templates --print-schema ) > "$GEN" 2>/tmp/doctor-schema-err; then
-        if diff -q "$SCHEMA" "$GEN" >/dev/null 2>&1; then
-            pass "template.schema.json in sync with the model"
-        else
-            fail "template.schema.json is stale" "regenerate with 'just template-schema' and commit"
-        fi
+# Template schema drift: delegate to the single implementation (`just
+# check-schema`, also the CI gate). It needs the dev toolchain (uv +
+# template-tools) that a bare-cluster operator won't have, so SKIP rather than
+# reimplement when just/uv is absent — see the dedup policy in the header.
+if have just && have uv; then
+    if just check-schema >/tmp/doctor-schema-err 2>&1; then
+        pass "template.schema.json in sync with the model"
     else
-        warn "could not regenerate template schema" "see: $(head -1 /tmp/doctor-schema-err 2>/dev/null)"
+        # Non-zero can mean drift OR a broken invocation — don't assert which;
+        # surface the recipe's own last line so the operator sees the cause.
+        fail "template-schema check failed: $(tail -n1 /tmp/doctor-schema-err 2>/dev/null)" "if stale: 'just template-schema' and commit; full output: /tmp/doctor-schema-err"
     fi
-    rm -f "$GEN"
 else
-    warn "skipping template-schema sync check" "needs template-tools/ and 'uv' — run 'just check-schema' directly if available"
+    warn "skipping template-schema sync check" "needs 'just' + 'uv' (dev toolchain) — run 'just check-schema' directly"
 fi
 
 # =============================================================================
