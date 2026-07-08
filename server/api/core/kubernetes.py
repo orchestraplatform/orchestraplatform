@@ -43,9 +43,3 @@ def get_custom_objects_api():
     """Get Kubernetes Custom Objects API client."""
     get_k8s_client()  # Ensure config is loaded
     return kubernetes.client.CustomObjectsApi()
-
-
-def get_core_v1_api():
-    """Get Kubernetes Core V1 API client."""
-    get_k8s_client()  # Ensure config is loaded
-    return kubernetes.client.CoreV1Api()

@@ -1,6 +1,6 @@
 """Test configuration and fixtures."""
 
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -66,13 +66,3 @@ def admin_client(_mock_k8s_startup):
         yield c
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture
-def mock_k8s_client():
-    """Mock the Kubernetes CustomObjects API used by WorkshopService."""
-    mock_api = Mock()
-    with patch(
-        "api.services.workshop_service.get_custom_objects_api", return_value=mock_api
-    ):
-        yield mock_api
