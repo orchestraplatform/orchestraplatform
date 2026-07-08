@@ -210,3 +210,12 @@ def test_from_crd_tolerates_unknown_phase():
     resp = _from_kubernetes_crd(_crd_with_phase("Hibernating"))
     assert resp.status is not None
     assert resp.status.phase is WorkshopPhase.PENDING
+
+
+def test_phase_vocabulary_matches_crd():
+    """The server's WorkshopPhase enum must equal the CRD's status.phase enum,
+    plus the server-only synthetic Terminated (stamped by the API when the
+    backing Workshop CRD has vanished — never written to a CRD)."""
+    crd_phases = set(_crd_status_schema()["properties"]["phase"]["enum"])
+    server_phases = {p.value for p in WorkshopPhase}
+    assert crd_phases == server_phases - {WorkshopPhase.TERMINATED.value}
