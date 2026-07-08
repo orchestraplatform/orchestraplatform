@@ -3,6 +3,7 @@
 from typing import Any
 
 from config import get_settings
+from resources.naming import ingress_name, service_name, workshop_labels
 
 
 def _default_host(workshop_name: str) -> str:
@@ -38,7 +39,7 @@ def create_workshop_ingress(
         {
             "match": f"Host(`{host}`)",
             "kind": "Rule",
-            "services": [{"name": f"{workshop_name}-service", "port": 80}],
+            "services": [{"name": service_name(workshop_name), "port": 80}],
         }
     ]
 
@@ -50,13 +51,9 @@ def create_workshop_ingress(
         "apiVersion": "traefik.io/v1alpha1",
         "kind": "IngressRoute",
         "metadata": {
-            "name": f"{workshop_name}-ingress",
+            "name": ingress_name(workshop_name),
             "namespace": namespace,
-            "labels": {
-                "app": workshop_name,
-                "component": "rstudio",
-                "workshop": workshop_name,
-            },
+            "labels": workshop_labels(workshop_name),
             "annotations": meta_annotations,
         },
         "spec": {

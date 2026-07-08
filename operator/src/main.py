@@ -53,7 +53,9 @@ def setup_kubernetes() -> None:
 
 
 @kopf.on.startup()
-async def startup_handler(settings: kopf.OperatorSettings, **kwargs: Any) -> None:
+async def startup_handler(
+    settings: kopf.OperatorSettings, memo: kopf.Memo, **kwargs: Any
+) -> None:
     """Initialize the operator on startup."""
     logging.info("Orchestra Operator starting up...")
 
@@ -64,6 +66,11 @@ async def startup_handler(settings: kopf.OperatorSettings, **kwargs: Any) -> Non
 
     # Setup Kubernetes client
     setup_kubernetes()
+
+    # The cluster adapter every handler uses (tests pass a fake via memo)
+    from cluster import K8sOperatorCluster
+
+    memo.cluster = K8sOperatorCluster()
 
     logging.info("Orchestra Operator startup complete")
 

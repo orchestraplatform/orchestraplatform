@@ -3,7 +3,7 @@
 import pytest
 
 from resources.ingress import _default_host, create_workshop_ingress
-from handlers.workshop import _ingress_url
+from resources.desired import _ingress_url
 
 
 @pytest.fixture(autouse=True)

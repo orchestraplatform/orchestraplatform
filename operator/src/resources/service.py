@@ -2,6 +2,8 @@
 
 import kubernetes.client as k8s
 
+from resources.naming import selector_labels, service_name
+
 
 def create_workshop_service(workshop_name: str, namespace: str) -> k8s.V1Service:
     """
@@ -18,12 +20,12 @@ def create_workshop_service(workshop_name: str, namespace: str) -> k8s.V1Service
         api_version="v1",
         kind="Service",
         metadata=k8s.V1ObjectMeta(
-            name=f"{workshop_name}-service",
+            name=service_name(workshop_name),
             namespace=namespace,
-            labels={"app": workshop_name, "component": "rstudio"},
+            labels=selector_labels(workshop_name),
         ),
         spec=k8s.V1ServiceSpec(
-            selector={"app": workshop_name, "component": "rstudio"},
+            selector=selector_labels(workshop_name),
             ports=[k8s.V1ServicePort(port=80, target_port=8080, protocol="TCP")],
             type="ClusterIP",
         ),
