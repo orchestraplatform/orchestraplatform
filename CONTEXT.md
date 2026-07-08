@@ -41,9 +41,16 @@ _Avoid_: k8s helpers, api clients
 
 **Phase**:
 The lifecycle state of a WorkshopInstance (Pending, Creating, Starting, Ready,
-Running, Terminating, Failed; Terminated exists server-side only — a known
-mismatch).
+Running, Terminating, Failed; plus Terminated, a server-only synthetic phase
+for instances whose Workshop CRD has vanished — contract-tested, never written
+to a CRD).
 _Avoid_: status (for the state value), state
+
+**Template front door**:
+The structured GitHub issue form through which instructors submit or update
+Workshop templates; a bot converts a valid submission into a pull request
+with generated YAML (ADR-0009). Git remains the source of truth.
+_Avoid_: template API, self-service portal, template upload
 
 **Tier map**:
 Operator configuration mapping a template's tier name to node-targeting
