@@ -143,11 +143,12 @@ jobs:
             -n "${NAMESPACE}" --create-namespace \
             -f deploy/charts/orchestra/values.yaml \
             -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-standard.yaml \
             -f deploy/gcp-values-secrets.yaml \
             --set operator.image.tag="${SHA}" \
             --set api.image.tag="${SHA}" \
             --set frontend.image.tag="${SHA}" \
-            --dry-run --debug
+            --dry-run
 
       # ---- Real deploy (matches `just deploy-gcp`) ----
       - name: Helm upgrade (apply)
@@ -159,6 +160,7 @@ jobs:
             -n "${NAMESPACE}" --create-namespace \
             -f deploy/charts/orchestra/values.yaml \
             -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-standard.yaml \
             -f deploy/gcp-values-secrets.yaml \
             --set operator.image.tag="${SHA}" \
             --set api.image.tag="${SHA}" \

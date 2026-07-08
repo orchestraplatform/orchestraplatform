@@ -333,6 +333,7 @@ deploy-gcp:
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
         -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-standard.yaml \
         -f deploy/gcp-values-secrets.yaml \
         --set operator.image.tag="${sha}" \
         --set api.image.tag="${sha}" \
@@ -364,6 +365,7 @@ ship-gcp registry="us-central1-docker.pkg.dev/orchestraplatform-dev/orchestra":
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
         -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-standard.yaml \
         -f deploy/gcp-values-secrets.yaml \
         --set operator.image.tag="${sha}" \
         --set api.image.tag="${sha}" \
@@ -381,6 +383,7 @@ deploy-gcp-dry-run:
         -n {{ gcp_namespace }} --create-namespace \
         -f deploy/charts/orchestra/values.yaml \
         -f deploy/gcp-values.yaml \
+        -f deploy/gcp-values-standard.yaml \
         -f deploy/gcp-values-secrets.yaml \
         --set operator.image.tag="${sha}" \
         --set api.image.tag="${sha}" \
