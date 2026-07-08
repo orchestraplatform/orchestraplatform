@@ -194,6 +194,14 @@ class WorkshopInstanceService:
         try:
             await db.commit()
         except Exception:
+            # Clear the failed transaction and return the connection to the
+            # pool before the (potentially slow) compensating cluster call.
+            try:
+                await db.rollback()
+            except Exception:
+                logger.warning(
+                    "Rollback after failed commit also failed for %s", k8s_name
+                )
             try:
                 await self._cluster.delete(k8s_name, namespace)
             except Exception:

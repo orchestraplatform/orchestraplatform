@@ -151,6 +151,7 @@ def _launch_db(captured: list) -> MagicMock:
     )
     db.commit = AsyncMock()
     db.refresh = AsyncMock(side_effect=_refresh)
+    db.rollback = AsyncMock()
     return db
 
 
@@ -240,6 +241,7 @@ async def test_launch_compensates_on_commit_failure():
             duration="2h",
         )
 
+    db.rollback.assert_awaited_once()  # failed tx cleared before the k8s call
     assert ("default", "rstudio-abc123") in cluster.deleted
     assert cluster.workshops == {}
 
