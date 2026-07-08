@@ -1,14 +1,22 @@
-"""``orchestra-validate-templates`` — validate a local directory of template files.
+"""Console entry points for the package.
 
-Used by the platform's ``just validate-templates`` and by the workshop-templates
-repo's CI. Reads ``*.yaml`` / ``*.yml`` from a directory and validates them with
-the shared :func:`validate_documents` routine. Exits non-zero on any error.
+``orchestra-validate-templates`` — validate a local directory of template
+files. Used by the platform's ``just validate-templates`` and by the
+workshop-templates repo's CI. Reads ``*.yaml`` / ``*.yml`` from a directory
+and validates them with the shared :func:`validate_documents` routine. Exits
+non-zero on any error.
+
+``orchestra-render-template`` — render a template submission (parsed
+issue-form fields as JSON) to canonical template YAML (ADR-0009). Emits a
+JSON result envelope for the front-door Action to consume.
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
+from .render import RenderResult, existing_template_path, render_submission
 from .schema import schema_json
 from .validate import validate_documents
 
@@ -117,6 +125,66 @@ def _report_github(result, directory: Path) -> int:
         return 0
     print(f"✗ validation failed in {directory}", file=sys.stderr)
     return 1
+
+
+def render_main(argv: list[str] | None = None) -> int:
+    """``orchestra-render-template`` — submission JSON in, result JSON out.
+
+    Prints a JSON envelope to stdout: ``ok``, ``errors`` (field-level, ready
+    for an issue comment), ``slug``, ``yaml``, and — when ``--templates-dir``
+    is given — ``exists`` plus the ``path`` to write (existing file for an
+    update, ``<slug>.yaml`` in the directory for a create). Exit 0 iff valid.
+    """
+    parser = argparse.ArgumentParser(
+        prog="orchestra-render-template",
+        description="Render a template submission (JSON) as canonical template YAML.",
+    )
+    parser.add_argument(
+        "submission",
+        nargs="?",
+        default="-",
+        help="Path to the submission JSON file ('-' or omitted: read stdin)",
+    )
+    parser.add_argument(
+        "--templates-dir",
+        type=Path,
+        default=None,
+        help="Templates directory to resolve create-vs-update against.",
+    )
+    args = parser.parse_args(argv)
+
+    if args.submission == "-":
+        raw = sys.stdin.read()
+    else:
+        path = Path(args.submission)
+        if not path.is_file():
+            print(f"error: {path} is not a file", file=sys.stderr)
+            return 2
+        raw = path.read_text()
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        result = RenderResult(ok=False, errors=[f"<root>: invalid JSON: {exc}"])
+    else:
+        result = render_submission(data)
+
+    out: dict = {
+        "ok": result.ok,
+        "errors": result.errors,
+        "slug": result.template.slug if result.template else None,
+        "yaml": result.yaml_text,
+        "exists": None,
+        "path": None,
+    }
+    if result.ok and args.templates_dir is not None:
+        existing = existing_template_path(result.template.slug, args.templates_dir)
+        out["exists"] = existing is not None
+        target = existing or args.templates_dir / f"{result.template.slug}.yaml"
+        out["path"] = str(target)
+
+    print(json.dumps(out, indent=2))
+    return 0 if result.ok else 1
 
 
 if __name__ == "__main__":

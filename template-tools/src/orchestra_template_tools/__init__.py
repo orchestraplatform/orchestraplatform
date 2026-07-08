@@ -11,6 +11,12 @@ from .models import (
     WorkshopTemplateCreate,
     WorkshopTemplateFile,
 )
+from .render import (
+    RenderResult,
+    existing_template_path,
+    render_submission,
+    render_yaml,
+)
 from .schema import build_schema, schema_json
 from .validate import (
     CatalogResult,
@@ -22,12 +28,16 @@ from .validate import (
 __all__ = [
     "CatalogResult",
     "FileResult",
+    "RenderResult",
     "WorkshopResources",
     "WorkshopStorage",
     "WorkshopTemplateCreate",
     "WorkshopTemplateFile",
     "build_schema",
+    "existing_template_path",
     "load_template",
+    "render_submission",
+    "render_yaml",
     "schema_json",
     "validate_documents",
 ]
