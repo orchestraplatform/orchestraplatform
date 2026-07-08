@@ -1,9 +1,10 @@
 name: CI
 
 # Pull-request gate + main-branch guard. Runs the Python test suites, ruff, the
-# template-tools package tests, and the template-schema-in-sync check. All steps
-# call the same `just` recipes developers run locally, so CI and local can never
-# silently disagree.
+# template-tools package tests, the template-schema-in-sync check, the frontend
+# checks (eslint + tsc + vitest), Helm chart lint/render, and the generated
+# API-client drift check. All steps call the same `just` recipes developers run
+# locally, so CI and local can never silently disagree.
 
 on:
   pull_request:
@@ -115,3 +116,81 @@ jobs:
       # i.e. the committed schema is stale versus the pydantic model.
       - name: Check template.schema.json is in sync
         run: just check-schema
+
+  frontend:
+    name: frontend (eslint + tsc + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # Cache the npm download cache keyed on the committed lockfile.
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: extractions/setup-just@v2
+
+      # `npm ci` installs exactly the committed lockfile (fails if out of sync).
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      - name: Lint (eslint + tsc --noEmit)
+        run: just lint-frontend
+
+      # Unit tests only — the Playwright e2e suite (tests/e2e/**, excluded in
+      # vite.config.ts) needs browsers + a live server and is not run here.
+      - name: Test (vitest run)
+        run: just test-frontend
+
+  helm-lint:
+    name: helm lint + render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - uses: extractions/setup-just@v2
+
+      # helm lint + `helm template` for both charts (default values, plus the
+      # committed gcp-values overrides, which render without the gitignored
+      # secrets file).
+      - name: Lint and render charts
+        run: just lint-charts
+
+  types-in-sync:
+    name: generated client in sync
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            server/uv.lock
+            template-tools/uv.lock
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: extractions/setup-just@v2
+
+      - name: Sync server deps
+        run: cd server && uv sync --group dev
+
+      # Install the pinned codegen (openapi-typescript-codegen) from the
+      # lockfile so the generated diff is deterministic across runs.
+      - name: Install frontend deps
+        run: cd frontend && npm ci
+
+      # Regenerates openapi.json + the frontend client via `just sync-types` and
+      # fails if the tracked generated client differs from what's committed.
+      - name: Check generated client is in sync
+        run: just check-types

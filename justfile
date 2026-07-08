@@ -155,6 +155,25 @@ sync-types:
 template-schema:
     cd server && uv run python generate_template_schema.py
 
+# Fail if the committed generated frontend client has drifted from what the
+# server currently produces (CI gate, called by .github ci.yml). Mirrors
+# check-schema: regenerate via `just sync-types`, then diff. Needs uv (server)
+# + node (codegen). Exits non-zero on drift.
+#
+# NB: server/openapi.json is gitignored, so it can't be diffed directly — but
+# it's the input to the codegen, so any schema drift surfaces in the tracked
+# frontend/src/api/generated client, which is what we gate on.
+check-types:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just sync-types
+    if ! git diff --exit-code -- frontend/src/api/generated; then
+        echo ""
+        echo "✗ generated client is stale — run 'just sync-types' and commit."
+        exit 1
+    fi
+    echo "✓ generated API client is in sync with the server schema."
+
 # Fail if the committed template.schema.json has drifted from the model
 # (single-source check for CI, called by .github ci.yml). Regenerates to a temp
 # file and diffs; the committed file is left untouched. Exits non-zero on drift.
@@ -286,6 +305,24 @@ lint-server:
 lint-template-tools:
     cd template-tools && uv run ruff check . && uv run ruff format --check .
 
+# Non-mutating frontend checks (CI gate): eslint + tsc --noEmit. Unlike
+# `quality`, does not rewrite files.
+lint-frontend:
+    cd frontend && npm run lint && npm run type-check
+
+# Lint + render both Helm charts (CI gate). `helm template` catches templating
+# errors that `helm lint` misses; the gcp-values render proves the committed
+# prod overrides still render without the gitignored secrets file.
+lint-charts:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    helm lint deploy/charts/orchestra-crds
+    helm lint deploy/charts/orchestra
+    helm template orchestra-crds deploy/charts/orchestra-crds >/dev/null
+    helm template orchestra deploy/charts/orchestra >/dev/null
+    helm template orchestra deploy/charts/orchestra -f deploy/gcp-values.yaml >/dev/null
+    echo "✓ both charts lint and render (default + gcp-values)."
+
 # Run all tests
 test:
     @echo "--- Test: Server ---"
@@ -309,6 +346,12 @@ test-template-tools:
 # pre-existing ruff/format debt that is out of scope for the template work.
 test-operator:
     cd operator && uv run python -m pytest tests/ -v
+
+# Frontend unit tests only (CI gate). `vitest run` = single pass, no watch;
+# the e2e Playwright suite (tests/e2e/**) is excluded in vite.config.ts and
+# needs browsers + a live server, so it is not run here.
+test-frontend:
+    cd frontend && npx vitest run
 
 # --- GCP / Production Deployment ---
 
