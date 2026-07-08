@@ -95,11 +95,16 @@ jobs:
       # `deploy/gcp-values-secrets.yaml` is gitignored (local-only); on CI it is
       # materialized from a GitHub secret so the same 3-values-file helm command
       # from `just deploy-gcp` works unchanged.
+      # SECURITY: the secret is passed through `env:` — NEVER interpolate
+      # `${{ secrets.* }}` directly into a `run:` script. Expression syntax is
+      # substituted textually into the shell source, so a multi-line value
+      # breaks quoting, executes secret fragments as commands, and echoes them
+      # into public logs (incident 2026-07-08). An env var is expanded by the
+      # shell at runtime and never appears in the script text.
       - name: Write gcp-values-secrets.yaml
-        run: |
-          # TODO: set GCP_VALUES_SECRETS as an environment secret — the full
-          #   contents of deploy/gcp-values-secrets.yaml (OAuth client id/secret).
-          printf '%s' "${{ secrets.GCP_VALUES_SECRETS }}" > deploy/gcp-values-secrets.yaml
+        env:
+          GCP_VALUES_SECRETS: ${{ secrets.GCP_VALUES_SECRETS }}
+        run: printf '%s' "$GCP_VALUES_SECRETS" > deploy/gcp-values-secrets.yaml
 
       # ---- Build & push the three images at this SHA (matches `ship-gcp`) ----
       - name: Set up Docker Buildx
