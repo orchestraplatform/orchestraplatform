@@ -11,6 +11,7 @@ dependencies = [
 
 [project.scripts]
 orchestra-validate-templates = "orchestra_template_tools.cli:main"
+orchestra-render-template = "orchestra_template_tools.cli:render_main"
 
 [dependency-groups]
 dev = [
