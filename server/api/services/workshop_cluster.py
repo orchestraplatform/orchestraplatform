@@ -10,23 +10,18 @@ import logging
 from datetime import datetime
 from typing import Any, Protocol
 
+from orchestra_template_tools import GROUP, KIND, PLURAL, VERSION, WorkshopSpec
+
 from api.core.kubernetes import ApiException, get_custom_objects_api
 from api.models.workshop import (
     WorkshopCondition,
     WorkshopCreate,
-    WorkshopIngress,
     WorkshopPhase,
-    WorkshopResources,
     WorkshopResponse,
     WorkshopStatus,
-    WorkshopStorage,
 )
 
 logger = logging.getLogger(__name__)
-
-GROUP = "orchestra.io"
-VERSION = "v1"
-PLURAL = "workshops"
 
 
 class WorkshopCluster(Protocol):
@@ -66,47 +61,28 @@ def _parse_datetime(dt_str: str | None) -> datetime | None:
 def _to_kubernetes_crd(
     workshop: WorkshopCreate, owner_email: str, namespace: str
 ) -> dict[str, Any]:
-    """Convert a WorkshopCreate model to a Kubernetes CRD body."""
-    crd: dict[str, Any] = {
+    """Convert a WorkshopCreate model to a Kubernetes CRD body.
+
+    Serialization goes through the shared WorkshopSpec contract model
+    (orchestra-template-tools), which owns the camelCase wire format.
+    """
+    spec = WorkshopSpec.model_validate(
+        {**workshop.model_dump(), "owner": owner_email}
+    ).model_dump(by_alias=True, exclude_none=True)
+    # Omit empty env/args so the operator applies its defaults.
+    for key in ("env", "args"):
+        if not spec[key]:
+            del spec[key]
+    return {
         "apiVersion": f"{GROUP}/{VERSION}",
-        "kind": "Workshop",
+        "kind": KIND,
         "metadata": {
             "name": workshop.name,
             "namespace": namespace,
             "labels": {"app": "orchestra-operator", "managed-by": "orchestra-api"},
         },
-        "spec": {
-            "name": workshop.name,
-            "owner": owner_email,
-            "duration": workshop.duration,
-            "image": workshop.image,
-            "port": workshop.port,
-            "tier": workshop.tier,
-            "resources": {
-                "cpu": workshop.resources.cpu,
-                "memory": workshop.resources.memory,
-                "cpuRequest": workshop.resources.cpu_request,
-                "memoryRequest": workshop.resources.memory_request,
-                "ephemeralStorage": workshop.resources.ephemeral_storage,
-                "ephemeralStorageRequest": workshop.resources.ephemeral_storage_request,
-            },
-        },
+        "spec": spec,
     }
-    if workshop.env:
-        crd["spec"]["env"] = dict(workshop.env)
-    if workshop.args:
-        crd["spec"]["args"] = list(workshop.args)
-    if workshop.storage:
-        crd["spec"]["storage"] = {"size": workshop.storage.size}
-        if workshop.storage.storage_class:
-            crd["spec"]["storage"]["storageClass"] = workshop.storage.storage_class
-    if workshop.ingress:
-        crd["spec"]["ingress"] = {}
-        if workshop.ingress.host:
-            crd["spec"]["ingress"]["host"] = workshop.ingress.host
-        if workshop.ingress.annotations:
-            crd["spec"]["ingress"]["annotations"] = workshop.ingress.annotations
-    return crd
 
 
 def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
@@ -144,44 +120,14 @@ def _from_kubernetes_crd(crd: dict[str, Any]) -> WorkshopResponse:
             conditions=conditions,
         )
 
-    res = spec.get("resources", {})
-    storage_spec = spec.get("storage")
-    ingress_spec = spec.get("ingress")
+    ws_spec = WorkshopSpec.model_validate(spec)
 
     return WorkshopResponse(
         name=metadata.get("name"),
         namespace=metadata.get("namespace"),
-        # Support both old "owner" and new "ownerEmail" CRD field names
-        owner=spec.get("ownerEmail") or spec.get("owner") or None,
-        spec=WorkshopCreate(
-            name=spec.get("name"),
-            duration=spec.get("duration", "4h"),
-            image=spec.get("image", "rocker/rstudio:latest"),
-            port=spec.get("port", 8787),
-            tier=spec.get("tier", "small"),
-            env=spec.get("env") or {},
-            args=spec.get("args") or [],
-            resources=WorkshopResources(
-                cpu=res.get("cpu", "1"),
-                memory=res.get("memory", "2Gi"),
-                cpuRequest=res.get("cpuRequest", "500m"),
-                memoryRequest=res.get("memoryRequest", "1Gi"),
-                ephemeralStorage=res.get("ephemeralStorage", "8Gi"),
-                ephemeralStorageRequest=res.get("ephemeralStorageRequest", "8Gi"),
-            ),
-            storage=WorkshopStorage(
-                size=storage_spec.get("size", "10Gi"),
-                storageClass=storage_spec.get("storageClass"),
-            )
-            if storage_spec
-            else None,
-            ingress=WorkshopIngress(
-                host=ingress_spec.get("host"),
-                annotations=ingress_spec.get("annotations", {}),
-            )
-            if ingress_spec
-            else None,
-        ),
+        # None for legacy CRs created before ownership was added
+        owner=ws_spec.owner or None,
+        spec=WorkshopCreate.model_validate(ws_spec.model_dump(exclude={"owner"})),
         status=workshop_status,
         created_at=_parse_datetime(metadata.get("creationTimestamp")),
         updated_at=None,

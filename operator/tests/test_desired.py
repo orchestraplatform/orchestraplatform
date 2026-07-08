@@ -94,10 +94,8 @@ def test_middleware_only_when_oauth2_proxy_configured(monkeypatch):
     assert {"name": auth_middleware_name("rstudio-abc123")} in route["middlewares"]
 
 
-def test_owner_email_dual_field_read():
-    children = desired_children(
-        _spec(ownerEmail="new@example.com", owner=None), META, "default"
-    )
+def test_owner_email_from_spec_owner():
+    children = desired_children(_spec(owner="new@example.com"), META, "default")
     env = {
         e.name: e.value
         for e in children.deployment.spec.template.spec.containers[1].env
