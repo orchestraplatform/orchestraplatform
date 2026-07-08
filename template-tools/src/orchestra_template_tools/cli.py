@@ -158,7 +158,10 @@ def render_main(argv: list[str] | None = None) -> int:
     else:
         path = Path(args.submission)
         if not path.is_file():
-            print(f"error: {path} is not a file", file=sys.stderr)
+            # Same JSON envelope as every other exit path — consumers parse
+            # stdout unconditionally.
+            result = RenderResult(ok=False, errors=[f"{path}: not a file"])
+            print(_envelope(result, None))
             return 2
         raw = path.read_text()
 
@@ -169,6 +172,12 @@ def render_main(argv: list[str] | None = None) -> int:
     else:
         result = render_submission(data)
 
+    print(_envelope(result, args.templates_dir))
+    return 0 if result.ok else 1
+
+
+def _envelope(result: RenderResult, templates_dir: Path | None) -> str:
+    """The JSON result envelope every render_main exit path emits."""
     out: dict = {
         "ok": result.ok,
         "errors": result.errors,
@@ -177,14 +186,12 @@ def render_main(argv: list[str] | None = None) -> int:
         "exists": None,
         "path": None,
     }
-    if result.ok and args.templates_dir is not None:
-        existing = existing_template_path(result.template.slug, args.templates_dir)
+    if result.ok and templates_dir is not None:
+        existing = existing_template_path(result.template.slug, templates_dir)
         out["exists"] = existing is not None
-        target = existing or args.templates_dir / f"{result.template.slug}.yaml"
+        target = existing or templates_dir / f"{result.template.slug}.yaml"
         out["path"] = str(target)
-
-    print(json.dumps(out, indent=2))
-    return 0 if result.ok else 1
+    return json.dumps(out, indent=2)
 
 
 if __name__ == "__main__":

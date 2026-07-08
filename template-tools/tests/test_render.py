@@ -141,5 +141,9 @@ def test_cli_invalid_json_returns_1(tmp_path, capsys):
     assert any("invalid JSON" in e for e in out["errors"])
 
 
-def test_cli_missing_file_returns_2(tmp_path):
-    assert render_main([str(tmp_path / "nope.json")]) == 2
+def test_cli_missing_file_returns_2_with_envelope(tmp_path, capsys):
+    rc = render_main([str(tmp_path / "nope.json")])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 2
+    assert out["ok"] is False
+    assert any("not a file" in e for e in out["errors"])
