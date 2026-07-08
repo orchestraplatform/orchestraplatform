@@ -147,7 +147,7 @@ jobs:
             --set operator.image.tag="${SHA}" \
             --set api.image.tag="${SHA}" \
             --set frontend.image.tag="${SHA}" \
-            --dry-run --debug
+            --dry-run
 
       # ---- Real deploy (matches `just deploy-gcp`) ----
       - name: Helm upgrade (apply)
