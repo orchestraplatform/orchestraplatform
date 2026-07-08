@@ -143,6 +143,7 @@ jobs:
             -n "${NAMESPACE}" --create-namespace \
             -f deploy/charts/orchestra/values.yaml \
             -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-standard.yaml \
             -f deploy/gcp-values-secrets.yaml \
             --set operator.image.tag="${SHA}" \
             --set api.image.tag="${SHA}" \
@@ -159,6 +160,7 @@ jobs:
             -n "${NAMESPACE}" --create-namespace \
             -f deploy/charts/orchestra/values.yaml \
             -f deploy/gcp-values.yaml \
+            -f deploy/gcp-values-standard.yaml \
             -f deploy/gcp-values-secrets.yaml \
             --set operator.image.tag="${SHA}" \
             --set api.image.tag="${SHA}" \
