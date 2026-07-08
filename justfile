@@ -167,6 +167,9 @@ check-types:
     #!/usr/bin/env bash
     set -euo pipefail
     just sync-types
+    # `git add -N` registers newly generated (untracked) files as intent-to-add
+    # so `git diff` sees them — a brand-new model file is drift too.
+    git add -N frontend/src/api/generated
     if ! git diff --exit-code -- frontend/src/api/generated; then
         echo ""
         echo "✗ generated client is stale — run 'just sync-types' and commit."
