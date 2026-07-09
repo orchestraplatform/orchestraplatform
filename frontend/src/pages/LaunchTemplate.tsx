@@ -53,8 +53,21 @@ export function LaunchTemplate() {
   const name = template.name?.trim();
   const defaultDuration = template.defaultDuration?.trim();
   const description = template.description?.trim();
-  const url = template.url?.trim();
-  const sourceUrl = template.sourceUrl?.trim();
+  // Only surface http(s) links — a javascript:/data: href in author-supplied
+  // metadata would run despite rel="noopener". (The API also validates these,
+  // but the UI shouldn't trust it.)
+  const httpUrl = (raw?: string | null): string | undefined => {
+    const v = raw?.trim();
+    if (!v) return undefined;
+    try {
+      const { protocol } = new URL(v);
+      return protocol === 'http:' || protocol === 'https:' ? v : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const url = httpUrl(template.url);
+  const sourceUrl = httpUrl(template.sourceUrl);
 
   const handleLaunch = async () => {
     try {
