@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Layout } from './components/layout/Layout';
@@ -11,15 +11,25 @@ import { LaunchTemplate } from './pages/LaunchTemplate';
 import { History } from './pages/History';
 import { OpenAPI } from './api/generated';
 import { ToastProvider } from './components/ui/Toast';
+import { initAnalytics, trackPageView } from './utils/analytics';
 import './index.css';
 
-declare global {
-  interface Window {
-    __ORCHESTRA_CONFIG__?: { apiUrl?: string };
-  }
-}
+// window.__ORCHESTRA_CONFIG__ is declared (and documented) in utils/analytics.ts.
 OpenAPI.BASE = window.__ORCHESTRA_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || '';
 OpenAPI.WITH_CREDENTIALS = true;
+
+// GA4 — inert unless a measurement ID is configured (see utils/analytics.ts).
+initAnalytics();
+
+// gtag is configured with send_page_view: false, so every page view (including
+// the first) is sent here on route change.
+function PageTracker() {
+  const location = useLocation();
+  React.useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+  return null;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +45,7 @@ function App() {
     <ToastProvider>
     <QueryClientProvider client={queryClient}>
       <Router>
+        <PageTracker />
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />

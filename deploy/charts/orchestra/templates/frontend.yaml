@@ -40,6 +40,10 @@ spec:
         env:
         - name: VITE_API_URL
           value: "https://api.{{ .Values.global.domain }}"
+        {{- if .Values.frontend.gaMeasurementId }}
+        - name: VITE_GA_MEASUREMENT_ID
+          value: {{ .Values.frontend.gaMeasurementId | quote }}
+        {{- end }}
         resources:
           {{- toYaml .Values.frontend.resources | nindent 10 }}
         livenessProbe:

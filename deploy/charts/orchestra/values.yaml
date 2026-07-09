@@ -182,6 +182,10 @@ frontend:
     tag: latest
     pullPolicy: IfNotPresent
   replicas: 1
+  # Google Analytics 4 measurement ID, injected at container startup via
+  # config.js (no image rebuild needed to change it). Empty = analytics fully
+  # off: the frontend injects no gtag.js script and makes no analytics calls.
+  gaMeasurementId: ""
   resources:
     requests:
       cpu: 50m
