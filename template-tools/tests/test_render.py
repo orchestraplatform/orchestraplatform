@@ -147,3 +147,44 @@ def test_cli_missing_file_returns_2_with_envelope(tmp_path, capsys):
     assert rc == 2
     assert out["ok"] is False
     assert any("not a file" in e for e in out["errors"])
+
+
+ISSUE_BODY = (
+    "### Display name\n\nDemo\n\n### Slug\n\ndemo\n\n"
+    "### Size\n\nStandard\n\n### App port\n\n8888\n"
+)
+
+
+def test_cli_issue_body_parses_and_renders(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(ISSUE_BODY)
+    rc = render_main([str(src), "--issue-body", "--validate"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert out["ok"] is True
+    assert out["slug"] == "demo"
+    assert "tier: small" in out["yaml"]  # standard -> small tier
+    assert "memory: 4Gi" in out["yaml"]  # standard -> 4Gi
+    assert out["exists"] is None  # --validate suppresses path resolution
+
+
+def test_cli_submitted_by_is_stamped(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(ISSUE_BODY)
+    rc = render_main([str(src), "--issue-body", "--submitted-by", "octocat"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert "submittedBy: octocat" in out["yaml"]
+
+
+def test_cli_issue_body_malformed_env_returns_1(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(
+        "### Display name\n\nX\n\n### Slug\n\nx\n\n"
+        "### Environment variables\n\nNOEQUALS\n"
+    )
+    rc = render_main([str(src), "--issue-body"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert out["ok"] is False
+    assert any(e.startswith("env:") for e in out["errors"])

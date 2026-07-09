@@ -13,6 +13,13 @@ from .crd import (
     WorkshopIngress,
     WorkshopSpec,
 )
+from .forms import (
+    FormParseError,
+    parse_args,
+    parse_env,
+    parse_issue_body,
+    submission_from_issue_body,
+)
 from .models import (
     TemplateTag,
     WorkshopResources,
@@ -20,6 +27,7 @@ from .models import (
     WorkshopTemplateCreate,
     WorkshopTemplateFile,
 )
+from .presets import SIZE_NAMES, SIZE_PRESETS
 from .render import (
     RenderResult,
     existing_template_path,
@@ -41,7 +49,10 @@ __all__ = [
     "VERSION",
     "CatalogResult",
     "FileResult",
+    "FormParseError",
     "RenderResult",
+    "SIZE_NAMES",
+    "SIZE_PRESETS",
     "TemplateTag",
     "WorkshopIngress",
     "WorkshopResources",
@@ -52,8 +63,12 @@ __all__ = [
     "build_schema",
     "existing_template_path",
     "load_template",
+    "parse_args",
+    "parse_env",
+    "parse_issue_body",
     "render_submission",
     "render_yaml",
     "schema_json",
+    "submission_from_issue_body",
     "validate_documents",
 ]

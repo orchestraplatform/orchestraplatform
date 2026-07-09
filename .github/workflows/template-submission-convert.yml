@@ -1,0 +1,101 @@
+name: Template submission — convert to PR
+
+# Front door (ADR-0009), step 2: when a maintainer adds the `approve` label to a
+# workshop-template issue, render the submission to YAML and open a pull request
+# with it. The slug decides create-vs-update; the PR body Closes the issue.
+#
+# Required GitHub App (so the PR triggers CI — the default GITHUB_TOKEN can't):
+#   - Repo/org variable APP_ID       = the App's id (vars.APP_ID)
+#   - Repo/org secret   APP_PRIVATE_KEY = the App's PEM private key
+#   - App permissions: Contents: write, Pull requests: write; installed on this repo.
+# If render fails, the workflow comments the errors and opens no PR.
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write # GITHUB_TOKEN comments the error path; the App token opens the PR
+
+concurrency:
+  group: template-convert-${{ github.event.issue.number }}
+
+jobs:
+  convert:
+    if: >-
+      github.event.label.name == 'approve' &&
+      contains(github.event.issue.labels.*.name, 'workshop-template')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mint GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: template-tools/uv.lock
+
+      - name: Install template-tools CLI
+        run: uv tool install ./template-tools
+
+      - name: Render submission
+        id: render
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          SUBMITTER: ${{ github.event.issue.user.login }}
+        run: |
+          set -euo pipefail
+          templates=deploy/charts/orchestra/files/templates
+          result=$(printf '%s' "$ISSUE_BODY" \
+            | orchestra-render-template --issue-body \
+                --submitted-by "$SUBMITTER" --templates-dir "$templates" || true)
+          printf '%s' "$result" > /tmp/result.json
+          echo "ok=$(jq -r '.ok' /tmp/result.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Comment errors and stop (render failed)
+        if: steps.render.outputs.ok != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # commenting needs issues:write, which the App isn't scoped for
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          errs=$(jq -r '.errors[] | "- " + .' /tmp/result.json)
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --body $'❌ Could not open a PR — validation failed:\n\n'"$errs"
+          exit 1
+
+      - name: Write YAML, branch, and open PR
+        if: steps.render.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SUBMITTER: ${{ github.event.issue.user.login }}
+        run: |
+          set -euo pipefail
+          slug=$(jq -r '.slug' /tmp/result.json)
+          path=$(jq -r '.path' /tmp/result.json)
+          jq -r '.yaml' /tmp/result.json > "$path"
+
+          branch="template/${slug}-issue-${ISSUE_NUMBER}"
+          # ponytail: fixed bot identity; adopt the App's real bot email if the
+          # commit author attribution ever needs to be the App itself.
+          git config user.name "orchestra-template-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add "$path"
+          git commit -m "feat(template): ${slug} (from #${ISSUE_NUMBER})"
+          git push --force-with-lease origin "$branch"
+
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+            --title "feat(template): ${slug} (#${ISSUE_NUMBER})" \
+            --body "$(printf 'Generated from #%s by @%s via the template front door (ADR-0009).\n\nCloses #%s\n' "$ISSUE_NUMBER" "$SUBMITTER" "$ISSUE_NUMBER")"

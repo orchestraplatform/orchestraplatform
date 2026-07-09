@@ -16,6 +16,7 @@ import json
 import sys
 from pathlib import Path
 
+from .forms import FormParseError, submission_from_issue_body
 from .render import RenderResult, existing_template_path, render_submission
 from .schema import schema_json
 from .validate import validate_documents
@@ -143,7 +144,25 @@ def render_main(argv: list[str] | None = None) -> int:
         "submission",
         nargs="?",
         default="-",
-        help="Path to the submission JSON file ('-' or omitted: read stdin)",
+        help="Path to the submission file ('-' or omitted: read stdin)",
+    )
+    parser.add_argument(
+        "--issue-body",
+        action="store_true",
+        help=(
+            "Treat the input as a GitHub issue-form markdown body and parse it "
+            "into a submission first (front-door Action / just template-from-issue)."
+        ),
+    )
+    parser.add_argument(
+        "--submitted-by",
+        default=None,
+        help="Stamp submittedBy (the GitHub login of the issue author).",
+    )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Validate only: never resolve the create-vs-update path.",
     )
     parser.add_argument(
         "--templates-dir",
@@ -165,14 +184,29 @@ def render_main(argv: list[str] | None = None) -> int:
             return 2
         raw = path.read_text()
 
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        result = RenderResult(ok=False, errors=[f"<root>: invalid JSON: {exc}"])
+    if args.issue_body:
+        try:
+            data: object = submission_from_issue_body(raw)
+        except FormParseError as exc:
+            print(_envelope(RenderResult(ok=False, errors=[str(exc)]), None))
+            return 1
     else:
-        result = render_submission(data)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            print(
+                _envelope(
+                    RenderResult(ok=False, errors=[f"<root>: invalid JSON: {exc}"]),
+                    None,
+                )
+            )
+            return 1
 
-    print(_envelope(result, args.templates_dir))
+    if args.submitted_by and isinstance(data, dict):
+        data["submittedBy"] = args.submitted_by
+
+    result = render_submission(data)
+    print(_envelope(result, None if args.validate else args.templates_dir))
     return 0 if result.ok else 1
 
 

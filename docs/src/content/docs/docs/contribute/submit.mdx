@@ -1,33 +1,45 @@
 ---
 title: Submit Your Workshop
-description: Get your template into the catalog by opening a pull request; an admin reviews and merges it, and it goes live on the next deploy.
+description: Fill in a structured issue form; a bot validates it and opens the pull request for you. An admin reviews and merges, and it goes live on the next deploy.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
 Orchestra's catalog is **git-managed** — every workshop is a YAML file in the
-platform repository, reviewed like any other change. There's no admin console to
-click through; you contribute a template the same way you'd contribute code.
+platform repository, reviewed like any other change. But you don't have to write
+that YAML: fill in a structured issue form and a bot generates the file and opens
+the pull request for you ([ADR-0009](/docs/adr/0009-template-front-door/)).
 
-## Open a pull request
+## Fill in the form
 
 <Steps>
 
-1. Add or edit your template YAML under the templates directory (see
-   [Authoring Workshop Templates](/docs/user-guide/authoring-workshop-templates/)).
+1. Open a **Workshop template** issue from the repo's
+   [issue templates](https://github.com/orchestraplatform/orchestraplatform/issues/new/choose)
+   and fill in the fields: display name, slug, image, app port, a compute
+   **size**, tags, and — if your image needs them — environment variables and
+   container args. (Making the image start unauthenticated on one port is the
+   [no-auth contract](/docs/user-guide/configuring-images/); the `env`/`args`
+   help text points you at it.)
 
-2. Open a pull request. CI validates it against the schema and comments if
-   anything's off.
+2. On submit, a bot **validates** your entry and comments. If a field is off,
+   fix it and edit the issue — the check re-runs. When it's valid, the comment
+   invites a maintainer to approve.
 
-3. An admin reviews and merges. Your workshop appears in the catalog on the next
-   deploy.
+3. A maintainer adds the **`approve`** label. A bot opens a pull request
+   containing the generated YAML — reusing an existing **slug** updates that
+   template (the diff shows the change); a new slug adds one.
+
+4. The PR is reviewed and merged like any other. Your workshop appears in the
+   catalog on the next deploy, and merging closes your issue.
 
 </Steps>
 
 <Aside type="tip">
-Prefer not to hand-edit YAML? A structured submission form is on the way — you'll
-fill in the fields and a bot opens the pull request for you. Until then, the PR
-path above is the way in.
+Comfortable with YAML? You can still add or edit a template file directly under
+the templates directory and open a PR yourself (see
+[Authoring Workshop Templates](/docs/user-guide/authoring-workshop-templates/)) —
+the form is a convenience, not the only door.
 </Aside>
 
 ## Who reviews it
@@ -38,11 +50,11 @@ directory, so every template PR — hand-written or opened for you by the submis
 bot — requires their review, and branch protection makes "merged" mean "reviewed"
 ([ADR-0009](/docs/adr/0009-template-front-door/)).
 
-Admins also own the **closed vocabularies** the form offers: the compute `tier`
-dropdown and the named resource presets map to what the cluster's node pools can
-actually schedule. The workshop-specific fields (image, port, env, args) are yours;
-the capacity knobs are theirs. Need something outside a preset? Say so in the PR —
-an admin can adjust the generated YAML before merging.
+Admins also own the **closed vocabularies** the form offers: the **size** dropdown
+bundles a compute tier and a cpu/memory/storage profile that maps to what the
+cluster's node pools can actually schedule. The workshop-specific fields (image,
+port, env, args) are yours; the capacity knobs are theirs. Need something outside a
+preset? Say so in the PR — an admin can adjust the generated YAML before merging.
 
 ## Why a pull request
 

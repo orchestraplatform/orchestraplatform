@@ -1,0 +1,52 @@
+name: Template submission — validate
+
+# Front door (ADR-0009), step 1: when a workshop-template issue is opened or
+# edited, parse the form, validate it through orchestra-render-template, and
+# comment the result on the issue. No PR — that's the convert workflow, gated
+# on a maintainer adding the `approve` label.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: template-validate-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: contains(github.event.issue.labels.*.name, 'workshop-template')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: template-tools/uv.lock
+
+      - name: Install template-tools CLI
+        run: uv tool install ./template-tools
+
+      - name: Validate submission and comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          # render exits 1 on invalid input; `|| true` so we can read the JSON.
+          result=$(printf '%s' "$ISSUE_BODY" \
+            | orchestra-render-template --issue-body --validate || true)
+          if [ "$(jq -r '.ok' <<<"$result")" = "true" ]; then
+            body=$'✓ **Valid** — a maintainer can add the `approve` label to open the PR.'
+          else
+            errs=$(jq -r '.errors[] | "- " + .' <<<"$result")
+            body=$'❌ **Validation failed.** Fix these, then edit the issue to re-run:\n\n'"$errs"
+          fi
+          gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body"

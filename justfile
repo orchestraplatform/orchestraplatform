@@ -199,6 +199,34 @@ check-schema:
 validate-templates:
     cd template-tools && uv run orchestra-validate-templates ../deploy/charts/orchestra/files/templates
 
+# Local fallback for the template front door (ADR-0009): turn an approved
+# submission issue into a PR under your own gh auth — mirrors the convert
+# Action for when the GitHub App isn't configured. Parses the issue form,
+# renders the YAML, branches, writes the file, and opens the PR.
+template-from-issue n:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    templates=deploy/charts/orchestra/files/templates
+    body=$(gh issue view {{n}} --json body -q .body)
+    author=$(gh issue view {{n}} --json author -q .author.login)
+    result=$(printf '%s' "$body" | uv run --project template-tools \
+        orchestra-render-template --issue-body --submitted-by "$author" \
+        --templates-dir "$templates")
+    if [ "$(jq -r '.ok' <<<"$result")" != "true" ]; then
+        echo "✗ validation failed:" >&2
+        jq -r '.errors[] | "  - " + .' <<<"$result" >&2
+        exit 1
+    fi
+    slug=$(jq -r '.slug' <<<"$result")
+    path=$(jq -r '.path' <<<"$result")
+    jq -r '.yaml' <<<"$result" > "$path"
+    branch="template/${slug}-issue-{{n}}"
+    git checkout -b "$branch"
+    git add "$path"
+    git commit -m "feat(template): ${slug} (from #{{n}})" -m "Closes #{{n}}"
+    git push -u origin "$branch"
+    gh pr create --fill --base main
+
 # --- Local template rehearsal (ADR-0006) ---
 
 # Throwaway Postgres for the rehearsal (port 5433, matching server/.env.example).
