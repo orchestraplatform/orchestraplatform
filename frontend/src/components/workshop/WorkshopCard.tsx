@@ -134,7 +134,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
               size="sm"
               onClick={() => {
                 track('session_connect', { template_slug: instance.templateSlug });
-                window.open(instance.url!, '_blank');
+                window.open(instance.url!, '_blank', 'noopener,noreferrer');
               }}
             >
               <ExternalLink className="h-4 w-4 mr-1" />

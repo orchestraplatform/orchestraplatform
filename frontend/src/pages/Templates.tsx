@@ -13,7 +13,7 @@ import { track } from '../utils/analytics';
 function connectToInstance(instance: WorkshopInstanceResponse) {
   if (!instance.url) return;
   track('session_connect', { template_slug: instance.templateSlug });
-  window.open(instance.url, '_blank');
+  window.open(instance.url, '_blank', 'noopener,noreferrer');
 }
 
 const ACTIVE_PHASES = new Set<WorkshopPhase>([
