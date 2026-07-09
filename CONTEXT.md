@@ -10,11 +10,11 @@ load-bearing decisions live in `docs/src/content/docs/docs/adr/`.
 A reusable, admin-curated workshop configuration, git-managed as YAML in the
 platform chart (ADR-0006). Identified by slug; `name` is its human-facing
 display label. Its fields split along a seam: **launch spec** (image, port,
-duration, tier, env, args, resources, storage — including the per-user
+defaultDuration, tier, env, args, resources, storage — including the per-user
 persistent-workspace opt-in, ADR-0010) projects into the Workshop CRD and the
-instance's resolved spec; **catalog metadata** (name, description, tags, url,
-sourceUrl, submittedBy) drives the dashboard only and never reaches the
-cluster.
+instance's resolved spec (as `duration` on the CRD); **catalog metadata**
+(name, description, tags, url, sourceUrl, submittedBy) drives the dashboard
+only and never reaches the cluster.
 _Avoid_: workshop (alone), template row
 
 **WorkshopInstance**:
