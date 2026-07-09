@@ -1,0 +1,51 @@
+---
+title: Using a Workshop Session
+description: Launch a workshop, connect to it, save your work before it expires, and get more time when you need it.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+You're here to *use* a workshop — an RStudio or JupyterLab environment that
+someone set up for a course or conference. Orchestra runs it for you in the
+cloud; there's nothing to install.
+
+## Launch and connect
+
+<Steps>
+
+1. Open the Orchestra dashboard (your instructor will give you the link) and
+   sign in.
+
+2. Pick a workshop from the catalog and choose **Launch**. It takes a moment to
+   start — the status moves from *Pending* to *Starting* to *Ready*.
+
+3. When it's **Ready**, choose **Open** (or **Connect**) to enter your session
+   in a new tab.
+
+</Steps>
+
+## Your session is temporary
+
+Every session has a time limit, shown as a countdown on its card. This keeps the
+cluster available for everyone — but it means:
+
+<Aside type="caution" title="Save your work before the timer runs out">
+When a session expires (or you end it), everything in it is removed — including
+files you created. Download anything you want to keep — notebooks, scripts,
+results — **before** it expires. There is no way to recover a session after it's
+gone.
+</Aside>
+
+## Get more time
+
+If you're running low, use **+1h** on the session card to extend it. You'll see
+a warning as the deadline approaches, and again when it's close.
+
+## Something went wrong?
+
+- **Stuck on *Starting* for a while** — some images are large and take a few
+  minutes on first launch. If it never reaches *Ready*, tell your instructor.
+- **Session disappeared** — it likely expired. Launch a fresh one; remember to
+  save your work this time.
+- **Can't open it** — your workshop may still be starting, or the session ended.
+  Check the status on the dashboard.

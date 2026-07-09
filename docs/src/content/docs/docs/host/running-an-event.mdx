@@ -1,0 +1,59 @@
+---
+title: Planning & Teaching a Workshop
+description: Run a class or conference session on the hosted Orchestra — plan capacity with the admin, pick what's on offer, and help your attendees during the event.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+You're teaching a session — a room (or Zoom) full of people who'll all launch
+the same workshop around the same time on
+[orchestraplatform.org](https://orchestraplatform.org). This page is about
+planning and running that class. You don't need a cluster or the command line;
+you *do* need to coordinate a couple of things with the platform admin ahead of
+time.
+
+<Aside title="Who does what">
+On the hosted platform, capacity and monitoring are handled by the **platform
+admin**. As an instructor you plan the event and work with attendees through the
+dashboard UI; the admin warms capacity and watches the cluster. (Scoped
+instructor controls — your own event dashboard, self-service warm-up — are on
+the roadmap: [#74](https://github.com/orchestraplatform/orchestraplatform/issues/74).)
+</Aside>
+
+## Before the event
+
+<Steps>
+
+1. **Confirm your workshop is in the catalog.** If it isn't yet, get it added —
+   see [Contribute a Workshop](/docs/contribute/overview/). Do this well ahead of
+   the event, since it goes through review.
+
+2. **Check the default duration** fits your session length. If a two-hour class
+   needs four-hour sessions, ask the admin to adjust the template.
+
+3. **Arrange warm capacity with the admin.** A cluster that scales from zero
+   takes a few minutes to add nodes, so if everyone launches at once cold, the
+   first arrivals wait. Tell the admin your **expected headcount and start time**
+   so they can warm enough capacity beforehand (and scale it back after).
+
+</Steps>
+
+## During the event
+
+- **Point attendees at the catalog** and the [Using a Workshop
+  Session](/docs/participant/using-a-session/) guide so they know how to launch,
+  connect, and — importantly — **save their work before their session expires**.
+- If someone's session is **stuck starting** or has problems, and it's not
+  resolving, flag it to the admin.
+- Attendees can extend their own session with **+1h** as the deadline nears.
+
+## After the event
+
+Let the admin know the event's over so they can return warmed capacity to zero.
+
+<Aside type="tip">
+Running the platform yourself instead of using orchestraplatform.org? The
+operational side of events — warming capacity, monitoring the session dashboard,
+extending or terminating sessions — lives in
+[Operating a Workshop Event](/docs/operate/workshop-events/).
+</Aside>

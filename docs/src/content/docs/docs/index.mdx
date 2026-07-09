@@ -1,50 +1,57 @@
 ---
 title: Orchestra Platform Documentation
-description: Guides, architecture, and reference for running the Orchestra Platform.
+description: Use a workshop, contribute one, or run your own Orchestra — start from whichever fits you.
 ---
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
 
-Orchestra provisions isolated, time-limited workshop sessions — RStudio,
-JupyterLab, or any container — on Kubernetes, with authentication and cleanup
-handled for you. These docs cover installing it, configuring workshop images,
-and how the platform works under the hood.
+Time-limited RStudio, JupyterLab, or custom-container workshop sessions on
+Kubernetes — sign-in and cleanup handled for you. The platform behind
+Bioconductor workshops at conferences and courses.
+
+## Using Orchestra
+
+Use the hosted platform at [orchestraplatform.org](https://orchestraplatform.org) — nothing to install.
 
 <CardGrid>
   <LinkCard
-    title="Getting Started"
-    description="Install Orchestra and launch your first workshop."
-    href="/docs/getting-started/introduction/"
+    title="I'm attending a workshop"
+    description="Launch your session, connect, save your work, and get more time when you need it."
+    href="/docs/participant/using-a-session/"
   />
   <LinkCard
-    title="Configuring a Workshop Image"
-    description="Run any stock image no-auth via a template's port, env, and args."
-    href="/docs/user-guide/configuring-images/"
+    title="I want to add a workshop"
+    description="Build a workshop container, make it Orchestra-ready, and submit it to the catalog."
+    href="/docs/contribute/overview/"
   />
   <LinkCard
-    title="Authoring Workshop Templates"
-    description="Add or change the catalog by editing a git-managed YAML template."
-    href="/docs/user-guide/authoring-workshop-templates/"
+    title="I'm teaching a workshop"
+    description="Plan a class or conference session and coordinate capacity with the platform admin."
+    href="/docs/host/running-an-event/"
+  />
+</CardGrid>
+
+## Running your own Orchestra
+
+Standing up and operating an Orchestra instance yourself — Kubernetes, Helm, and
+the command line. Most workshop attendees, contributors, and instructors don't
+need this.
+
+<CardGrid>
+  <LinkCard
+    title="Deploy Orchestra"
+    description="Stand up the platform: cluster, Helm install, ingress, TLS, and auth."
+    href="/docs/deployment/overview/"
   />
   <LinkCard
-    title="Architecture"
-    description="How the operator, API, frontend, and sidecar fit together."
+    title="Administer & operate"
+    description="Warm capacity for an event, monitor sessions, and keep an instance healthy."
+    href="/docs/operate/workshop-events/"
+  />
+  <LinkCard
+    title="How it works"
+    description="The operator, API, frontend, and sidecar — and the decisions behind them."
     href="/docs/architecture/platform-overview/"
-  />
-  <LinkCard
-    title="Deployment"
-    description="Helm install, ingress, and GCP Autopilot."
-    href="/docs/deployment/helm/"
-  />
-  <LinkCard
-    title="Contributing"
-    description="Run the test suites and contribute changes."
-    href="/docs/contributing/testing/"
-  />
-  <LinkCard
-    title="Decision Records"
-    description="Why the platform is built the way it is."
-    href="/docs/adr/0001-oauth2-proxy-at-ingress/"
   />
 </CardGrid>
 

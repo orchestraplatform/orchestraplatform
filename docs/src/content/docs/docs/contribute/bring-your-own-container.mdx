@@ -1,0 +1,33 @@
+---
+title: Bring Your Own Container
+description: Already have a JupyterLab, RStudio, or custom container image? Point a workshop template straight at it — no rebuild required.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+You don't need Bioconductor tooling — or a custom build at all — to add a
+workshop. If you already have a container image that runs a web app (JupyterLab,
+RStudio, VS Code, a Shiny app, anything with an HTTP UI), Orchestra can launch
+it as-is.
+
+## What makes an image work
+
+Orchestra launches your image and fronts it with sign-in and a per-session proxy.
+Three things need to line up:
+
+- **It's a published image** Orchestra can pull — a public registry, or one the
+  cluster is configured to access.
+- **The app serves one HTTP port** — you'll set this as the template's app port,
+  and the sidecar proxies to it.
+- **The app starts unauthenticated** — Orchestra already established who the user
+  is, so a second login inside the app just gets in the way (and often can't be
+  satisfied through the proxy).
+
+<Aside>
+Most stock images can meet the no-auth requirement with environment variables or
+container args — no rebuild. The shipped JupyterLab and RStudio templates are
+examples.
+</Aside>
+
+**Next:** [Make the image Orchestra-ready →](/docs/user-guide/configuring-images/)
+— the no-auth contract and how to set port, env, and args.

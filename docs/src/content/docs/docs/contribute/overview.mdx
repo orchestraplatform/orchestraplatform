@@ -1,0 +1,60 @@
+---
+title: Contribute a Workshop
+description: The path from a workshop you've built to an entry in Orchestra's catalog — build a container, make it Orchestra-ready, author a template, and submit it.
+---
+
+import { LinkCard, CardGrid, Steps } from '@astrojs/starlight/components';
+
+Want your workshop launchable in Orchestra? The journey is the same whether you
+start from a Bioconductor workshop package or an image you already have:
+
+<Steps>
+
+1. **Get a container.** Either build a Bioconductor workshop package (which
+   produces one for you) or bring an image you already publish.
+
+2. **Make the image Orchestra-ready.** Orchestra fronts every session with its
+   own sign-in, so the app inside must start unauthenticated on a single port.
+
+3. **Author a template.** A small YAML file describes one catalog entry — image,
+   port, resources, duration.
+
+4. **Submit it.** Open a pull request (or use the submission form); an admin
+   reviews and merges, and it appears in the catalog on the next deploy.
+
+</Steps>
+
+## Start here
+
+<CardGrid>
+  <LinkCard
+    title="Build a Bioconductor workshop"
+    description="Use BuildABiocWorkshop to turn a workshop package into a container Orchestra can launch."
+    href="/docs/contribute/build-bioc-workshop/"
+  />
+  <LinkCard
+    title="Bring your own container"
+    description="Already have a JupyterLab, RStudio, or custom image? Point a template straight at it."
+    href="/docs/contribute/bring-your-own-container/"
+  />
+</CardGrid>
+
+## Then
+
+<CardGrid>
+  <LinkCard
+    title="Make the image Orchestra-ready"
+    description="The no-auth contract: start unauthenticated on one port, set via the template's port, env, and args."
+    href="/docs/user-guide/configuring-images/"
+  />
+  <LinkCard
+    title="Author a workshop template"
+    description="Describe your catalog entry in a git-managed YAML file, validated against the schema."
+    href="/docs/user-guide/authoring-workshop-templates/"
+  />
+  <LinkCard
+    title="Submit it"
+    description="Open a PR (or use the form); an admin reviews and merges it into the catalog."
+    href="/docs/contribute/submit/"
+  />
+</CardGrid>

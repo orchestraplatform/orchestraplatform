@@ -1,0 +1,49 @@
+---
+title: Build a Bioconductor Workshop
+description: Use the BuildABiocWorkshop template to turn a Bioconductor workshop package into a container image Orchestra can launch — then hand it off to a template.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+If you're writing a Bioconductor workshop, the community already has tooling
+that produces exactly the artifact Orchestra needs: a container image with your
+materials and their dependencies baked in.
+
+## Use BuildABiocWorkshop
+
+[**BuildABiocWorkshop**](https://github.com/Bioconductor/BuildABiocWorkshop) is a
+template repository that builds a Bioconductor workshop package and, via GitHub
+Actions, publishes both a `pkgdown` website and a Docker image on every push.
+
+Follow its README — it's the authoritative guide. In short:
+
+<Steps>
+
+1. **Fork** the template repository.
+
+2. **Edit `DESCRIPTION`** with your workshop's details and package dependencies.
+
+3. **Add your materials** (vignettes, data) and push.
+
+4. GitHub Actions **checks the package, builds the site, and publishes the
+   image** to `ghcr.io/<you>/<repo>`.
+
+</Steps>
+
+<Aside>
+We link out rather than duplicate BuildABiocWorkshop's instructions — its repo
+is the source of truth and stays current there.
+</Aside>
+
+## What Orchestra needs from the result
+
+Once your image is published, that's the handoff to the rest of the contribution
+flow. To point a template at it, you'll need:
+
+- **The image reference** — `ghcr.io/<you>/<repo>:<tag>` (Orchestra pulls it).
+- **The app port** — Bioconductor RStudio images serve on **8787**.
+- **No-auth startup** — Orchestra provides sign-in itself, so the app inside must
+  start without its own login. For the Bioconductor RStudio image this is a
+  matter of the right environment variables — covered next.
+
+**Next:** [Make the image Orchestra-ready →](/docs/user-guide/configuring-images/)
