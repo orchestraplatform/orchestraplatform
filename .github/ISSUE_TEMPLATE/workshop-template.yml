@@ -10,7 +10,7 @@ body:
         validates your submission and comments; a maintainer then adds the
         `approve` label and a pull request with the generated YAML opens
         automatically. See
-        [Submit your workshop](https://orchestraplatform.github.io/docs/contribute/submit/).
+        [Submit your workshop](https://orchestraplatform.org/docs/contribute/submit/).
 
         Re-using an existing **Slug** updates that template (the PR diff shows
         the change); a new slug adds one.
@@ -58,12 +58,12 @@ body:
     id: size
     attributes:
       label: Size
-      description: Compute preset — bundles a tier and a cpu/memory/storage profile the node pools can schedule.
+      description: Compute preset — bundles a tier and a cpu/memory/storage profile the node pools can schedule. Need something outside these presets? Say so in a comment on this issue.
       options:
-        - Small
-        - Standard
-        - Large
-        - X-Large
+        - Small — 2 CPU, 2Gi memory, 8Gi ephemeral storage
+        - Standard — 2 CPU, 4Gi memory, 8Gi ephemeral storage
+        - Large — 2 CPU, 8Gi memory, 8Gi ephemeral storage
+        - X-Large — 2 CPU, 16Gi memory, 8Gi ephemeral storage
       default: 1
     validations:
       required: true
