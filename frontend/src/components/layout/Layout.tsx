@@ -67,6 +67,9 @@ export function Layout({ children }: LayoutProps) {
   // full labels regardless of the collapsed toggle's remembered state.
   const rail = collapsed && isDesktop;
   const closeMobile = () => setMobileOpen(false);
+  // When the drawer is off-screen on mobile, take it out of the tab order and
+  // hide it from assistive tech (it's only translated away visually).
+  const drawerClosed = !isDesktop && !mobileOpen;
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -81,6 +84,8 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Sidebar — off-canvas drawer below lg, static rail on lg+ */}
       <aside
+        aria-hidden={drawerClosed || undefined}
+        inert={drawerClosed ? '' : undefined}
         className={`fixed inset-y-0 left-0 z-40 flex w-56 flex-col border-r bg-slate-50 shrink-0
           transform transition-transform duration-200
           ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
