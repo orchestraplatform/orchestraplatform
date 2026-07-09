@@ -37,9 +37,51 @@ export default defineConfig({
         },
       ],
       // Docs live under /docs (the apex root is the marketing landing page).
-      // Audience: people who deploy, operate, and build Orchestra
-      // (installers, instance maintainers, developers) — not workshop end-users.
+      // Organized by reader persona: attendees, workshop contributors, event
+      // hosts, operators who deploy it, and people who want to understand or
+      // develop the platform.
       sidebar: [
+        {
+          label: 'Using a Workshop',
+          items: [
+            {
+              label: 'Using a Workshop Session',
+              link: '/docs/participant/using-a-session/',
+            },
+          ],
+        },
+        {
+          label: 'Contribute a Workshop',
+          items: [
+            { label: 'Overview', link: '/docs/contribute/overview/' },
+            {
+              label: 'Build a Bioconductor workshop',
+              link: '/docs/contribute/build-bioc-workshop/',
+            },
+            {
+              label: 'Bring your own container',
+              link: '/docs/contribute/bring-your-own-container/',
+            },
+            {
+              label: 'Make the image Orchestra-ready',
+              link: '/docs/user-guide/configuring-images/',
+            },
+            {
+              label: 'Author a workshop template',
+              link: '/docs/user-guide/authoring-workshop-templates/',
+            },
+            { label: 'Submit it', link: '/docs/contribute/submit/' },
+          ],
+        },
+        {
+          label: 'Run a Workshop Event',
+          items: [
+            {
+              label: 'Running a Workshop Event',
+              link: '/docs/host/running-an-event/',
+            },
+          ],
+        },
         {
           label: 'Getting Started',
           items: [
@@ -92,19 +134,6 @@ export default defineConfig({
             {
               label: 'GCP Autopilot (legacy)',
               link: '/docs/deployment/gcp/',
-            },
-          ],
-        },
-        {
-          label: 'Operating an Instance',
-          items: [
-            {
-              label: 'Configuring Workshop Images',
-              link: '/docs/user-guide/configuring-images/',
-            },
-            {
-              label: 'Authoring Workshop Templates',
-              link: '/docs/user-guide/authoring-workshop-templates/',
             },
           ],
         },
@@ -182,6 +211,10 @@ export default defineConfig({
             {
               label: 'ADR-0008: Cluster provisioning boundary',
               link: '/docs/adr/0008-cluster-provisioning-boundary/',
+            },
+            {
+              label: 'ADR-0009: Template submission front door',
+              link: '/docs/adr/0009-template-front-door/',
             },
           ],
         },

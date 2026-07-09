@@ -1,0 +1,44 @@
+---
+title: Submit Your Workshop
+description: Get your template into the catalog by opening a pull request; an admin reviews and merges it, and it goes live on the next deploy.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Orchestra's catalog is **git-managed** — every workshop is a YAML file in the
+platform repository, reviewed like any other change. There's no admin console to
+click through; you contribute a template the same way you'd contribute code.
+
+## Open a pull request
+
+<Steps>
+
+1. Add or edit your template YAML under the templates directory (see
+   [Authoring Workshop Templates](/docs/user-guide/authoring-workshop-templates/)).
+
+2. Open a pull request. CI validates it against the schema and comments if
+   anything's off.
+
+3. An admin reviews and merges. Your workshop appears in the catalog on the next
+   deploy.
+
+</Steps>
+
+<Aside type="tip">
+Prefer not to hand-edit YAML? A structured submission form is on the way — you'll
+fill in the fields and a bot opens the pull request for you. Until then, the PR
+path above is the way in.
+</Aside>
+
+## Why a pull request
+
+Keeping the catalog in git means every change is reviewed, attributed, and
+reversible — the same guarantees the rest of the platform gets. "Merged" always
+means "reviewed."
+
+## Updating or retiring a workshop
+
+- **Update** — edit the same file and open another PR; the diff shows exactly
+  what changed.
+- **Retire** — set the template inactive (or an admin removes the file). Retiring
+  is an admin action.

@@ -1,0 +1,69 @@
+---
+title: Running a Workshop Event
+description: Run a live class on Orchestra — warm capacity for a cohort ahead of time, pick the catalog, watch sessions during the event, and give people more time.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+You're teaching a session — a room (or Zoom) full of people who'll all launch
+the same workshop around the same time. Deploying Orchestra is a separate job
+(see [Deploying Orchestra](/docs/deployment/overview/)); this page is about
+running an event *on* an Orchestra that's already up.
+
+## Before the event: warm capacity
+
+A cluster that scales from zero takes a few minutes to add nodes. If forty people
+launch at once cold, the first arrivals wait. Warm the pool ahead of time so
+seats are ready:
+
+```sh
+just warm 40      # hold ~40 sessions' worth of capacity
+```
+
+Set it shortly before your session and return it to zero afterward:
+
+```sh
+just warm 0
+```
+
+<Aside>
+Warming holds spare capacity so launches are instant; it also costs money while
+it's held, so scale it back down when the event ends.
+</Aside>
+
+## Choose what's on offer
+
+Decide which workshops your attendees should see and launch, and confirm each
+template's default duration suits your session length. Templates are curated in
+git — to add or adjust one, see [Contribute a Workshop](/docs/contribute/overview/).
+
+## During the event: watch the dashboard
+
+The admin **Session Dashboard** shows every active session, its phase, its owner,
+and how long each has left. Use it to:
+
+- Spot sessions **stuck** in *Starting* and help those attendees.
+- See who's **close to expiry** (rows are tinted as the deadline nears).
+- **Extend** a session, or terminate a stuck one.
+
+## Giving people more time
+
+Attendees can extend their own session with **+1h**. For a session running long,
+you can extend from the dashboard. Remind people to **save their work** — a
+session that expires is gone (see [Using a Workshop Session](/docs/participant/using-a-session/)).
+
+## A simple run-of-show
+
+<Steps>
+
+1. **T‑15 min** — `just warm <cohort size>`; confirm the templates you want are
+   live.
+
+2. **During** — keep the Session Dashboard open; help *Starting*/stuck sessions.
+
+3. **Near the end** — remind attendees to download their work; extend where
+   needed.
+
+4. **After** — `just warm 0`.
+
+</Steps>
