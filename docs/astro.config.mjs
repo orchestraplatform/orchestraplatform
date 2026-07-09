@@ -1,6 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-const googleAnalyticsId = 'G-KLLV1GCF4E';
+const googleAnalyticsId = 'G-7SEJMRNJ0P';
 
 export default defineConfig({
   site: 'https://orchestraplatform.org',
