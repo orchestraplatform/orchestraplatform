@@ -129,7 +129,7 @@ spec:
         - name: ORCHESTRA_BASE_DOMAIN
           value: {{ .Values.global.domain | quote }}
         - name: ORCHESTRA_INGRESS_ENTRY_POINTS
-          value: '{{ .Values.ingress.entryPoints | toJson }}'
+          value: {{ .Values.ingress.entryPoints | toJson | quote }}
         - name: ORCHESTRA_INGRESS_PORT
           value: {{ .Values.ingress.port | quote }}
         - name: ORCHESTRA_DEFAULT_WORKSHOP_IMAGE

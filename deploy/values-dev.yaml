@@ -20,7 +20,7 @@ ingress:
   # the TLS-only production default `websecure` — and the port appended to the
   # session URL (http://<name>.<domain>:30080). Mirrors `just dev-operator`.
   entryPoints: ["web"]
-  port: 30080
+  port: "30080"
   tls:
     enabled: false
     clusterIssuer: ""
