@@ -20,7 +20,10 @@ export type WorkshopTemplateResponse = {
     tier?: WorkshopTemplateResponse.tier;
     resources: WorkshopResources;
     storage?: (WorkshopStorage | null);
-    tags?: Array<string>;
+    tags?: Array<'bioconductor' | 'jupyter' | 'python' | 'rstudio'>;
+    url?: (string | null);
+    sourceUrl?: (string | null);
+    submittedBy?: (string | null);
     isActive: boolean;
     createdBy: string;
     createdAt: string;

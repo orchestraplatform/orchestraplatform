@@ -12,7 +12,11 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from orchestra_template_tools import WorkshopTemplateCreate, WorkshopTemplateFile
+from orchestra_template_tools import (
+    TemplateTag,
+    WorkshopTemplateCreate,
+    WorkshopTemplateFile,
+)
 from pydantic import BaseModel, ConfigDict, Field
 
 from api.models.workshop import WorkshopResources, WorkshopStorage
@@ -42,7 +46,7 @@ class WorkshopTemplateUpdate(BaseModel):
     tier: Literal["small", "large"] | None = None
     resources: WorkshopResources | None = None
     storage: WorkshopStorage | None = None
-    tags: list[str] | None = None
+    tags: list[TemplateTag] | None = None
     is_active: bool | None = Field(default=None, alias="isActive")
 
     model_config = ConfigDict(populate_by_name=True)
@@ -65,7 +69,10 @@ class WorkshopTemplateResponse(BaseModel):
     tier: Literal["small", "large"] = "small"
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
-    tags: list[str] = Field(default_factory=list)
+    tags: list[TemplateTag] = Field(default_factory=list)
+    url: str | None = None
+    source_url: str | None = Field(default=None, alias="sourceUrl")
+    submitted_by: str | None = Field(default=None, alias="submittedBy")
     is_active: bool = Field(alias="isActive")
     created_by: str = Field(alias="createdBy")
     created_at: datetime = Field(alias="createdAt")

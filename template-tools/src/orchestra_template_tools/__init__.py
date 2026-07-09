@@ -14,6 +14,7 @@ from .crd import (
     WorkshopSpec,
 )
 from .models import (
+    TemplateTag,
     WorkshopResources,
     WorkshopStorage,
     WorkshopTemplateCreate,
@@ -41,6 +42,7 @@ __all__ = [
     "CatalogResult",
     "FileResult",
     "RenderResult",
+    "TemplateTag",
     "WorkshopIngress",
     "WorkshopResources",
     "WorkshopSpec",
