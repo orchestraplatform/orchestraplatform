@@ -10,6 +10,7 @@ export type { OpenAPIConfig } from './core/OpenAPI';
 export type { HTTPValidationError } from './models/HTTPValidationError';
 export type { InstanceSummary } from './models/InstanceSummary';
 export type { InstanceUtilization } from './models/InstanceUtilization';
+export type { LaunchConflict } from './models/LaunchConflict';
 export type { TemplateStats } from './models/TemplateStats';
 export type { ValidationError } from './models/ValidationError';
 export type { WorkshopInstanceList } from './models/WorkshopInstanceList';

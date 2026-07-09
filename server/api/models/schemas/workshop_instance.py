@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -42,6 +42,20 @@ class WorkshopInstanceResponse(BaseModel):
     terminated_at: datetime | None = Field(default=None, alias="terminatedAt")
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
+
+
+class LaunchConflict(BaseModel):
+    """409 body when the caller already has an active session of a
+    persistence-enabled workshop (ADR-0010 decision F).
+
+    The client offers Continue (use ``instance``) or Start fresh (relaunch
+    with ``replaceExisting=true``).
+    """
+
+    error: Literal["active_session_exists"] = Field(
+        description="Machine-readable discriminator for the conflict body."
+    )
+    instance: WorkshopInstanceResponse
 
 
 class InstanceSummary(BaseModel):

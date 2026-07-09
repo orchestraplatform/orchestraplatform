@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, distinct, func, select
+from sqlalchemy import case, distinct, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
@@ -38,6 +38,21 @@ SSE_POLL_SLOW_S: int = 30
 SSE_JITTER_S: int = 5
 
 _ACTIVE_PHASES = {WorkshopPhase.READY.value, WorkshopPhase.RUNNING.value}
+
+
+class ActiveSessionConflictError(Exception):
+    """The user already has an active session of a persistence-enabled workshop.
+
+    The RWO workspace PVC can only attach to one pod, so a second concurrent
+    session of the same workshop is refused; the caller resolves the conflict
+    (Continue with ``existing`` or relaunch with replace) — ADR-0010 decision F.
+    """
+
+    def __init__(self, existing: WorkshopInstanceResponse):
+        super().__init__(f"active session {existing.k8s_name} already exists")
+        self.existing = existing
+
+
 _TRANSITIONAL_PHASES = {
     WorkshopPhase.PENDING.value,
     WorkshopPhase.CREATING.value,
@@ -140,8 +155,46 @@ class WorkshopInstanceService:
         namespace: str,
         owner_email: str,
         duration: str,
+        replace_existing: bool = False,
     ) -> WorkshopInstanceResponse:
-        """Create a DB record and the corresponding k8s Workshop CRD."""
+        """Create a DB record and the corresponding k8s Workshop CRD.
+
+        For persistence-enabled templates (``storage.workspace.persist:
+        per-user``, ADR-0010) an active session of the same workshop by the
+        same user blocks the launch — the RWO workspace PVC can't attach to a
+        second pod. Raises :class:`ActiveSessionConflictError` unless
+        ``replace_existing`` is set, in which case the existing session is
+        terminated first (the durable /data reattaches to the new session).
+        """
+        workspace = template.storage.workspace if template.storage else None
+        if workspace is not None and workspace.persist == "per-user":
+            # Serialize concurrent launches of the same (user, workshop,
+            # namespace): the check-then-create below is racy under READ
+            # COMMITTED (two launchers can both see "no active session" and
+            # double-attach the RWO PVC). The xact-scoped advisory lock is
+            # held until this launch's commit/rollback, so a concurrent
+            # launcher blocks here and then sees the committed row.
+            # Known ceiling: on the replace path, terminate() commits mid-flow
+            # and releases the lock early; the remaining window is a deliberate
+            # double Start-fresh race, which at worst leaves the second pod
+            # waiting on volume detach rather than corrupting anything.
+            await db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                {"key": f"{namespace}/{owner_email}/{template.slug}"},
+            )
+            existing = await self._find_active_same_workshop(
+                db,
+                template_slug=template.slug,
+                owner_email=owner_email,
+                namespace=namespace,
+            )
+            if existing is not None:
+                if not replace_existing:
+                    raise ActiveSessionConflictError(_to_response(existing))
+                # Start fresh: end the old session before creating the new CR
+                # so the workspace PVC is free to reattach (ADR-0010 F).
+                await self.terminate(db, existing.k8s_name, existing.namespace)
+
         res = template.resources
         workshop_create = WorkshopCreate(
             name=k8s_name,
@@ -224,6 +277,39 @@ class WorkshopInstanceService:
             "Launched instance %s (k8s=%s) for %s", row.id, k8s_name, owner_email
         )
         return _to_response(row)
+
+    async def _find_active_same_workshop(
+        self,
+        db: AsyncSession,
+        *,
+        template_slug: str,
+        owner_email: str,
+        namespace: str,
+    ) -> WorkshopInstance | None:
+        """First still-active instance of this workshop owned by this user.
+
+        Each candidate row is synced from k8s first so a stale row whose CRD
+        was deleted out-of-band doesn't produce a false conflict.
+        """
+        rows = (
+            (
+                await db.execute(
+                    select(WorkshopInstance).where(
+                        WorkshopInstance.template_slug == template_slug,
+                        WorkshopInstance.owner_email == owner_email,
+                        WorkshopInstance.namespace == namespace,
+                        WorkshopInstance.terminated_at.is_(None),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for row in rows:
+            await self._sync_from_k8s(db, row)
+            if row.terminated_at is None:
+                return row
+        return None
 
     async def list_instances(
         self,

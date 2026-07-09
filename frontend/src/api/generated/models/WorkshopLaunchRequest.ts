@@ -14,5 +14,9 @@ export type WorkshopLaunchRequest = {
      * Kubernetes namespace
      */
     namespace?: (string | null);
+    /**
+     * Start fresh: terminate the caller's existing active session of this persistence-enabled workshop before launching (ADR-0010 decision F). The durable /data workspace reattaches. Has no effect for ephemeral templates.
+     */
+    replaceExisting?: boolean;
 };
 
