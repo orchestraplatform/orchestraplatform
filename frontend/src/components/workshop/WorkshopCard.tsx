@@ -10,6 +10,7 @@ import { useTerminateInstance, useExtendInstance } from '../../hooks/useInstance
 import { minutesRemaining, EXPIRY_WARN_MINUTES, EXPIRY_CRITICAL_MINUTES } from '../../hooks/useExpiryNotifications';
 import { useToast } from '../ui/Toast';
 import { useTick } from '../../contexts/TickContext';
+import { track } from '../../utils/analytics';
 
 interface WorkshopCardProps {
   instance: WorkshopInstanceResponse;
@@ -25,6 +26,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
 
   const handleConfirmTerminate = async () => {
     setConfirmOpen(false);
+    track('workshop_terminate', { template_slug: instance.templateSlug });
     try {
       await terminate.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
     } catch {
@@ -33,6 +35,7 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
   };
 
   const handleExtend = async () => {
+    track('session_extend', { template_slug: instance.templateSlug });
     try {
       await extend.mutateAsync({ k8sName: instance.k8sName, namespace: instance.namespace });
       addToast({ type: 'success', message: 'Session extended by 1 hour.' });
@@ -129,7 +132,10 @@ export function WorkshopCard({ instance }: WorkshopCardProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => window.open(instance.url!, '_blank')}
+              onClick={() => {
+                track('session_connect', { template_slug: instance.templateSlug });
+                window.open(instance.url!, '_blank', 'noopener,noreferrer');
+              }}
             >
               <ExternalLink className="h-4 w-4 mr-1" />
               Open

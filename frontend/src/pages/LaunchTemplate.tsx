@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { useToast } from '../components/ui/Toast';
+import { track } from '../utils/analytics';
 import { ArrowLeft, ExternalLink, Play, RefreshCw } from 'lucide-react';
 
 export function LaunchTemplate() {
@@ -77,11 +78,13 @@ export function LaunchTemplate() {
 
   const handleLaunch = async (replaceExisting = false) => {
     setConflict(null);
+    track('workshop_launch', { template_slug: template.slug, replace_existing: replaceExisting });
     try {
       const instance = await launch.mutateAsync({
         duration: duration.trim() || null,
         replaceExisting,
       });
+      track('workshop_launch_result', { template_slug: template.slug, outcome: 'success' });
       navigate('/', { state: { launched: instance.k8sName } });
     } catch (err) {
       if (
@@ -89,9 +92,11 @@ export function LaunchTemplate() {
         err.status === 409 &&
         err.body?.error === 'active_session_exists'
       ) {
+        track('workshop_launch_result', { template_slug: template.slug, outcome: 'conflict' });
         setConflict(err.body as LaunchConflict);
         return;
       }
+      track('workshop_launch_result', { template_slug: template.slug, outcome: 'error' });
       console.error('Failed to launch workshop:', err);
       addToast({ type: 'error', message: 'Failed to launch session. Please try again.' });
     }
@@ -194,10 +199,14 @@ export function LaunchTemplate() {
         message="Continue in your existing session, or start fresh. Starting fresh ends the current session; files saved in /data carry over."
         cancelLabel="Continue"
         confirmLabel="Start fresh (ends the current one)"
-        onCancel={() =>
-          navigate('/', { state: { launched: conflict?.instance.k8sName } })
-        }
-        onConfirm={() => handleLaunch(true)}
+        onCancel={() => {
+          track('launch_conflict_choice', { template_slug: template.slug, choice: 'continue' });
+          navigate('/', { state: { launched: conflict?.instance.k8sName } });
+        }}
+        onConfirm={() => {
+          track('launch_conflict_choice', { template_slug: template.slug, choice: 'start_fresh' });
+          handleLaunch(true);
+        }}
       />
     </div>
   );

@@ -8,6 +8,13 @@ import { RefreshCw, Play, Clock, Cpu, HardDrive, Search, X, LayoutGrid, List, Ex
 import { useNavigate } from 'react-router-dom';
 import { WorkshopPhase } from '../api/generated';
 import type { WorkshopTemplateResponse, WorkshopInstanceResponse } from '../api/generated';
+import { track } from '../utils/analytics';
+
+function connectToInstance(instance: WorkshopInstanceResponse) {
+  if (!instance.url) return;
+  track('session_connect', { template_slug: instance.templateSlug });
+  window.open(instance.url, '_blank', 'noopener,noreferrer');
+}
 
 const ACTIVE_PHASES = new Set<WorkshopPhase>([
   WorkshopPhase.PENDING,
@@ -81,7 +88,7 @@ function TemplateCard({ template, launchCount, activeInstance }: TemplateCardPro
             <Button
               className="flex-1"
               disabled={!isOpen || !activeInstance.url}
-              onClick={() => activeInstance.url && window.open(activeInstance.url, '_blank')}
+              onClick={() => connectToInstance(activeInstance)}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
               {isOpen ? 'Connect' : `${activeInstance.phase}…`}
@@ -90,7 +97,7 @@ function TemplateCard({ template, launchCount, activeInstance }: TemplateCardPro
               <Button
                 variant="outline"
                 disabled={extend.isPending}
-                onClick={() => extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace })}
+                onClick={() => { track('session_extend', { template_slug: activeInstance.templateSlug }); extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace }); }}
                 title="Extend by 1 hour"
               >
                 <Clock className="h-4 w-4 mr-1" />
@@ -151,7 +158,7 @@ function TemplateRow({ template, launchCount, activeInstance }: TemplateRowProps
           <Button
             size="sm"
             disabled={!isOpen || !activeInstance.url}
-            onClick={() => activeInstance.url && window.open(activeInstance.url, '_blank')}
+            onClick={() => connectToInstance(activeInstance)}
           >
             <ExternalLink className="h-3.5 w-3.5 mr-1" />
             {isOpen ? 'Connect' : `${activeInstance.phase}…`}
@@ -161,7 +168,7 @@ function TemplateRow({ template, launchCount, activeInstance }: TemplateRowProps
               size="sm"
               variant="outline"
               disabled={extend.isPending}
-              onClick={() => extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace })}
+              onClick={() => { track('session_extend', { template_slug: activeInstance.templateSlug }); extend.mutate({ k8sName: activeInstance.k8sName, namespace: activeInstance.namespace }); }}
               title="Extend by 1 hour"
             >
               <Clock className="h-3.5 w-3.5" />
