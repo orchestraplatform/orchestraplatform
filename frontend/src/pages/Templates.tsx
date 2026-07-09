@@ -44,7 +44,9 @@ function TemplateCard({ template, launchCount, activeInstance }: TemplateCardPro
           </div>
         </div>
         {template.description && (
-          <CardDescription>{template.description}</CardDescription>
+          <CardDescription className="line-clamp-3" title={template.description}>
+            {template.description}
+          </CardDescription>
         )}
       </CardHeader>
 
