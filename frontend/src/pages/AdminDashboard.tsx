@@ -153,7 +153,7 @@ export function AdminDashboard() {
       <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 lg:grid-cols-6">
         <StatStrip label="Total active"        value={stats.total}                     color="text-foreground" />
         <StatStrip label="Ready"               value={stats.ready}                     color="text-green-600" />
-        <StatStrip label="Starting"            value={stats.transitional}              color="text-yellow-600" />
+        <StatStrip label="Provisioning"        value={stats.transitional}              color="text-yellow-600" />
         <StatStrip label="Failed"              value={stats.failed}                    color="text-red-600" />
         <StatStrip label="All-time launches"   value={summary?.totalLaunches ?? 0}     color="text-foreground" />
         <StatStrip label="Last 7 days"         value={summary?.launchedLast7Days ?? 0} color="text-primary" />
@@ -222,7 +222,7 @@ export function AdminDashboard() {
                     {inst.ownerEmail}
                   </td>
                   <td className="px-3 py-2.5 font-medium">{inst.workshopName ?? '—'}</td>
-                  <td className="px-3 py-2.5 font-mono text-xs">{inst.k8sName}</td>
+                  <td className="px-3 py-2.5 font-mono text-xs max-w-[180px] truncate" title={inst.k8sName}>{inst.k8sName}</td>
                   <td className="px-3 py-2.5">
                     <Badge className={PHASE_COLORS[inst.phase] ?? 'bg-blue-100 text-blue-800'}>
                       {inst.phase}
