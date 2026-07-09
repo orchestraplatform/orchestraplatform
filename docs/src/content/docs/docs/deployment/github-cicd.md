@@ -69,19 +69,40 @@ each environment so dev and prod can differ.
 
 ## 3. Branch protection (required status checks)
 
-On the `main` branch ruleset, require these status checks to pass before merge
-(names come from the CI job `name:` fields):
+On the `main` branch ruleset, **require a pull request before merging** and
+require these status checks to pass (names come from the CI job `name:` fields
+— every one runs on every PR):
 
 - [ ] `server (pytest + ruff)`
 - [ ] `template-tools (pytest + ruff)`
+- [ ] `operator (pytest)`
 - [ ] `template schema in sync`
-- [ ] `orchestra-validate-templates` (only runs when templates change; mark as
-  required only if you always want template edits gated)
+- [ ] `frontend (eslint + tsc + vitest)`
+- [ ] `helm lint + render`
+- [ ] `generated client in sync`
 
-Also recommended:
+**Do not require `orchestra-validate-templates`** — it is path-filtered (runs
+only when template files change), so a PR that doesn't touch templates never
+reports it, and a required check that never reports **blocks the merge forever**.
+Only ever require checks that run on every PR.
 
-- [ ] Require a pull request before merging.
-- [ ] Require review from Code Owners (activates `.github/CODEOWNERS`).
+### Required reviews — a team-size choice
+
+- **Single maintainer / automated merges** (the orchestraplatform.org setup):
+  require the PR + status checks above, but **do not require approvals**. A sole
+  maintainer can't approve their own PRs, and required approvals also block a
+  merge-on-green automation flow. The status-check gate still guarantees nothing
+  red lands. `CODEOWNERS` then auto-*requests* review (informational), it doesn't
+  block.
+- **Multiple maintainers**: additionally turn on **Require review from Code
+  Owners** (activates `.github/CODEOWNERS`) so `merged = reviewed` is enforced.
+  When community template contributions go live (the front door, ADR-0009), scope
+  this to the template paths by keeping code owners only on
+  `deploy/charts/orchestra/files/templates/**` and `template-tools/**`.
+
+Leave "require branches to be up to date before merging" **off** unless merge
+traffic is high enough to need it — it forces a rebase per merge and adds
+friction to automated merges.
 
 ## 4. CODEOWNERS teams
 
