@@ -11,3 +11,7 @@ dependencies:
     version: "7.7.x"
     repository: "https://oauth2-proxy.github.io/manifests"
     condition: oauth2Proxy.enabled
+  - name: postgresql
+    version: "16.7.27"
+    repository: "oci://registry-1.docker.io/bitnamicharts"
+    condition: postgresql.enabled

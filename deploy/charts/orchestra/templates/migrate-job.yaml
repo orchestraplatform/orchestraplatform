@@ -8,7 +8,15 @@ metadata:
     {{- include "orchestra.labels" . | nindent 4 }}
     {{- include "orchestra.selectorLabels" (dict "component" "migrate" "context" .) | nindent 4 }}
   annotations:
+    {{- if .Values.postgresql.enabled }}
+    # With the bundled Postgres, a pre-install hook would deadlock a fresh
+    # install: the hook blocks creation of the very StatefulSet it needs.
+    # post-install lets Postgres come up first; the wait initContainer below
+    # covers its startup window.
+    "helm.sh/hook": post-install,pre-upgrade
+    {{- else }}
     "helm.sh/hook": pre-install,pre-upgrade
+    {{- end }}
     "helm.sh/hook-weight": "-5"
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 spec:
@@ -38,8 +46,18 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
-      {{- if .Values.api.extraContainers }}
+      {{- if or .Values.postgresql.enabled .Values.api.extraContainers }}
       initContainers:
+      {{- if .Values.postgresql.enabled }}
+      - name: wait-for-postgres
+        image: busybox:1.37
+        command: ["sh", "-c", "until nc -z {{ include "orchestra.postgresqlHost" . }} 5432; do echo waiting for postgres; sleep 2; done"]
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      {{- end }}
       {{- range .Values.api.extraContainers }}
       - {{ toYaml . | nindent 8 | trim }}
         restartPolicy: Always
@@ -53,7 +71,10 @@ spec:
         env:
         - name: UV_CACHE_DIR
           value: /tmp/uv-cache
-        {{- if .Values.api.database.existingSecret }}
+        {{- if .Values.postgresql.enabled }}
+        - name: ORCHESTRA_DATABASE_URL
+          value: {{ include "orchestra.postgresqlURL" . | quote }}
+        {{- else if .Values.api.database.existingSecret }}
         - name: ORCHESTRA_DATABASE_URL
           valueFrom:
             secretKeyRef:

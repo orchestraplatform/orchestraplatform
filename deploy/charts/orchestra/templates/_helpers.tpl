@@ -76,6 +76,17 @@ oauth2-proxy service URL used by the Traefik ForwardAuth middleware.
 {{- end }}
 
 {{/*
+Bundled PostgreSQL (dev/test): service host and derived database URL.
+Host matches the Bitnami subchart's primary service name.
+*/}}
+{{- define "orchestra.postgresqlHost" -}}
+{{- printf "%s-postgresql.%s.svc.cluster.local" .Release.Name .Release.Namespace }}
+{{- end }}
+{{- define "orchestra.postgresqlURL" -}}
+{{- printf "postgresql+asyncpg://%s:%s@%s:5432/%s" .Values.postgresql.auth.username .Values.postgresql.auth.password (include "orchestra.postgresqlHost" .) .Values.postgresql.auth.database }}
+{{- end }}
+
+{{/*
 oauth2-proxy redirect URL (the callback path oauth2-proxy listens on).
 */}}
 {{- define "orchestra.oauth2ProxyRedirectURL" -}}

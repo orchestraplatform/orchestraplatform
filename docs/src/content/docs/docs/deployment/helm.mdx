@@ -6,7 +6,8 @@ description: Install Orchestra on Kubernetes using Helm.
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 
 Orchestra ships as a single Helm chart that includes the API server, operator,
-frontend, and an optional bundled oauth2-proxy.
+frontend, an optional bundled oauth2-proxy, and an optional bundled PostgreSQL
+for dev/test.
 
 <Aside type="tip">
 This is the **full values reference**. For the ordered install procedure (values
@@ -23,7 +24,7 @@ layering, fresh-install ordering, the `systemPool` block, and the operator
 | Helm 3.12+ | |
 | Ingress controller | Traefik or nginx-ingress — see [Ingress Guide](./ingress) |
 | cert-manager | For automatic TLS; can be skipped in dev |
-| PostgreSQL 14+ | External — see [Database](#database) below |
+| PostgreSQL 14+ | External — see [Database](#database) below. For dev/test, the chart can bundle one: [Bundled PostgreSQL](#bundled-postgresql-devtest) |
 | Google OAuth credentials | See [oauth2-proxy Setup](./oauth2-proxy) |
 
 ## Quick install
@@ -114,6 +115,37 @@ Direct URLs store credentials in Helm release history. Use `existingSecret` for
 any shared or production environment.
 </Aside>
 
+### Bundled PostgreSQL (dev/test)
+
+For local, CI, or demo installs the chart can deploy its own Postgres (the
+Bitnami `postgresql` subchart) so a single `helm install` is self-contained —
+no external database and no hand-created secret:
+
+```bash
+helm install orchestra deploy/charts/orchestra \
+  --namespace orchestra-system \
+  --create-namespace \
+  --set postgresql.enabled=true
+```
+
+When enabled, `ORCHESTRA_DATABASE_URL` for the API and the migrate job is
+derived automatically from `postgresql.auth.*` (default
+`orchestra:orchestra@<release>-postgresql:5432/orchestra`), overriding
+`api.database.*`. The migrate job runs as a `post-install` hook on fresh
+installs (instead of `pre-install`) and waits for Postgres to accept
+connections before migrating.
+
+<Aside type="caution">
+Dev/test only. The credentials are plain chart values and the data lives on a
+single in-cluster PVC. Production keeps `postgresql.enabled=false` and uses
+`api.database.existingSecret`.
+</Aside>
+
+Because Bitnami moved versioned images to a paid catalog in 2025, the chart
+pins the freely pullable `bitnamilegacy/postgresql` image matching the
+subchart's appVersion. Any other key under `postgresql.*` passes through to the
+[Bitnami subchart](https://github.com/bitnami/charts/tree/main/bitnami/postgresql).
+
 ### Cloud SQL on GCP
 
 The recommended pattern on GKE is the Cloud SQL Auth Proxy sidecar with
@@ -192,6 +224,7 @@ kind create cluster
 helm install orchestra deploy/charts/orchestra \
   --namespace orchestra-system \
   --create-namespace \
+  --set postgresql.enabled=true \
   --set api.requireAuthentication=false \
   --set api.devIdentity=dev@orchestra.localhost \
   --set ingress.tls.enabled=false \
@@ -266,6 +299,19 @@ admin. No Google credentials required.
 | `ingress.tls.enabled` | `true` | |
 | `ingress.tls.clusterIssuer` | `letsencrypt-prod` | cert-manager ClusterIssuer; `""` to manage TLS yourself |
 | `ingress.annotations` | `{}` | Extra annotations merged onto every Ingress; sole annotations when `controller=custom` |
+
+### `postgresql`
+
+Bundled dev/test Postgres — see [Bundled PostgreSQL](#bundled-postgresql-devtest).
+
+| Key | Default | Description |
+|---|---|---|
+| `postgresql.enabled` | `false` | Deploy the bundled Postgres and auto-wire the database URL (dev/test only) |
+| `postgresql.auth.username` | `orchestra` | |
+| `postgresql.auth.password` | `orchestra` | Plain chart value — dev/test only |
+| `postgresql.auth.database` | `orchestra` | |
+| `postgresql.image.repository` | `bitnamilegacy/postgresql` | Free mirror of the Bitnami image (versioned Bitnami images went paid in 2025) |
+| `postgresql.*` | | Everything else passes through to the [Bitnami subchart](https://github.com/bitnami/charts/tree/main/bitnami/postgresql) |
 
 ### `networkPolicy`
 
