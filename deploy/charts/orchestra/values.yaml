@@ -247,6 +247,31 @@ ingress:
   # When controller=custom these are the sole annotations (plus cert-manager).
   annotations: {}
 
+# ── Bundled PostgreSQL (dev/test only) ────────────────────────────────────────
+# Optional in-cluster Postgres (Bitnami subchart) so a single `helm install
+# --set postgresql.enabled=true` is self-contained — no external database, no
+# hand-created secret. When enabled, ORCHESTRA_DATABASE_URL for the API and the
+# migrate job is derived from auth.* below, overriding api.database.*.
+# NOT for production: credentials are plain chart values and storage is a
+# single in-cluster PVC. Production keeps enabled=false + api.database.existingSecret.
+# Keys under postgresql.* (other than enabled) pass through to the subchart:
+# https://github.com/bitnami/charts/tree/main/bitnami/postgresql
+postgresql:
+  enabled: false
+  auth:
+    username: orchestra
+    password: orchestra
+    database: orchestra
+  # Bitnami moved versioned images to a paid catalog in 2025; pin the free
+  # bitnamilegacy mirror of the tag matching this chart version's appVersion.
+  image:
+    repository: bitnamilegacy/postgresql
+    tag: 17.6.0-debian-12-r4
+  global:
+    security:
+      # Required by the subchart to accept the non-default image repo above.
+      allowInsecureImages: true
+
 # ── NetworkPolicy ─────────────────────────────────────────────────────────────
 networkPolicy:
   # Requires a CNI that supports NetworkPolicy (Calico, Cilium, GKE Dataplane V2).
