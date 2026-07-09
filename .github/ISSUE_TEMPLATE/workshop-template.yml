@@ -1,0 +1,117 @@
+name: Workshop template
+description: Submit or update a workshop template — no YAML required (ADR-0009).
+title: "[template] <workshop name>"
+labels: [workshop-template]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Fill in the fields below to add or update a workshop template. A bot
+        validates your submission and comments; a maintainer then adds the
+        `approve` label and a pull request with the generated YAML opens
+        automatically. See
+        [Submit your workshop](https://orchestraplatform.github.io/docs/contribute/submit/).
+
+        Re-using an existing **Slug** updates that template (the PR diff shows
+        the change); a new slug adds one.
+  - type: input
+    id: name
+    attributes:
+      label: Display name
+      description: Human-readable name shown in the catalog.
+      placeholder: RStudio (Bioconductor)
+    validations:
+      required: true
+  - type: input
+    id: slug
+    attributes:
+      label: Slug
+      description: k8s-safe identifier (lowercase letters, digits, dashes; max 40).
+      placeholder: rstudio
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Catalog description. Markdown is supported.
+      placeholder: RStudio Server on the Bioconductor base image.
+    validations:
+      required: false
+  - type: input
+    id: image
+    attributes:
+      label: Image
+      description: Container image the workshop runs.
+      placeholder: bioconductor/bioconductor_docker:RELEASE_3_20
+    validations:
+      required: true
+  - type: input
+    id: port
+    attributes:
+      label: App port
+      description: Port the app listens on inside the container (e.g. 8787 RStudio, 8888 JupyterLab).
+      placeholder: "8787"
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      description: Compute preset — bundles a tier and a cpu/memory/storage profile the node pools can schedule.
+      options:
+        - Small
+        - Standard
+        - Large
+        - X-Large
+      default: 1
+    validations:
+      required: true
+  - type: checkboxes
+    id: tags
+    attributes:
+      label: Tags
+      description: Catalog category tags.
+      options:
+        - label: bioconductor
+        - label: jupyter
+        - label: python
+        - label: rstudio
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment variables
+      description: "KEY=value per line; e.g. DISABLE_AUTH=true for RStudio-family images — see the no-auth contract."
+      placeholder: DISABLE_AUTH=true
+    validations:
+      required: false
+  - type: textarea
+    id: args
+    attributes:
+      label: Container args
+      description: "one per line; e.g. --IdentityProvider.token='' for JupyterLab."
+      placeholder: --IdentityProvider.token=''
+    validations:
+      required: false
+  - type: input
+    id: storage
+    attributes:
+      label: Storage size
+      description: Persistent /data volume size (optional; defaults to 10Gi).
+      placeholder: 10Gi
+    validations:
+      required: false
+  - type: input
+    id: url
+    attributes:
+      label: Landing URL
+      description: Optional workshop landing/materials page ("Learn more" link).
+    validations:
+      required: false
+  - type: input
+    id: source_url
+    attributes:
+      label: Source repo URL
+      description: Optional repository the workshop content lives in ("Source" link).
+    validations:
+      required: false

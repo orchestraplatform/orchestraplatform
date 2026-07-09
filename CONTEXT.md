@@ -48,9 +48,17 @@ _Avoid_: status (for the state value), state
 
 **Template front door**:
 The structured GitHub issue form through which instructors submit or update
-Workshop templates; a bot converts a valid submission into a pull request
-with generated YAML (ADR-0009). Git remains the source of truth.
+Workshop templates. An Action auto-validates the submission and comments; a
+maintainer applies the `approve` label and a GitHub App opens the pull
+request with generated YAML (ADR-0009). Git remains the source of truth.
 _Avoid_: template API, self-service portal, template upload
+
+**Workshop size**:
+A front-door input preset (Small / Standard / Large / X-Large) that bundles a
+tenant tier and a curated cpu/memory/ephemeral profile aligned to what the node
+pools can schedule. Chosen on the form and expanded to explicit resources in
+the generated template YAML — it is not a stored template field.
+_Avoid_: t-shirt size, resource class, flavor
 
 **Tier map**:
 Operator configuration mapping a template's tier name to node-targeting

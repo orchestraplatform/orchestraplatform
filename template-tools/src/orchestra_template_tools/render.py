@@ -15,6 +15,7 @@ import yaml
 from pydantic import ValidationError
 
 from .models import WorkshopTemplateFile
+from .presets import SIZE_NAMES, SIZE_PRESETS
 from .validate import _format_error
 
 # Matches the header on the hand-authored files in
@@ -49,8 +50,26 @@ def render_submission(data: object) -> RenderResult:
         return RenderResult(
             ok=False, errors=["<root>: submission must be a JSON object"]
         )
+    data = dict(data)
+    if "size" in data:
+        # `size` is a front-door input only (ADR-0009): expand it to explicit
+        # tier + resources — size takes precedence over any supplied values —
+        # so the generated YAML carries concrete resources and the model never
+        # sees `size`.
+        size = data.pop("size")
+        preset = SIZE_PRESETS.get(size) if isinstance(size, str) else None
+        if preset is None:
+            return RenderResult(
+                ok=False,
+                errors=[
+                    f"size: unknown size {size!r}; expected one of "
+                    f"{', '.join(SIZE_NAMES)}"
+                ],
+            )
+        data["tier"] = preset["tier"]
+        data["resources"] = dict(preset["resources"])  # type: ignore[arg-type]
     try:
-        tmpl = WorkshopTemplateFile.model_validate(dict(data))
+        tmpl = WorkshopTemplateFile.model_validate(data)
     except ValidationError as exc:
         return RenderResult(ok=False, errors=[_format_error(e) for e in exc.errors()])
     return RenderResult(ok=True, template=tmpl, yaml_text=render_yaml(tmpl))
