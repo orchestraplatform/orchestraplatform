@@ -4,6 +4,12 @@ const googleAnalyticsId = 'G-KLLV1GCF4E';
 
 export default defineConfig({
   site: 'https://orchestraplatform.org',
+  // Keep old URLs resolving after the persona reorg (issue #67). Sibling of
+  // `integrations`, NOT inside starlight().
+  redirects: {
+    // Testing moved from the stray `contributing/` dir into `development/`.
+    '/docs/contributing/testing/': '/docs/development/testing/',
+  },
   integrations: [
     starlight({
       title: 'Orchestra Platform',
@@ -196,7 +202,7 @@ export default defineConfig({
                   link: '/docs/development/local-development/',
                 },
                 { label: 'Contributing', link: '/docs/development/contributing/' },
-                { label: 'Testing', link: '/docs/contributing/testing/' },
+                { label: 'Testing', link: '/docs/development/testing/' },
               ],
             },
             {
