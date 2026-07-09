@@ -60,6 +60,14 @@ pools can schedule. Chosen on the form and expanded to explicit resources in
 the generated template YAML — it is not a stored template field.
 _Avoid_: t-shirt size, resource class, flavor
 
+**Persistent workspace**:
+A durable `/data` volume scoped per (user, workshop) that survives session
+expiry — a ReadWriteOnce persistent disk the operator creates *unowned* (no
+owner-reference, so GC doesn't delete it with the session) and an idle-TTL
+reaper reclaims (ADR-0010). `/home` stays ephemeral. Opt-in per template
+(`storage.workspace.persist: per-user`).
+_Avoid_: home directory, persistent volume (bare), user disk
+
 **Tier map**:
 Operator configuration mapping a template's tier name to node-targeting
 constraints, keeping the operator cloud-neutral (ADR-0005).
