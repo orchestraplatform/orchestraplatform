@@ -3,6 +3,9 @@
 // Docs live under /docs (Starlight); the authenticated app is at app.<domain>.
 const appUrl = 'https://app.orchestraplatform.org/';
 const docsUrl = '/docs/';
+const usingUrl = '/docs/participant/using-a-session/';
+const contributeUrl = '/docs/contribute/overview/';
+const runningUrl = '/docs/deployment/overview/';
 const githubUrl = 'https://github.com/orchestraplatform/orchestraplatform';
 const gaId = 'G-KLLV1GCF4E';
 
@@ -61,6 +64,7 @@ const features = [
     <header class="nav">
       <a class="brand" href="/">Orchestra<span>Platform</span></a>
       <nav class="nav-links">
+        <a href={docsUrl}>Docs</a>
         <a href={githubUrl}>GitHub</a>
         <a class="btn btn-sm" href={appUrl}>Open the app</a>
       </nav>
@@ -77,6 +81,7 @@ const features = [
         </p>
         <div class="cta-row">
           <a class="btn btn-primary btn-lg" href={appUrl}>Launch a workshop →</a>
+          <a class="btn btn-ghost btn-lg" href={contributeUrl}>Add a workshop →</a>
         </div>
         <p class="cta-note">No installs, no setup — the environment is one click away.</p>
       </section>
@@ -94,9 +99,10 @@ const features = [
 
       <section class="operators">
         <p>
-          Running or building Orchestra? The
-          <a href={docsUrl}>deployment &amp; developer docs</a> cover installation,
-          configuration, and architecture.
+          Whatever brings you here, the docs have a path for you:
+          <a href={usingUrl}>attending a workshop</a>,
+          <a href={contributeUrl}>contributing one</a>, or
+          <a href={runningUrl}>running your own Orchestra</a>.
         </p>
       </section>
     </main>
