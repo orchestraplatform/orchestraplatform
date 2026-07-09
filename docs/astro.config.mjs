@@ -10,6 +10,10 @@ export default defineConfig({
       description:
         'Documentation for the Orchestra Platform - Bioinformatics and Data Science Learning Environment',
       customCss: ['./src/styles/custom.css'],
+      components: {
+        // Default the docs to dark, matching the marketing site (see the file).
+        ThemeProvider: './src/components/ThemeProvider.astro',
+      },
       head: [
         // Adding google analytics
         {
