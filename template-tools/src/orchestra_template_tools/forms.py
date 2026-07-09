@@ -20,6 +20,8 @@ _CHECKED_RE = re.compile(r"^- \[[xX]\]\s+(.+?)\s*$")
 _NO_RESPONSE = "_No response_"
 
 # Size dropdown option labels -> preset keys (see presets.SIZE_PRESETS).
+# The form labels carry a resource suffix ("Small — 2 CPU, ..."); the name
+# before the em-dash is what maps here (stripped in submission_from_issue_body).
 _SIZE_LABELS = {
     "small": "small",
     "standard": "standard",
@@ -142,8 +144,10 @@ def submission_from_issue_body(body: str) -> dict[str, object]:
         # Let pydantic report a non-numeric port; only coerce clean integers.
         out["port"] = int(v) if v.lstrip("-").isdigit() else v
     if (v := field("Size")) is not None:
+        # Drop the label's resource suffix ("Small — 2 CPU, ..." -> "Small").
         # Unknown label passes through so render_submission emits "unknown size".
-        out["size"] = _SIZE_LABELS.get(v.lower(), v)
+        name = v.split("—", 1)[0].strip()
+        out["size"] = _SIZE_LABELS.get(name.lower(), v)
     if tags := _parse_tags(blocks.get("Tags", "")):
         out["tags"] = tags
     if (v := field("Environment variables")) is not None:

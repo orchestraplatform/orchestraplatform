@@ -106,6 +106,16 @@ def test_xlarge_label_maps_to_xlarge_key():
     assert submission_from_issue_body("### Size\n\nX-Large")["size"] == "xlarge"
 
 
+def test_size_label_resource_suffix_is_stripped():
+    body = "### Size\n\nX-Large — 2 CPU, 16Gi memory, 8Gi ephemeral storage"
+    assert submission_from_issue_body(body)["size"] == "xlarge"
+
+
+def test_unknown_size_label_passes_through_verbatim():
+    body = "### Size\n\nGigantic — 99 CPU"
+    assert submission_from_issue_body(body)["size"] == "Gigantic — 99 CPU"
+
+
 def test_no_tags_checked_omits_tags():
     body = "### Tags\n\n- [ ] bioconductor\n- [ ] jupyter"
     assert "tags" not in submission_from_issue_body(body)
