@@ -33,7 +33,7 @@ function SortIcon({ field, sortField, sortDir }: { field: SortField; sortField: 
 
 function StatStrip({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="px-4 py-3">
+    <div className="bg-background px-4 py-3">
       <div className={`text-3xl font-extrabold tracking-tight leading-none ${color}`}>{value}</div>
       <div className="mt-1 text-[10px] text-muted-foreground">{label}</div>
     </div>
@@ -138,7 +138,7 @@ export function AdminDashboard() {
     />
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Session Dashboard</h1>
           <p className="text-muted-foreground mt-1">All active workshop sessions</p>
@@ -148,8 +148,9 @@ export function AdminDashboard() {
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-6 divide-x rounded-lg border">
+      {/* Stats — reflow 2→3→6 cols; gap-px on a border bg draws clean 1px
+          separators that survive wrapping (divide-x does not). */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 lg:grid-cols-6">
         <StatStrip label="Total active"        value={stats.total}                     color="text-foreground" />
         <StatStrip label="Ready"               value={stats.ready}                     color="text-green-600" />
         <StatStrip label="Starting"            value={stats.transitional}              color="text-yellow-600" />
@@ -159,7 +160,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
@@ -195,7 +196,7 @@ export function AdminDashboard() {
         </div>
       ) : (
         <div className="rounded-md border overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
                 <Th field="ownerEmail">User</Th>

@@ -26,7 +26,7 @@ export function AdminTemplates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Workshop Templates</h1>
           <p className="text-muted-foreground mt-1">
@@ -54,7 +54,7 @@ export function AdminTemplates() {
         </CardHeader>
         <CardContent>
           <div className="relative overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full min-w-[640px] text-sm text-left">
               <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
                 <tr>
                   <th className="px-4 py-3">Name</th>
