@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Front Door Smoke Test
+slug: frontdoor-smoke-test
+description: 'Throwaway template to verify the front door end-to-end. Safe to close.
+
+
+  ### Notes
+
+
+  This inner heading tests the parser fix (should stay in the description).'
+image: rocker/rstudio:latest
+defaultDuration: 4h
+port: 8787
+tier: small
+resources:
+  cpu: '2'
+  memory: 4Gi
+  cpuRequest: 500m
+  memoryRequest: 4Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+tags:
+  - rstudio
+enabled: true
+submittedBy: seandavi
+
