@@ -237,7 +237,7 @@ export function Templates() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return [...active]
-      .filter((t) => !activeTag || t.tags?.includes(activeTag))
+      .filter((t) => !activeTag || t.tags?.some((tag) => tag === activeTag))
       .filter((t) => !durationFilter || matchesDuration(t.defaultDuration, durationFilter))
       .filter((t) => !q || [t.name, t.description ?? '', t.image, t.slug].some((f) => f.toLowerCase().includes(q)))
       .sort((a, b) => {
