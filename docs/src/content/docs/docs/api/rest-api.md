@@ -65,9 +65,9 @@ workshop instance's Kubernetes name.
 ### Workshop templates
 
 Templates are **git-managed YAML** served read-only (see [ADR-0006](/docs/adr/0006-yaml-workshop-templates/)).
-There are no create/update/delete endpoints — edit the files under
-`deploy/charts/orchestra/files/templates/` via a pull request. Template ids are
-deterministic (derived from the slug).
+There are no create/update/delete endpoints — the files under
+`deploy/charts/orchestra/files/templates/` change via the submission form or a
+pull request. Template ids are deterministic (derived from the slug).
 
 | Method | Path | Purpose |
 |---|---|---|

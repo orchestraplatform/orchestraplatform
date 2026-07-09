@@ -28,7 +28,9 @@ the pull request for you ([ADR-0009](/docs/adr/0009-template-front-door/)).
 
 3. A maintainer adds the **`approve`** label. A bot opens a pull request
    containing the generated YAML — reusing an existing **slug** updates that
-   template (the diff shows the change); a new slug adds one.
+   template (the diff shows the change); a new slug adds one. Your GitHub handle
+   is recorded on the template as `submittedBy` automatically — it's stamped from
+   the issue author, not a field you fill in.
 
 4. The PR is reviewed and merged like any other. Your workshop appears in the
    catalog on the next deploy, and merging closes your issue.
@@ -40,6 +42,14 @@ Comfortable with YAML? You can still add or edit a template file directly under
 the templates directory and open a PR yourself (see
 [Authoring Workshop Templates](/docs/user-guide/authoring-workshop-templates/)) —
 the form is a convenience, not the only door.
+</Aside>
+
+<Aside type="note" title="Maintainers: driving the conversion by hand">
+  When the GitHub App isn't configured (or a maintainer wants to steer the PR
+  locally), `just template-from-issue <n>` does what the convert Action does under
+  your own `gh` auth: it parses issue `<n>`'s form, renders and validates the YAML,
+  writes the file, branches, and opens the PR — stamping `submittedBy` from the
+  issue author.
 </Aside>
 
 ## Who reviews it

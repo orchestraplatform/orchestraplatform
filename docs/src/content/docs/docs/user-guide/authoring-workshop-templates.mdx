@@ -1,16 +1,22 @@
 ---
 title: Authoring Workshop Templates
-description: Add or change the workshops Orchestra offers by editing a git-managed YAML template file, validated in your editor and by CI against a generated JSON Schema.
+description: The field reference the submission form is built on — every field of a workshop template, and the fallback for hand-authoring the YAML directly.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
 A **workshop template** is a single YAML file that describes one entry in
 Orchestra's catalog — the RStudio, JupyterLab, or other environment a
-participant can launch. It's a friendly, hand-editable projection of the
-`Workshop` CRD spec: you set a handful of fields (image, port, resources,
-duration…) and the platform turns each launch into a fully-formed `Workshop`
-custom resource.
+participant can launch. It's a friendly projection of the `Workshop` CRD spec: a
+handful of fields (image, port, resources, duration…) that the platform turns
+into a fully-formed `Workshop` custom resource on each launch.
+
+<Aside type="tip" title="Most people never write this YAML">
+  The front door is the [submission form](/docs/contribute/submit/): fill in a
+  structured issue and a bot renders the YAML and opens the PR after a maintainer
+  approves. This page is the **field reference the form is built on** — the schema
+  behind the form, and the contract for the fallback when you hand-author a file.
+</Aside>
 
 Templates are **git-managed** (ADR-0006). They live in the Helm chart at:
 
@@ -24,8 +30,10 @@ deploy/charts/orchestra/files/templates/
 
 These files are the **source of truth**, not the database. The chart renders
 them into a ConfigMap mounted into the API pod, which loads them into an
-in-memory registry at startup. To change the catalog you edit a file and open a
-PR — there is no admin UI and no runtime database toggle.
+in-memory registry at startup — there is no admin UI and no runtime database
+toggle. A catalog change is a change to these files, whether the
+[submission form](/docs/contribute/submit/) writes it for you (the front door)
+or you hand-author the file and open the PR yourself (the fallback).
 
 ## The file-per-template model
 
@@ -58,6 +66,17 @@ snake_case; the schema uses camelCase.
 | `storage`         | object \| null       | no       | `null`                  | Per-session persistent volume. Unset means no dedicated PVC beyond the defaults.                                                                    |
 | `tags`            | `list<string>`       | no       | `[]`                    | Category tags for catalog filtering.                                                                                                                |
 | `enabled`         | boolean              | no       | `true`                  | Whether the template is shown and launchable. `false` retires it without deleting the file.                                                         |
+| `url`             | string \| null       | no       | `null`                  | Landing/materials page for the catalog's "Learn more" link (the form's **Landing URL**). Catalog metadata; never reaches the CRD.                    |
+| `sourceUrl`       | string \| null       | no       | `null`                  | Repository the workshop content lives in, for the catalog's "Source" link (the form's **Source repo URL**). Catalog metadata; never reaches the CRD. |
+| `submittedBy`     | string \| null       | no       | `null`                  | GitHub handle of the submitter, **stamped by the front door from the issue author** ([ADR-0009](/docs/adr/0009-template-front-door/)); **absent on hand-authored templates** — you don't set this. |
+
+<Aside type="note" title="Where tier + resources come from via the form">
+  The submission form has no `tier`/`resources` fields — it offers a single
+  **Size** dropdown (Small / Standard / Large / X-Large). The front door expands
+  that preset into `tier` and `resources` when it renders the YAML, so `size` is a
+  **front-door concept that never appears in a template file**. Hand-authors set
+  `tier` and `resources` directly (below).
+</Aside>
 
 ### `resources`
 
@@ -161,7 +180,14 @@ and filename-matches-slug. It exits non-zero on any error.
   your editor uses can never fall out of sync with the contract.
 </Aside>
 
-## Contribution workflow
+## Hand-authoring workflow (the fallback)
+
+<Aside type="tip">
+  **Prefer the [issue form](/docs/contribute/submit/).** It renders this YAML for
+  you and opens the PR after a maintainer approves. Hand-author only when you want
+  full control over the file — the steps below are the fallback, not the primary
+  path.
+</Aside>
 
 <Steps>
 
