@@ -17,8 +17,8 @@ revisiting next week), without persisting container config in ways that break
 across heterogeneous images.
 
 Two axes were open: **what the durable volume is keyed to**, and **what backs
-it**. A gcsfuse spike (throwaway `orchestraplatform-dev` VM) measured the object
--store trade-off directly:
+it**. A gcsfuse spike (throwaway `orchestraplatform-dev` VM) measured the
+object-store trade-off directly:
 
 | Operation | Local pd-balanced | gcsfuse | penalty |
 |---|---|---|---|
