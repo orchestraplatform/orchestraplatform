@@ -143,6 +143,9 @@ spec:
           value: {{ .Values.operator.computeClassLabelKey | quote }}
         - name: ORCHESTRA_TERMINATION_GRACE_PERIOD_SECONDS
           value: {{ .Values.operator.terminationGracePeriodSeconds | quote }}
+        # Idle-TTL (days) for persistent workspace PVCs (ADR-0010 decision E).
+        - name: ORCHESTRA_WORKSPACE_IDLE_TTL_DAYS
+          value: {{ .Values.operator.workspaceIdleTtlDays | quote }}
         - name: ORCHESTRA_SIDECAR_IMAGE
           value: "{{ .Values.operator.sidecar.image.repository }}:{{ .Values.operator.sidecar.image.tag }}"
         - name: ORCHESTRA_SIDECAR_PULL_POLICY

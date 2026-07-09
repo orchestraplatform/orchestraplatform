@@ -72,6 +72,15 @@ async def startup_handler(
 
     memo.cluster = K8sOperatorCluster()
 
+    # Idle-TTL reaper for persistent workspace PVCs (ADR-0010 decision E).
+    # A plain asyncio task because kopf timers are per-resource and the sweep
+    # is cluster-scoped; the memo reference keeps the task alive.
+    import asyncio
+
+    from handlers.cleanup import workspace_reaper_loop
+
+    memo.workspace_reaper = asyncio.create_task(workspace_reaper_loop(memo.cluster))
+
     logging.info("Orchestra Operator startup complete")
 
 

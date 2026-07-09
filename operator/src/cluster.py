@@ -7,6 +7,7 @@ kopf's memo (set in main.py's startup handler).
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from typing import Protocol
 
 import kubernetes.client as k8s_client
@@ -15,6 +16,7 @@ from kubernetes.client.rest import ApiException
 from crd import GROUP, PLURAL, VERSION
 from resources.desired import WorkshopChildren
 from resources.naming import deployment_name
+from resources.pvc import LAST_USED_ANNOTATION, WORKSPACE_PVC_SELECTOR
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,16 @@ class OperatorCluster(Protocol):
     async def deployment_ready(self, workshop_name: str, namespace: str) -> bool: ...
 
     async def delete_workshop(self, name: str, namespace: str) -> bool: ...
+
+    async def stamp_pvc_last_used(self, name: str, namespace: str) -> None: ...
+
+    async def list_workspace_pvcs(
+        self,
+    ) -> list[k8s_client.V1PersistentVolumeClaim]: ...
+
+    async def mounted_pvcs(self) -> set[tuple[str, str]]: ...
+
+    async def delete_pvc(self, name: str, namespace: str) -> None: ...
 
 
 class K8sOperatorCluster:
@@ -117,6 +129,59 @@ class K8sOperatorCluster:
                 return False
             raise
         return True
+
+    # ── Persistent workspace reclamation (ADR-0010 decision E) ────────────────
+
+    async def stamp_pvc_last_used(self, name: str, namespace: str) -> None:
+        """Refresh the reaper clock on a workspace PVC; missing PVC is a no-op."""
+        body = {
+            "metadata": {
+                "annotations": {LAST_USED_ANNOTATION: datetime.now(UTC).isoformat()}
+            }
+        }
+        try:
+            await asyncio.to_thread(
+                k8s_client.CoreV1Api().patch_namespaced_persistent_volume_claim,
+                name=name,
+                namespace=namespace,
+                body=body,
+            )
+        except ApiException as e:
+            if e.status != 404:
+                raise
+
+    async def list_workspace_pvcs(self) -> list[k8s_client.V1PersistentVolumeClaim]:
+        """Every persistent workspace PVC, cluster-wide (label-scoped so the
+        ephemeral per-session PVCs are never seen by the reaper)."""
+        resp = await asyncio.to_thread(
+            k8s_client.CoreV1Api().list_persistent_volume_claim_for_all_namespaces,
+            label_selector=WORKSPACE_PVC_SELECTOR,
+        )
+        return resp.items
+
+    async def mounted_pvcs(self) -> set[tuple[str, str]]:
+        """(namespace, claim-name) for every PVC referenced by any pod — the
+        cheapest reliable 'currently mounted' check."""
+        pods = await asyncio.to_thread(
+            k8s_client.CoreV1Api().list_pod_for_all_namespaces
+        )
+        return {
+            (pod.metadata.namespace, vol.persistent_volume_claim.claim_name)
+            for pod in pods.items
+            for vol in (pod.spec.volumes or [])
+            if vol.persistent_volume_claim is not None
+        }
+
+    async def delete_pvc(self, name: str, namespace: str) -> None:
+        try:
+            await asyncio.to_thread(
+                k8s_client.CoreV1Api().delete_namespaced_persistent_volume_claim,
+                name=name,
+                namespace=namespace,
+            )
+        except ApiException as e:
+            if e.status != 404:
+                raise
 
     @staticmethod
     async def _create_or_ignore(api_call, kind: str, name: str, **kwargs) -> None:
