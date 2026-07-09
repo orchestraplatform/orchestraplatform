@@ -126,6 +126,7 @@ def create_rstudio_deployment(
     env: dict[str, str] | None = None,
     args: list[str] | None = None,
     tier: str | None = None,
+    pvc_claim_name: str | None = None,
 ) -> k8s.V1Deployment:
     """Create a Kubernetes Deployment for a workshop app with an auth sidecar.
 
@@ -199,7 +200,9 @@ def create_rstudio_deployment(
             k8s.V1Volume(
                 name="workshop-data",
                 persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-                    claim_name=pvc_name(workshop_name)
+                    # The persistent workspace (ADR-0010) claims a shared
+                    # per-(user, workshop) PVC instead of the per-instance one.
+                    claim_name=pvc_claim_name or pvc_name(workshop_name)
                 ),
             )
         )

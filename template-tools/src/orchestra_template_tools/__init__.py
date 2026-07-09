@@ -26,6 +26,7 @@ from .models import (
     WorkshopStorage,
     WorkshopTemplateCreate,
     WorkshopTemplateFile,
+    WorkspaceStorage,
 )
 from .presets import SIZE_NAMES, SIZE_PRESETS
 from .render import (
@@ -60,6 +61,7 @@ __all__ = [
     "WorkshopStorage",
     "WorkshopTemplateCreate",
     "WorkshopTemplateFile",
+    "WorkspaceStorage",
     "build_schema",
     "existing_template_path",
     "load_template",

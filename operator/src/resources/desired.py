@@ -18,7 +18,7 @@ from resources.deployment import create_rstudio_deployment
 from resources.ingress import create_workshop_ingress
 from resources.middleware import create_auth_middleware
 from resources.naming import auth_middleware_name
-from resources.pvc import create_workshop_pvc
+from resources.pvc import create_workshop_pvc, create_workspace_pvc
 from resources.service import create_workshop_service
 from utils.phases import WorkshopPhase
 from utils.time_utils import get_expiration_time
@@ -78,7 +78,8 @@ def desired_children(
     spec: dict[str, Any], meta: dict[str, Any], namespace: str
 ) -> WorkshopChildren:
     """Build every child manifest for a Workshop CRD, owner-referenced so
-    Kubernetes GC removes them when the Workshop is deleted."""
+    Kubernetes GC removes them when the Workshop is deleted — except the
+    persistent workspace PVC (ADR-0010), which is unowned so it survives."""
     settings = get_settings()
     ws = WorkshopSpec.model_validate(spec)
 
@@ -108,8 +109,19 @@ def desired_children(
 
     pvc = None
     if storage:
-        pvc = create_workshop_pvc(workshop_name, namespace, storage)
-        pvc.metadata.owner_references = [owner_ref]
+        if (storage.get("workspace") or {}).get("persist") == "per-user":
+            # Persistent workspace (ADR-0010): a durable per-(user, workshop)
+            # PVC, deliberately NOT owner-referenced so it survives Workshop CR
+            # deletion. apply() creates it if absent and reattaches otherwise.
+            # templateSlug is stamped by the API; ws.name is the fallback for
+            # hand-authored CRs (persists, but won't reattach across relaunches
+            # since the instance name changes per launch).
+            pvc = create_workspace_pvc(
+                ws.template_slug or workshop_name, owner_email, namespace, storage
+            )
+        else:
+            pvc = create_workshop_pvc(workshop_name, namespace, storage)
+            pvc.metadata.owner_references = [owner_ref]
 
     require_auth = bool(settings.auth_middleware or settings.oauth2_proxy_auth_url)
     deployment = create_rstudio_deployment(
@@ -124,6 +136,7 @@ def desired_children(
         env=env,
         args=args,
         tier=tier,
+        pvc_claim_name=pvc.metadata.name if pvc else None,
     )
     deployment.metadata.owner_references = [owner_ref]
 

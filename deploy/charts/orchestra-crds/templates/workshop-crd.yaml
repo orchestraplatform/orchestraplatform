@@ -25,6 +25,9 @@ spec:
               name:
                 type: string
                 description: "Workshop instance name"
+              templateSlug:
+                type: string
+                description: "Slug of the template this instance was launched from (set by the API). Keys the per-user persistent workspace PVC (ADR-0010)."
               duration:
                 type: string
                 default: "4h"
@@ -85,6 +88,14 @@ spec:
                     default: "10Gi"
                   storageClass:
                     type: string
+                  workspace:
+                    type: object
+                    properties:
+                      persist:
+                        type: string
+                        enum: ["per-user"]
+                        description: "per-user keeps /data on a durable per-(user, workshop) volume that survives session expiry (ADR-0010). Omit for the ephemeral default."
+                    description: "Workspace persistence intent (ADR-0010)."
                 description: "Storage configuration"
               ingress:
                 type: object

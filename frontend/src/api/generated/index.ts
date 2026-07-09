@@ -21,6 +21,7 @@ export type { WorkshopResources } from './models/WorkshopResources';
 export type { WorkshopStorage } from './models/WorkshopStorage';
 export type { WorkshopTemplateList } from './models/WorkshopTemplateList';
 export { WorkshopTemplateResponse } from './models/WorkshopTemplateResponse';
+export type { WorkspaceStorage } from './models/WorkspaceStorage';
 
 export { AuthenticationService } from './services/AuthenticationService';
 export { DefaultService } from './services/DefaultService';

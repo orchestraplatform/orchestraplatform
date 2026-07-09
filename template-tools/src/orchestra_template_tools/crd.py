@@ -60,6 +60,12 @@ class WorkshopSpec(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str = Field(..., description="Workshop instance name")
+    template_slug: str | None = Field(
+        default=None,
+        alias="templateSlug",
+        description="Slug of the template this instance was launched from (set "
+        "by the API). Keys the per-user persistent workspace PVC (ADR-0010).",
+    )
     owner: str | None = Field(
         default=None,
         description="Email address of the workshop owner (set by the API from "

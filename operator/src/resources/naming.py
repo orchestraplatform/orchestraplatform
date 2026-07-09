@@ -4,6 +4,8 @@ The builders, the desired-state module, and the cluster adapter all derive
 names from here; nothing else may concatenate ``f"{workshop_name}-..."``.
 """
 
+import hashlib
+
 
 def deployment_name(workshop_name: str) -> str:
     return f"{workshop_name}-deployment"
@@ -15,6 +17,21 @@ def service_name(workshop_name: str) -> str:
 
 def pvc_name(workshop_name: str) -> str:
     return f"{workshop_name}-pvc"
+
+
+def owner_hash(owner_email: str) -> str:
+    """Short, stable, name/label-safe hash of the owner email (ADR-0010)."""
+    return hashlib.sha256(owner_email.encode()).hexdigest()[:12]
+
+
+def workspace_pvc_name(template_slug: str, owner_email: str) -> str:
+    """The durable per-(user, workshop) workspace PVC (ADR-0010).
+
+    Keyed by (template slug, owner hash) — NOT the instance name — so a
+    relaunch of the same workshop by the same user reattaches the same volume.
+    Fits the 63-char name limit: 3 + slug (<=40) + 1 + 12 = 56.
+    """
+    return f"ws-{template_slug}-{owner_hash(owner_email)}"
 
 
 def ingress_name(workshop_name: str) -> str:
