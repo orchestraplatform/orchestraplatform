@@ -17,7 +17,7 @@ from crd import GROUP, KIND, VERSION
 from resources.deployment import create_rstudio_deployment
 from resources.ingress import create_workshop_ingress
 from resources.middleware import create_auth_middleware
-from resources.naming import auth_middleware_name
+from resources.naming import auth_middleware_name, workspace_pvc_name
 from resources.pvc import create_workshop_pvc, create_workspace_pvc
 from resources.service import create_workshop_service
 from utils.phases import WorkshopPhase
@@ -74,6 +74,22 @@ def _ingress_url(ingress: dict[str, Any]) -> str:
     return f"{scheme}://{host}{port_suffix}"
 
 
+def workspace_pvc_ref(spec: dict[str, Any]) -> str | None:
+    """Name of the persistent workspace PVC this spec attaches, or None.
+
+    The single place that decides "does this Workshop use a persistent
+    workspace, and which PVC is it": desired_children() gates PVC creation on
+    it, and the session-end handler (ADR-0010 decision E) stamps last-used
+    through it.
+    """
+    ws = WorkshopSpec.model_validate(spec)
+    if ws.storage is None or ws.storage.workspace is None:
+        return None
+    if ws.storage.workspace.persist != "per-user":
+        return None
+    return workspace_pvc_name(ws.template_slug or ws.name, ws.owner or "unknown")
+
+
 def desired_children(
     spec: dict[str, Any], meta: dict[str, Any], namespace: str
 ) -> WorkshopChildren:
@@ -109,7 +125,7 @@ def desired_children(
 
     pvc = None
     if storage:
-        if (storage.get("workspace") or {}).get("persist") == "per-user":
+        if workspace_pvc_ref(spec) is not None:
             # Persistent workspace (ADR-0010): a durable per-(user, workshop)
             # PVC, deliberately NOT owner-referenced so it survives Workshop CR
             # deletion. apply() creates it if absent and reattaches otherwise.

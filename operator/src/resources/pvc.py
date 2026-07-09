@@ -7,6 +7,15 @@ import kubernetes.client as k8s
 
 from resources.naming import owner_hash, pvc_name, workspace_pvc_name
 
+# The idle-TTL reaper's clock (ADR-0010 decision E): stamped at creation as a
+# floor, refreshed by the session-end handler, read by the sweep.
+LAST_USED_ANNOTATION = "orchestra.io/last-used"
+
+# Label selector scoping the reaper's sweep to persistent workspace PVCs only.
+# Requiring the orchestra.io/owner-hash label (not just component=workspace)
+# keeps foreign PVCs that happen to use the generic label out of scope.
+WORKSPACE_PVC_SELECTOR = "component=workspace,orchestra.io/owner-hash"
+
 
 def create_workshop_pvc(
     workshop_name: str, namespace: str, storage_config: dict[str, Any]
@@ -52,10 +61,10 @@ def create_workspace_pvc(
     """The durable per-(user, workshop) workspace PVC (ADR-0010).
 
     Deliberately carries NO owner-reference: the volume must survive Workshop
-    CR deletion so /data persists across sessions. The idle-TTL reaper (#87)
-    owns reclamation — the labels key its sweep and the ``last-used``
-    annotation is its clock (stamped here at creation as a floor; #87 adds
-    the session-end update).
+    CR deletion so /data persists across sessions. The idle-TTL reaper
+    (handlers/cleanup.py) owns reclamation — the labels key its sweep and the
+    ``last-used`` annotation is its clock (stamped here at creation as a
+    floor, refreshed at session end).
     RWO like the ephemeral PVC; the storage class comes from the spec (cluster
     default when unset).
     """
@@ -74,7 +83,7 @@ def create_workspace_pvc(
                 "orchestra.io/owner-hash": owner_hash(owner_email),
             },
             annotations={
-                "orchestra.io/last-used": datetime.now(UTC).isoformat(),
+                LAST_USED_ANNOTATION: datetime.now(UTC).isoformat(),
             },
         ),
         spec=k8s.V1PersistentVolumeClaimSpec(

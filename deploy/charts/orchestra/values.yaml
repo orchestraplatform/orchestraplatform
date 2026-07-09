@@ -86,6 +86,12 @@ operator:
   # configurable — a live session must never be migrated for consolidation.)
   terminationGracePeriodSeconds: 120
 
+  # Idle-TTL (days) for persistent per-user workspace PVCs (ADR-0010
+  # decision E). Workspace volumes are unowned so they survive session expiry;
+  # the operator's hourly sweep deletes any not used by a session for this
+  # many days (and not currently mounted).
+  workspaceIdleTtlDays: 30
+
   # Sidecar proxy configuration for workshop sessions.
   sidecar:
     image:

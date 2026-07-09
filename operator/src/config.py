@@ -105,6 +105,13 @@ class OperatorSettings(BaseSettings):
     #     Configurable, default 120s per the tofu README.
     termination_grace_period_seconds: int = 120
 
+    # ── Persistent workspace reclamation (ADR-0010 decision E) ────────────────
+    # A persistent workspace PVC is deliberately unowned so it survives Workshop
+    # CR deletion; the operator's low-frequency sweep deletes it once its
+    # last-used annotation is older than this many days (and it isn't mounted).
+    # Set via ORCHESTRA_WORKSPACE_IDLE_TTL_DAYS / chart workspaceIdleTtlDays.
+    workspace_idle_ttl_days: int = 30
+
     # ── Sidecar ───────────────────────────────────────────────────────────────
     sidecar_image: str = "seandavi/orchestra-sidecar:latest"
     sidecar_pull_policy: str = "Always"
