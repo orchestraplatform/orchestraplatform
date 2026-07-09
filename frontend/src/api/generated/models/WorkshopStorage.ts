@@ -8,7 +8,7 @@ import type { WorkspaceStorage } from './WorkspaceStorage';
  */
 export type WorkshopStorage = {
     /**
-     * Storage size
+     * Storage size (Kubernetes quantity, at most 20Gi)
      */
     size?: string;
     /**

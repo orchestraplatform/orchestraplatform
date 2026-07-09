@@ -48,7 +48,7 @@
       "properties": {
         "size": {
           "default": "10Gi",
-          "description": "Storage size",
+          "description": "Storage size (Kubernetes quantity, at most 20Gi)",
           "title": "Size",
           "type": "string"
         },
