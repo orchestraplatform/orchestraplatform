@@ -196,6 +196,15 @@ persistence:
 ingress:
   enabled: true
 
+  # Traefik entrypoint(s) the operator emits per-session workshop Ingress on,
+  # and an optional port appended to the session URL. Defaults are production-
+  # safe: TLS-only `websecure`, no explicit port (standard 443).
+  # Local/NodePort (docker-desktop or kind, Traefik on `web`@30080, per
+  # `just dev-setup`): entryPoints: ["web"], port: 30080 — see
+  # deploy/values-dev.yaml (mirrors `just dev-operator`).
+  entryPoints: ["websecure"]
+  port: ""
+
   # Ingress controller preset. Determines which auth annotations are applied to
   # the frontend, API, and per-session workshop Ingress resources.
   #

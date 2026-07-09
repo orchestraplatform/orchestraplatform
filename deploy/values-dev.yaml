@@ -15,6 +15,12 @@ api:
 ingress:
   enabled: true
   className: traefik
+  # Docker Desktop / kind: Traefik serves the `web` entrypoint at NodePort 30080
+  # (per `just dev-setup`), so per-session workshops must be emitted there — not
+  # the TLS-only production default `websecure` — and the port appended to the
+  # session URL (http://<name>.<domain>:30080). Mirrors `just dev-operator`.
+  entryPoints: ["web"]
+  port: 30080
   tls:
     enabled: false
     clusterIssuer: ""
