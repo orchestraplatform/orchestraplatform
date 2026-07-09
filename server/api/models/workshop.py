@@ -9,13 +9,19 @@ from typing import Literal
 # orchestra-template-tools, the single source of truth for the template and CRD
 # spec shapes (ADR-0007, #51). Re-exported here so existing
 # ``from api.models.workshop import WorkshopResources`` keeps working.
-from orchestra_template_tools import WorkshopIngress, WorkshopResources, WorkshopStorage
+from orchestra_template_tools import (
+    WorkshopIngress,
+    WorkshopResources,
+    WorkshopStorage,
+    WorkspaceStorage,
+)
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 __all__ = [
     "WorkshopIngress",
     "WorkshopResources",
     "WorkshopStorage",
+    "WorkspaceStorage",
 ]
 
 
@@ -41,7 +47,15 @@ _K8S_NAME_MAX = 253
 class WorkshopCreate(BaseModel):
     """Request model for creating a workshop."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str = Field(..., description="Workshop name")
+    template_slug: str | None = Field(
+        default=None,
+        alias="templateSlug",
+        description="Slug of the template this instance was launched from. "
+        "Keys the per-user persistent workspace PVC (ADR-0010).",
+    )
     duration: str = Field(default="4h", description="Workshop duration")
     image: str = Field(default="rocker/rstudio:latest", description="RStudio image")
     port: int = Field(

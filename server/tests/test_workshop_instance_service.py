@@ -8,7 +8,7 @@ import pytest
 
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_template import WorkshopTemplateResponse
-from api.models.workshop import WorkshopResources, WorkshopStorage
+from api.models.workshop import WorkshopResources, WorkshopStorage, WorkspaceStorage
 from api.services.workshop_instance_service import (
     _TRANSITIONAL_PHASES,
     WorkshopInstanceService,
@@ -190,12 +190,43 @@ async def test_launch_stamps_template_spec_onto_instance():
     assert (
         spec["resources"]["cpu_request"] == "500m"
     )  # snake_case, matches template storage
-    assert spec["storage"] == {"size": "20Gi", "storage_class": "standard"}
+    assert spec["storage"] == {
+        "size": "20Gi",
+        "storage_class": "standard",
+        "workspace": None,
+    }
 
     # Response is built from the stamped fields, not a template join.
     assert resp.template_slug == "rstudio"
     assert resp.workshop_name == "Standard RStudio"
     assert resp.resolved_spec["image"] == "rocker/rstudio:4.4"
+
+
+@pytest.mark.asyncio
+async def test_launch_flows_template_slug_and_persistence_to_crd():
+    """A persistence-enabled template (ADR-0010) must reach the Workshop CRD
+    with both the workspace declaration and the template slug that keys the
+    per-user PVC."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+    template = _template(
+        storage=WorkshopStorage(
+            size="20Gi", workspace=WorkspaceStorage(persist="per-user")
+        )
+    )
+
+    await service.launch(
+        _launch_db([]),
+        template=template,
+        k8s_name="rstudio-abc123",
+        namespace="default",
+        owner_email="alice@example.com",
+        duration="2h",
+    )
+
+    spec = cluster.workshops[("default", "rstudio-abc123")].spec
+    assert spec.template_slug == "rstudio"
+    assert spec.storage.workspace.persist == "per-user"
 
 
 @pytest.mark.asyncio

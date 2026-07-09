@@ -15,6 +15,7 @@ from api.models.workshop import (
     WorkshopIngress,
     WorkshopPhase,
     WorkshopStorage,
+    WorkspaceStorage,
 )
 from api.services.workshop_cluster import (
     _from_kubernetes_crd,
@@ -50,11 +51,14 @@ def _minimal_workshop() -> WorkshopCreate:
 def _full_workshop() -> WorkshopCreate:
     return WorkshopCreate(
         name="test-abc123",
+        template_slug="test",
         duration="2h",
         image="rocker/rstudio:4.3",
         env={"FOO": "bar"},
         args=["--ServerApp.token=''"],
-        storage=WorkshopStorage(size="20Gi"),
+        storage=WorkshopStorage(
+            size="20Gi", workspace=WorkspaceStorage(persist="per-user")
+        ),
         ingress=WorkshopIngress(host="test.orchestraplatform.org"),
     )
 
@@ -140,6 +144,21 @@ def test_tier_override_passed_through():
     workshop = WorkshopCreate(name="test-abc123", tier="large")
     spec = _to_kubernetes_crd(workshop, "alice@example.com", "default")["spec"]
     assert spec["tier"] == "large"
+
+
+def test_template_slug_and_persistence_passed_through():
+    """templateSlug and storage.workspace (ADR-0010) reach the CRD body — the
+    operator keys the per-user workspace PVC from them."""
+    spec = _to_kubernetes_crd(_full_workshop(), "alice@example.com", "default")["spec"]
+    assert spec["templateSlug"] == "test"
+    assert spec["storage"]["workspace"] == {"persist": "per-user"}
+
+
+def test_template_slug_omitted_when_unset():
+    spec = _to_kubernetes_crd(_minimal_workshop(), "alice@example.com", "default")[
+        "spec"
+    ]
+    assert "templateSlug" not in spec
 
 
 def test_env_and_args_omitted_when_empty():

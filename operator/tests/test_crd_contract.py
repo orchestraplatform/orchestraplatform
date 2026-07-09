@@ -19,6 +19,7 @@ from orchestra_template_tools import (
     WorkshopResources,
     WorkshopSpec,
     WorkshopStorage,
+    WorkspaceStorage,
 )
 
 _CRD_YAML = (
@@ -43,6 +44,7 @@ def _spec_properties() -> dict:
 # A spec exercising every field the CRD schema declares (asserted below).
 FULL_SPEC = {
     "name": "rstudio-abc123",
+    "templateSlug": "rstudio",
     "owner": "alice@example.com",
     "duration": "2h",
     "image": "rocker/rstudio:4.4",
@@ -58,7 +60,11 @@ FULL_SPEC = {
         "ephemeralStorage": "9Gi",
         "ephemeralStorageRequest": "9Gi",
     },
-    "storage": {"size": "20Gi", "storageClass": "fast"},
+    "storage": {
+        "size": "20Gi",
+        "storageClass": "fast",
+        "workspace": {"persist": "per-user"},
+    },
     "ingress": {"host": "abc.example.org", "annotations": {"a": "b"}},
 }
 
@@ -77,8 +83,10 @@ def test_model_accepts_spec_with_every_schema_field():
     )
     ws = WorkshopSpec.model_validate(FULL_SPEC)
     assert ws.owner == "alice@example.com"
+    assert ws.template_slug == "rstudio"
     assert ws.resources.ephemeral_storage == "9Gi"
     assert ws.storage.storage_class == "fast"
+    assert ws.storage.workspace.persist == "per-user"
     assert ws.ingress.host == "abc.example.org"
 
 
@@ -92,4 +100,7 @@ def test_model_field_names_match_schema_properties():
     assert _model_keys(WorkshopSpec) == set(props)
     assert _model_keys(WorkshopResources) == set(props["resources"]["properties"])
     assert _model_keys(WorkshopStorage) == set(props["storage"]["properties"])
+    assert _model_keys(WorkspaceStorage) == set(
+        props["storage"]["properties"]["workspace"]["properties"]
+    )
     assert _model_keys(WorkshopIngress) == set(props["ingress"]["properties"])

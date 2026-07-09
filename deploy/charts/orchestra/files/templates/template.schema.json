@@ -64,9 +64,42 @@
           "default": null,
           "description": "Storage class name. Leave unset to use the cluster default.",
           "title": "Storageclass"
+        },
+        "workspace": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorkspaceStorage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Workspace persistence intent (ADR-0010). Omit for the ephemeral default."
         }
       },
       "title": "WorkshopStorage",
+      "type": "object"
+    },
+    "WorkspaceStorage": {
+      "description": "Workspace persistence intent (ADR-0010).",
+      "properties": {
+        "persist": {
+          "anyOf": [
+            {
+              "const": "per-user",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Set to 'per-user' to keep each participant's /data on a durable per-(user, workshop) volume that survives session expiry and reattaches on relaunch (ADR-0010). Leave unset for an ephemeral /data that is deleted with the session (the default).",
+          "title": "Persist"
+        }
+      },
+      "title": "WorkspaceStorage",
       "type": "object"
     }
   },

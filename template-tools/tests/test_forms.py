@@ -60,6 +60,10 @@ _No response_
 
 20Gi
 
+### Persistent workspace
+
+Per-user (keep /data between sessions)
+
 ### Landing URL
 
 https://example.org/workshop
@@ -81,7 +85,7 @@ def test_full_body_parses_to_submission():
         "size": "large",  # "Large" label -> preset key
         "tags": ["bioconductor", "rstudio"],
         "env": {"DISABLE_AUTH": "true", "ROOT": "true"},
-        "storage": {"size": "20Gi"},
+        "storage": {"size": "20Gi", "workspace": {"persist": "per-user"}},
         "url": "https://example.org/workshop",
     }
 
@@ -95,6 +99,21 @@ def test_full_body_round_trips_to_valid_yaml():
     doc = yaml.safe_load(result.yaml_text)
     assert doc["tier"] == "large"  # size expanded
     assert doc["resources"]["memory"] == "8Gi"
+    assert doc["storage"]["workspace"] == {"persist": "per-user"}
+
+
+def test_ephemeral_dropdown_choice_omits_workspace():
+    """'Ephemeral (default)' is the model default — the submission must not
+    carry a storage.workspace block for it."""
+    body = "### Storage size\n\n20Gi\n\n### Persistent workspace\n\nEphemeral (default)"
+    assert submission_from_issue_body(body)["storage"] == {"size": "20Gi"}
+
+
+def test_persist_without_storage_size_still_declares_workspace():
+    body = "### Persistent workspace\n\nPer-user (keep /data between sessions)"
+    assert submission_from_issue_body(body)["storage"] == {
+        "workspace": {"persist": "per-user"}
+    }
 
 
 def test_no_response_and_blank_fields_omitted():

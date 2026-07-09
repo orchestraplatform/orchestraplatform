@@ -101,6 +101,20 @@ body:
       placeholder: 10Gi
     validations:
       required: false
+  - type: dropdown
+    id: persist
+    attributes:
+      label: Persistent workspace
+      description: >-
+        Keep each participant's /data across sessions of this workshop
+        (reattached on relaunch). Ephemeral (the default) deletes /data when
+        the session ends.
+      options:
+        - Ephemeral (default)
+        - Per-user (keep /data between sessions)
+      default: 0
+    validations:
+      required: false
   - type: input
     id: url
     attributes:

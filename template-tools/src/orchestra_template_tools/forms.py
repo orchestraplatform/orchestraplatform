@@ -90,6 +90,7 @@ _FIELD_LABELS = frozenset(
         "Environment variables",
         "Container args",
         "Storage size",
+        "Persistent workspace",
         "Landing URL",
         "Source repo URL",
     }
@@ -150,8 +151,16 @@ def submission_from_issue_body(body: str) -> dict[str, object]:
         out["env"] = parse_env(v)
     if (v := field("Container args")) is not None:
         out["args"] = parse_args(v)
+    storage: dict[str, object] = {}
     if (v := field("Storage size")) is not None:
-        out["storage"] = {"size": v}
+        storage["size"] = v
+    if (v := field("Persistent workspace")) is not None and v.lower().startswith(
+        "per-user"
+    ):
+        # Ephemeral (the other dropdown option) is the model default: omit it.
+        storage["workspace"] = {"persist": "per-user"}
+    if storage:
+        out["storage"] = storage
     if (v := field("Landing URL")) is not None:
         out["url"] = v
     if (v := field("Source repo URL")) is not None:

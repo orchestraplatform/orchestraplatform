@@ -56,6 +56,20 @@ class WorkshopResources(BaseModel):
     )
 
 
+class WorkspaceStorage(BaseModel):
+    """Workspace persistence intent (ADR-0010)."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    persist: Literal["per-user"] | None = Field(
+        default=None,
+        description="Set to 'per-user' to keep each participant's /data on a "
+        "durable per-(user, workshop) volume that survives session expiry and "
+        "reattaches on relaunch (ADR-0010). Leave unset for an ephemeral /data "
+        "that is deleted with the session (the default).",
+    )
+
+
 class WorkshopStorage(BaseModel):
     """Workshop storage configuration."""
 
@@ -66,6 +80,11 @@ class WorkshopStorage(BaseModel):
         default=None,
         description="Storage class name. Leave unset to use the cluster default.",
         alias="storageClass",
+    )
+    workspace: WorkspaceStorage | None = Field(
+        default=None,
+        description="Workspace persistence intent (ADR-0010). Omit for the "
+        "ephemeral default.",
     )
 
     @field_validator("storage_class", mode="before")

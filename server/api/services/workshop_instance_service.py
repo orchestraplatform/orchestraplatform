@@ -145,6 +145,7 @@ class WorkshopInstanceService:
         res = template.resources
         workshop_create = WorkshopCreate(
             name=k8s_name,
+            template_slug=template.slug,
             duration=duration,
             image=template.image,
             port=template.port,
@@ -162,6 +163,7 @@ class WorkshopInstanceService:
             storage=WorkshopStorage(
                 size=template.storage.size,
                 storageClass=template.storage.storage_class,
+                workspace=template.storage.workspace,
             )
             if template.storage
             else None,
