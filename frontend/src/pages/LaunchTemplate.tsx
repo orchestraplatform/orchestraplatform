@@ -46,8 +46,8 @@ export function LaunchTemplate() {
     );
   }
 
-  // ponytail: guard the copy — template can be present but with partial/empty
-  // fields, and we never want "undefined" or "()" leaking into the UI.
+  // Guard the copy: a template can load with partial/empty fields, and we never
+  // want "undefined" or an empty "()" leaking into the heading or help text.
   const name = template.name?.trim();
   const defaultDuration = template.defaultDuration?.trim();
 
