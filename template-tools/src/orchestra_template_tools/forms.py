@@ -75,10 +75,38 @@ def _parse_tags(text: str) -> list[str]:
     ]
 
 
+# The workshop-template form's field labels — the ONLY headings that delimit a
+# field. Any other ``### ...`` line (e.g. a heading inside a Markdown Description)
+# is kept as content, not treated as a field boundary.
+_FIELD_LABELS = frozenset(
+    {
+        "Display name",
+        "Slug",
+        "Description",
+        "Image",
+        "App port",
+        "Size",
+        "Tags",
+        "Environment variables",
+        "Container args",
+        "Storage size",
+        "Landing URL",
+        "Source repo URL",
+    }
+)
+
+
 def parse_issue_body(body: str) -> dict[str, str]:
-    """Split an issue-form markdown body into ``{heading label: raw value}``."""
+    """Split an issue-form markdown body into ``{field label: raw value}``.
+
+    Only the known form-field labels (:data:`_FIELD_LABELS`) delimit fields, so a
+    ``### heading`` an instructor writes inside a value (the Description supports
+    Markdown) is preserved as content rather than corrupting the parse.
+    """
     blocks: dict[str, str] = {}
-    matches = list(_HEADING_RE.finditer(body))
+    matches = [
+        m for m in _HEADING_RE.finditer(body) if m.group(1).strip() in _FIELD_LABELS
+    ]
     for i, m in enumerate(matches):
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(body)

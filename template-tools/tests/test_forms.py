@@ -140,3 +140,21 @@ def test_parse_env_rejects_duplicate_key():
 
 def test_parse_args_drops_blanks():
     assert parse_args("a\n\n  \nb") == ["a", "b"]
+
+
+def test_markdown_heading_in_description_is_not_a_field_boundary():
+    """A `### heading` inside the Markdown Description must stay in the
+    description, not split the parse (regression: parser split on any ###)."""
+    body = (
+        "### Display name\n\nMy Workshop\n\n"
+        "### Slug\n\nmy-workshop\n\n"
+        "### Description\n\nIntro text.\n\n### Notes\n\nSome **markdown** notes.\n\n"
+        "### Image\n\nrocker/rstudio:latest\n"
+    )
+    sub = submission_from_issue_body(body)
+    assert sub["name"] == "My Workshop"
+    assert sub["slug"] == "my-workshop"
+    assert sub["image"] == "rocker/rstudio:latest"
+    # The inner "### Notes" heading and its content stay inside the description.
+    assert "### Notes" in sub["description"]
+    assert "markdown** notes" in sub["description"]
