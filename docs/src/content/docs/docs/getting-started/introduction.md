@@ -1,85 +1,37 @@
 ---
 title: Introduction
-description: Welcome to the Orchestra Platform - a comprehensive bioinformatics and data science learning environment
+description: Orientation for running your own Orchestra instance — what self-hosting involves and where to start.
 ---
 
-# Welcome to Orchestra Platform
+You're in the **Running Orchestra** section: standing up and operating your own
+Orchestra instance on Kubernetes. Most people don't need this — if you just want
+to attend, contribute, or teach a workshop, use the hosted platform at
+[orchestraplatform.org](https://orchestraplatform.org) and start from the
+[documentation home](/docs/).
 
-Orchestra Platform is a cloud-native, Kubernetes-based learning environment designed specifically for bioinformatics and data science education. It provides instructors and students with on-demand, isolated workshop environments that can be quickly provisioned and automatically managed.
+## What self-hosting gives you
 
-## What is Orchestra Platform?
+A private Orchestra instance provisions isolated, time-limited workshop sessions
+(RStudio, JupyterLab, or any container image) on demand, with sign-in and
+automatic cleanup handled for you. You run it when you need your own cluster,
+domain, catalog, or capacity controls rather than the shared hosted platform.
 
-Orchestra Platform enables educational institutions, research organizations, and training companies to deliver hands-on bioinformatics and data science workshops without the complexity of manual infrastructure management. Each workshop runs in its own isolated environment with dedicated resources, ensuring a consistent and reliable learning experience.
+## What you operate
 
-## Key Features
+Orchestra is a monorepo with four components:
 
-### 🚀 **Instant Workshop Creation**
-- Create fully configured workshop environments in minutes
-- Support for popular bioinformatics tools (RStudio, Jupyter, etc.)
-- Automated resource provisioning and cleanup
+1. **Operator** — Kubernetes operator managing the Workshop CRD and session lifecycle.
+2. **API server** — FastAPI backend for templates, instances, and auth helpers.
+3. **Frontend** — React web dashboard.
+4. **Sidecar** — per-pod auth/proxy fronting each session.
 
-### 🔒 **Secure & Isolated**
-- Each workshop runs in its own Kubernetes namespace
-- Network isolation between workshop instances
-- Secure access via unique subdomains and HTTPS
+Sessions run in isolated namespaces, each reachable at its own subdomain. See the
+[Platform Overview](/docs/architecture/platform-overview/) for how the pieces fit.
 
-### ⏰ **Time-Limited Sessions**
-- Configurable workshop duration (hours to days)
-- Automatic cleanup when sessions expire
-- Resource management and cost control
+## Start here
 
-### 🎯 **User-Friendly Interface**
-- Simple web dashboard for workshop management
-- Real-time status monitoring
-- Easy sharing of workshop URLs
+- [Installation](/docs/getting-started/installation/) — quick-start an instance (local eval or Helm).
+- [Deploying Orchestra](/docs/deployment/overview/) — the authoritative end-to-end operator runbook.
+- [Contribute a workshop](/docs/contribute/overview/) — add a workshop to a catalog (hosted or your own).
 
-### 📚 **Flexible Content**
-- Support for custom Docker images
-- Persistent storage for workshop data
-- Pre-configured environments for common workflows
-
-## Use Cases
-
-### Educational Institutions
-- Bioinformatics courses and workshops
-- Computational biology training
-- Data science bootcamps
-- Research method courses
-
-### Research Organizations
-- Training workshops for new tools
-- Collaborative analysis sessions
-- Reproducible research environments
-- Method development and testing
-
-### Industry Training
-- Professional development workshops
-- Customer training sessions
-- Product demonstrations
-- Certification programs
-
-## Architecture Overview
-
-Orchestra Platform consists of four main components in a single monorepo:
-
-1. **Operator** - Kubernetes operator managing workshop lifecycle
-2. **API server** - FastAPI backend for templates, instances, and auth helpers
-3. **Frontend** - Web application for users
-4. **Docs** - Comprehensive documentation (this site)
-
-Each workshop gets its own unique subdomain and runs in complete isolation from other workshops.
-
-## Getting Started
-
-Ready to start using Orchestra Platform? Check out our [Installation Guide](/docs/getting-started/installation/) to set up your own instance, or jump to the [User Guide](/docs/user-guide/creating-workshops/) to learn how to create your first workshop.
-
-## Community and Support
-
-Orchestra Platform is open source and welcomes contributions from the community. Visit the monorepo to:
-
-- Report issues or request features
-- Contribute code improvements
-- Join discussions about the platform
-- Access the latest development updates
-
-For questions and support, please check our documentation or open an issue on GitHub.
+Orchestra is open source; report issues, request features, or contribute on GitHub.

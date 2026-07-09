@@ -88,7 +88,7 @@ Bring upstream changes into your branch with `git merge origin/main`, not
 Before requesting review (and before merging), confirm:
 
 - **Tests pass.** Run `just test` for the full monorepo suite. See the
-  [Testing](/docs/contributing/testing/) guide for the three test tiers and
+  [Testing](/docs/development/testing/) guide for the three test tiers and
   where to add coverage.
 - **Quality passes.** Run `just quality` (ruff for Python, eslint/prettier
   for JS/TS, go fmt for the sidecar).
@@ -98,11 +98,11 @@ Before requesting review (and before merging), confirm:
   so the frontend's generated types stay in sync.
 - **ADR added for architectural decisions.** Record significant or
   hard-to-reverse decisions as an Architecture Decision Record under
-  [`docs/adr/`](/docs/adr/), following the numbered format of the existing
-  records (e.g. ADR-0005).
+  `docs/adr/`, following the numbered format of the existing records (e.g.
+  [ADR-0005](/docs/adr/0005-gke-standard-tenant-pools/)).
 
 ## See also
 
 - [Local Development](/docs/development/local-development/) — prerequisite setup and the dev loop.
-- [Testing](/docs/contributing/testing/) — test strategy and where to add coverage.
-- [Architecture Decision Records](/docs/adr/) — the decision log.
+- [Testing](/docs/development/testing/) — test strategy and where to add coverage.
+- The **Decision Records** section in the sidebar — the full ADR log (e.g. [ADR-0001](/docs/adr/0001-oauth2-proxy-at-ingress/)).

@@ -30,6 +30,20 @@ fill in the fields and a bot opens the pull request for you. Until then, the PR
 path above is the way in.
 </Aside>
 
+## Who reviews it
+
+The other side of the front door is a small group of platform admins. They're the
+[CODEOWNERS](https://docs.github.com/articles/about-code-owners) on the templates
+directory, so every template PR — hand-written or opened for you by the submission
+bot — requires their review, and branch protection makes "merged" mean "reviewed"
+([ADR-0009](/docs/adr/0009-template-front-door/)).
+
+Admins also own the **closed vocabularies** the form offers: the compute `tier`
+dropdown and the named resource presets map to what the cluster's node pools can
+actually schedule. The workshop-specific fields (image, port, env, args) are yours;
+the capacity knobs are theirs. Need something outside a preset? Say so in the PR —
+an admin can adjust the generated YAML before merging.
+
 ## Why a pull request
 
 Keeping the catalog in git means every change is reviewed, attributed, and
