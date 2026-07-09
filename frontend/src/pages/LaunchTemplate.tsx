@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import { useTemplate, useLaunchTemplate } from '../hooks/useTemplates';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { useToast } from '../components/ui/Toast';
-import { ArrowLeft, Play, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Play, RefreshCw } from 'lucide-react';
 
 export function LaunchTemplate() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -50,6 +52,22 @@ export function LaunchTemplate() {
   // want "undefined" or an empty "()" leaking into the heading or help text.
   const name = template.name?.trim();
   const defaultDuration = template.defaultDuration?.trim();
+  const description = template.description?.trim();
+  // Only surface http(s) links — a javascript:/data: href in author-supplied
+  // metadata would run despite rel="noopener". (The API also validates these,
+  // but the UI shouldn't trust it.)
+  const httpUrl = (raw?: string | null): string | undefined => {
+    const v = raw?.trim();
+    if (!v) return undefined;
+    try {
+      const { protocol } = new URL(v);
+      return protocol === 'http:' || protocol === 'https:' ? v : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const url = httpUrl(template.url);
+  const sourceUrl = httpUrl(template.sourceUrl);
 
   const handleLaunch = async () => {
     try {
@@ -77,9 +95,42 @@ export function LaunchTemplate() {
       <Card>
         <CardHeader>
           <CardTitle>{name ? `Launch: ${name}` : 'Launch Session'}</CardTitle>
-          <CardDescription>{template.description ?? template.image}</CardDescription>
+          <CardDescription>{template.image}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {description && (
+            <div className="text-sm text-muted-foreground space-y-2 [&_a]:text-primary [&_a]:underline [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_code]:font-mono">
+              <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{description}</ReactMarkdown>
+            </div>
+          )}
+
+          {(url || sourceUrl) && (
+            <div className="flex flex-wrap gap-4 text-sm">
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-primary underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  Learn more
+                </a>
+              )}
+              {sourceUrl && (
+                <a
+                  href={sourceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-primary underline"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  Source
+                </a>
+              )}
+            </div>
+          )}
+
           <div className="space-y-1">
             <label className="text-sm font-medium" htmlFor="duration">
               Duration
