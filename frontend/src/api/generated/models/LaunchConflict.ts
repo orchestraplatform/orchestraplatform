@@ -11,7 +11,10 @@ import type { WorkshopInstanceResponse } from './WorkshopInstanceResponse';
  * with ``replaceExisting=true``).
  */
 export type LaunchConflict = {
-    error?: string;
+    /**
+     * Machine-readable discriminator for the conflict body.
+     */
+    error: string;
     instance: WorkshopInstanceResponse;
 };
 

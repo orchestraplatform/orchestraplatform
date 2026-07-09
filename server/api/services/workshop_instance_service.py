@@ -7,7 +7,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import case, distinct, func, select
+from sqlalchemy import case, distinct, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
@@ -168,6 +168,20 @@ class WorkshopInstanceService:
         """
         workspace = template.storage.workspace if template.storage else None
         if workspace is not None and workspace.persist == "per-user":
+            # Serialize concurrent launches of the same (user, workshop,
+            # namespace): the check-then-create below is racy under READ
+            # COMMITTED (two launchers can both see "no active session" and
+            # double-attach the RWO PVC). The xact-scoped advisory lock is
+            # held until this launch's commit/rollback, so a concurrent
+            # launcher blocks here and then sees the committed row.
+            # Known ceiling: on the replace path, terminate() commits mid-flow
+            # and releases the lock early; the remaining window is a deliberate
+            # double Start-fresh race, which at worst leaves the second pod
+            # waiting on volume detach rather than corrupting anything.
+            await db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+                {"key": f"{namespace}/{owner_email}/{template.slug}"},
+            )
             existing = await self._find_active_same_workshop(
                 db,
                 template_slug=template.slug,

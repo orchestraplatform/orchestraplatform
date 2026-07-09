@@ -170,9 +170,9 @@ async def launch_workshop(
     except ActiveSessionConflictError as e:
         return JSONResponse(
             status_code=status.HTTP_409_CONFLICT,
-            content=LaunchConflict(instance=e.existing).model_dump(
-                mode="json", by_alias=True
-            ),
+            content=LaunchConflict(
+                error="active_session_exists", instance=e.existing
+            ).model_dump(mode="json", by_alias=True),
         )
     except Exception as e:
         logger.error("Failed to launch workshop instance: %s", e)

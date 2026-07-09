@@ -52,7 +52,9 @@ class LaunchConflict(BaseModel):
     with ``replaceExisting=true``).
     """
 
-    error: Literal["active_session_exists"] = "active_session_exists"
+    error: Literal["active_session_exists"] = Field(
+        description="Machine-readable discriminator for the conflict body."
+    )
     instance: WorkshopInstanceResponse
 
 
