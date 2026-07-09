@@ -7,13 +7,16 @@ Step 6 of the [deployment sequence](/docs/deployment/overview/). Once the instan
 is up, wire CI/CD so a merge to `main` (dev) or a `v*` tag (prod) runs the same
 `helm upgrade` you ran by hand in [step 3](/docs/deployment/install/).
 
-The repo ships three GitHub Actions workflows (ADR-0006 phases 2 & 3):
+The repo ships five GitHub Actions workflows (ADR-0006 phases 2 & 3; the
+front-door pair is ADR-0009):
 
 | Workflow | File | Trigger | Purpose |
 | --- | --- | --- | --- |
 | CI | `.github/workflows/ci.yml` | PR + push to `main` | server pytest + ruff, template-tools pytest + ruff, template-schema-in-sync |
 | Validate templates | `.github/workflows/validate-templates.yml` | PR touching `deploy/charts/orchestra/files/templates/**` | per-file template validation with inline annotations |
 | Deploy | `.github/workflows/deploy.yml` | push to `main` → dev, tag `v*` → prod | build/push images + `helm upgrade` |
+| Submission — validate | `.github/workflows/template-submission-validate.yml` | workshop-template issue opened/edited | parse the issue form, validate it, and comment the result |
+| Submission — convert | `.github/workflows/template-submission-convert.yml` | `approve` label added to a workshop-template issue | render the submission to YAML and open the PR (via a GitHub App) |
 
 Each workflow invokes the same `just` recipes developers run locally
 (`lint-server`, `test-server`, `lint-template-tools`, `test-template-tools`,
@@ -96,7 +99,7 @@ Only ever require checks that run on every PR.
   block.
 - **Multiple maintainers**: additionally turn on **Require review from Code
   Owners** (activates `.github/CODEOWNERS`) so `merged = reviewed` is enforced.
-  When community template contributions go live (the front door, ADR-0009), scope
+  Community template contributions run through the front door (ADR-0009), so scope
   this to the template paths by keeping code owners only on
   `deploy/charts/orchestra/files/templates/**` and `template-tools/**`.
 
