@@ -37,184 +37,204 @@ export default defineConfig({
         },
       ],
       // Docs live under /docs (the apex root is the marketing landing page).
-      // Organized by reader persona: attendees, workshop contributors, event
-      // hosts, operators who deploy it, and people who want to understand or
-      // develop the platform.
+      // Two realms: "Using Orchestra" (the hosted platform at
+      // orchestraplatform.org — no cluster, no shell) and "Running Orchestra"
+      // (deploy, administer, and develop your own instance — kubectl/Helm/just).
+      // The split keeps admin/self-host commands out of the common visitor path.
       sidebar: [
         {
-          label: 'Using a Workshop',
+          label: 'Using Orchestra',
           items: [
             {
-              label: 'Using a Workshop Session',
-              link: '/docs/participant/using-a-session/',
+              label: 'Using a Workshop',
+              items: [
+                {
+                  label: 'Using a Workshop Session',
+                  link: '/docs/participant/using-a-session/',
+                },
+              ],
+            },
+            {
+              label: 'Contribute a Workshop',
+              items: [
+                { label: 'Overview', link: '/docs/contribute/overview/' },
+                {
+                  label: 'Build a Bioconductor workshop',
+                  link: '/docs/contribute/build-bioc-workshop/',
+                },
+                {
+                  label: 'Bring your own container',
+                  link: '/docs/contribute/bring-your-own-container/',
+                },
+                {
+                  label: 'Make the image Orchestra-ready',
+                  link: '/docs/user-guide/configuring-images/',
+                },
+                {
+                  label: 'Author a workshop template',
+                  link: '/docs/user-guide/authoring-workshop-templates/',
+                },
+                { label: 'Submit it', link: '/docs/contribute/submit/' },
+              ],
+            },
+            {
+              label: 'Teach a Workshop',
+              items: [
+                {
+                  label: 'Planning & Teaching a Workshop',
+                  link: '/docs/host/running-an-event/',
+                },
+              ],
             },
           ],
         },
         {
-          label: 'Contribute a Workshop',
-          items: [
-            { label: 'Overview', link: '/docs/contribute/overview/' },
-            {
-              label: 'Build a Bioconductor workshop',
-              link: '/docs/contribute/build-bioc-workshop/',
-            },
-            {
-              label: 'Bring your own container',
-              link: '/docs/contribute/bring-your-own-container/',
-            },
-            {
-              label: 'Make the image Orchestra-ready',
-              link: '/docs/user-guide/configuring-images/',
-            },
-            {
-              label: 'Author a workshop template',
-              link: '/docs/user-guide/authoring-workshop-templates/',
-            },
-            { label: 'Submit it', link: '/docs/contribute/submit/' },
-          ],
-        },
-        {
-          label: 'Run a Workshop Event',
+          label: 'Running Orchestra',
           items: [
             {
-              label: 'Running a Workshop Event',
-              link: '/docs/host/running-an-event/',
-            },
-          ],
-        },
-        {
-          label: 'Getting Started',
-          items: [
-            {
-              label: 'Introduction',
-              link: '/docs/getting-started/introduction/',
-            },
-            {
-              label: 'Installation',
-              link: '/docs/getting-started/installation/',
-            },
-          ],
-        },
-        {
-          label: 'Deploying Orchestra',
-          items: [
-            {
-              label: '1. Overview & prerequisites',
-              link: '/docs/deployment/overview/',
+              label: 'Getting Started',
+              items: [
+                {
+                  label: 'Introduction',
+                  link: '/docs/getting-started/introduction/',
+                },
+                {
+                  label: 'Installation',
+                  link: '/docs/getting-started/installation/',
+                },
+              ],
             },
             {
-              label: '2. Cluster setup (GKE Standard)',
-              link: '/docs/deployment/cluster-setup/',
+              label: 'Deploying Orchestra',
+              items: [
+                {
+                  label: '1. Overview & prerequisites',
+                  link: '/docs/deployment/overview/',
+                },
+                {
+                  label: '2. Cluster setup (GKE Standard)',
+                  link: '/docs/deployment/cluster-setup/',
+                },
+                {
+                  label: '3. Install Orchestra (Helm)',
+                  link: '/docs/deployment/install/',
+                },
+                {
+                  label: '4. Ingress, TLS & auth',
+                  link: '/docs/deployment/ingress-tls-auth/',
+                },
+                { label: '5. DNS cutover', link: '/docs/deployment/dns-cutover/' },
+                { label: '6. CI/CD', link: '/docs/deployment/github-cicd/' },
+                {
+                  label: '7. Troubleshooting & gotchas',
+                  link: '/docs/deployment/troubleshooting/',
+                },
+              ],
             },
             {
-              label: '3. Install Orchestra (Helm)',
-              link: '/docs/deployment/install/',
+              label: 'Administer & Operate',
+              items: [
+                {
+                  label: 'Operating a Workshop Event',
+                  link: '/docs/operate/workshop-events/',
+                },
+              ],
             },
             {
-              label: '4. Ingress, TLS & auth',
-              link: '/docs/deployment/ingress-tls-auth/',
-            },
-            { label: '5. DNS cutover', link: '/docs/deployment/dns-cutover/' },
-            { label: '6. CI/CD', link: '/docs/deployment/github-cicd/' },
-            {
-              label: '7. Troubleshooting & gotchas',
-              link: '/docs/deployment/troubleshooting/',
-            },
-          ],
-        },
-        {
-          label: 'Deployment reference',
-          items: [
-            { label: 'Helm chart values', link: '/docs/deployment/helm/' },
-            {
-              label: 'Ingress controllers',
-              link: '/docs/deployment/ingress/',
-            },
-            { label: 'oauth2-proxy', link: '/docs/deployment/oauth2-proxy/' },
-            {
-              label: 'GCP Autopilot (legacy)',
-              link: '/docs/deployment/gcp/',
-            },
-          ],
-        },
-        {
-          label: 'Architecture',
-          items: [
-            {
-              label: 'Platform Overview',
-              link: '/docs/architecture/platform-overview/',
+              label: 'Deployment reference',
+              items: [
+                { label: 'Helm chart values', link: '/docs/deployment/helm/' },
+                {
+                  label: 'Ingress controllers',
+                  link: '/docs/deployment/ingress/',
+                },
+                { label: 'oauth2-proxy', link: '/docs/deployment/oauth2-proxy/' },
+                {
+                  label: 'GCP Autopilot (legacy)',
+                  link: '/docs/deployment/gcp/',
+                },
+              ],
             },
             {
-              label: 'Domain Structure',
-              link: '/docs/architecture/domain-structure/',
-            },
-            { label: 'Data Model', link: '/docs/architecture/data-model/' },
-            {
-              label: 'Authentication',
-              link: '/docs/architecture/authentication/',
-            },
-            {
-              label: 'Authorization',
-              link: '/docs/architecture/authorization/',
-            },
-          ],
-        },
-        {
-          label: 'API Reference',
-          items: [
-            { label: 'REST API', link: '/docs/api/rest-api/' },
-            { label: 'CRD Reference', link: '/docs/api/crds/' },
-          ],
-        },
-        {
-          label: 'Development',
-          items: [
-            {
-              label: 'Local Development',
-              link: '/docs/development/local-development/',
-            },
-            { label: 'Contributing', link: '/docs/development/contributing/' },
-            { label: 'Testing', link: '/docs/contributing/testing/' },
-          ],
-        },
-        {
-          label: 'Architecture Decision Records',
-          items: [
-            {
-              label: 'ADR-0001: oauth2-proxy at ingress',
-              link: '/docs/adr/0001-oauth2-proxy-at-ingress/',
+              label: 'Architecture',
+              items: [
+                {
+                  label: 'Platform Overview',
+                  link: '/docs/architecture/platform-overview/',
+                },
+                {
+                  label: 'Domain Structure',
+                  link: '/docs/architecture/domain-structure/',
+                },
+                { label: 'Data Model', link: '/docs/architecture/data-model/' },
+                {
+                  label: 'Authentication',
+                  link: '/docs/architecture/authentication/',
+                },
+                {
+                  label: 'Authorization',
+                  link: '/docs/architecture/authorization/',
+                },
+              ],
             },
             {
-              label: 'ADR-0002: spec.owner on CRD',
-              link: '/docs/adr/0002-spec-owner-on-crd/',
+              label: 'API Reference',
+              items: [
+                { label: 'REST API', link: '/docs/api/rest-api/' },
+                { label: 'CRD Reference', link: '/docs/api/crds/' },
+              ],
             },
             {
-              label: 'ADR-0003: Helm install method',
-              link: '/docs/adr/0003-helm-as-install-method/',
+              label: 'Development',
+              items: [
+                {
+                  label: 'Local Development',
+                  link: '/docs/development/local-development/',
+                },
+                { label: 'Contributing', link: '/docs/development/contributing/' },
+                { label: 'Testing', link: '/docs/contributing/testing/' },
+              ],
             },
             {
-              label: 'ADR-0004: Template/instance split',
-              link: '/docs/adr/0004-template-instance-split/',
-            },
-            {
-              label: 'ADR-0005: GKE Standard tenant pools',
-              link: '/docs/adr/0005-gke-standard-tenant-pools/',
-            },
-            {
-              label: 'ADR-0006: YAML workshop templates',
-              link: '/docs/adr/0006-yaml-workshop-templates/',
-            },
-            {
-              label: 'ADR-0007: External workshop-templates repo',
-              link: '/docs/adr/0007-external-template-repo/',
-            },
-            {
-              label: 'ADR-0008: Cluster provisioning boundary',
-              link: '/docs/adr/0008-cluster-provisioning-boundary/',
-            },
-            {
-              label: 'ADR-0009: Template submission front door',
-              link: '/docs/adr/0009-template-front-door/',
+              label: 'Decision Records',
+              items: [
+                {
+                  label: 'ADR-0001: oauth2-proxy at ingress',
+                  link: '/docs/adr/0001-oauth2-proxy-at-ingress/',
+                },
+                {
+                  label: 'ADR-0002: spec.owner on CRD',
+                  link: '/docs/adr/0002-spec-owner-on-crd/',
+                },
+                {
+                  label: 'ADR-0003: Helm install method',
+                  link: '/docs/adr/0003-helm-as-install-method/',
+                },
+                {
+                  label: 'ADR-0004: Template/instance split',
+                  link: '/docs/adr/0004-template-instance-split/',
+                },
+                {
+                  label: 'ADR-0005: GKE Standard tenant pools',
+                  link: '/docs/adr/0005-gke-standard-tenant-pools/',
+                },
+                {
+                  label: 'ADR-0006: YAML workshop templates',
+                  link: '/docs/adr/0006-yaml-workshop-templates/',
+                },
+                {
+                  label: 'ADR-0007: External workshop-templates repo',
+                  link: '/docs/adr/0007-external-template-repo/',
+                },
+                {
+                  label: 'ADR-0008: Cluster provisioning boundary',
+                  link: '/docs/adr/0008-cluster-provisioning-boundary/',
+                },
+                {
+                  label: 'ADR-0009: Template submission front door',
+                  link: '/docs/adr/0009-template-front-door/',
+                },
+              ],
             },
           ],
         },

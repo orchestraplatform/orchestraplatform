@@ -1,6 +1,6 @@
 ---
 title: Orchestra Platform Documentation
-description: Launch, build, run, and deploy time-limited workshop environments on Kubernetes — start from whichever fits you.
+description: Use a workshop, contribute one, or run your own Orchestra — start from whichever fits you.
 ---
 
 import { LinkCard, CardGrid } from '@astrojs/starlight/components';
@@ -10,7 +10,11 @@ JupyterLab, or any container — on Kubernetes, with sign-in and cleanup handled
 for you. It's the platform behind Bioconductor workshops at conferences and
 courses.
 
-**What brings you here?**
+## Using Orchestra
+
+Most people use the hosted platform at
+[orchestraplatform.org](https://orchestraplatform.org) — nothing to install, no
+cluster to run.
 
 <CardGrid>
   <LinkCard
@@ -23,20 +27,29 @@ courses.
     description="Build a workshop container, make it Orchestra-ready, and submit it to the catalog."
     href="/docs/contribute/overview/"
   />
+  <LinkCard
+    title="I'm teaching a workshop"
+    description="Plan a class or conference session and coordinate capacity with the platform admin."
+    href="/docs/host/running-an-event/"
+  />
 </CardGrid>
 
-## More ways in
+## Running your own Orchestra
+
+Standing up and operating an Orchestra instance yourself — Kubernetes, Helm, and
+the command line. Most workshop attendees, contributors, and instructors don't
+need this.
 
 <CardGrid>
   <LinkCard
-    title="Running a workshop event"
-    description="Warm capacity for a cohort, pick the catalog, and watch sessions during a live class."
-    href="/docs/host/running-an-event/"
+    title="Deploy Orchestra"
+    description="Stand up the platform: cluster, Helm install, ingress, TLS, and auth."
+    href="/docs/deployment/overview/"
   />
   <LinkCard
-    title="Deploying Orchestra"
-    description="Stand up the platform: Helm install, cluster, ingress, TLS, and auth."
-    href="/docs/deployment/overview/"
+    title="Administer & operate"
+    description="Warm capacity for an event, monitor sessions, and keep an instance healthy."
+    href="/docs/operate/workshop-events/"
   />
   <LinkCard
     title="How it works"
