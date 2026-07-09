@@ -244,6 +244,10 @@ export default defineConfig({
                   label: 'ADR-0009: Template submission front door',
                   link: '/docs/adr/0009-template-front-door/',
                 },
+                {
+                  label: 'ADR-0010: Per-(user, workshop) persistent workspace',
+                  link: '/docs/adr/0010-persistent-workspace/',
+                },
               ],
             },
           ],
