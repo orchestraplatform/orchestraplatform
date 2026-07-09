@@ -278,7 +278,7 @@ export function Templates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Workshop Templates</h1>
           <p className="text-muted-foreground mt-2">Choose a template to launch a session</p>
@@ -290,7 +290,7 @@ export function Templates() {
       </div>
 
       {/* Search + sort + view toggle */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <input
