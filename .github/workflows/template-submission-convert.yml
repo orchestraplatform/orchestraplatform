@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  issues: write # GITHUB_TOKEN comments the error path; the App token opens the PR
 
 concurrency:
   group: template-convert-${{ github.event.issue.number }}
@@ -64,7 +65,7 @@ jobs:
       - name: Comment errors and stop (render failed)
         if: steps.render.outputs.ok != 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # commenting needs issues:write, which the App isn't scoped for
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           set -euo pipefail
