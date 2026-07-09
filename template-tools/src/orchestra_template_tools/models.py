@@ -18,6 +18,25 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_v
 _K8S_SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
 _SLUG_MAX = 40
 
+# Cap on the /data volume size (#93). With per-user persistence (ADR-0010)
+# an oversized request is durable cost, so the shared model rejects it for
+# every entry path (issue form, CI validation, hand-authored templates).
+# ponytail: module constant; a per-cluster Helm value if a deployment needs more.
+STORAGE_SIZE_MAX = "20Gi"
+_QUANTITY_RE = re.compile(r"^(\d+(?:\.\d+)?)(Ki|Mi|Gi|Ti|k|M|G|T)?$")
+_QUANTITY_BYTES = {
+    None: 1,
+    "k": 10**3,
+    "M": 10**6,
+    "G": 10**9,
+    "T": 10**12,
+    "Ki": 2**10,
+    "Mi": 2**20,
+    "Gi": 2**30,
+    "Ti": 2**40,
+}
+_STORAGE_SIZE_MAX_BYTES = 20 * 2**30
+
 # Closed catalog-tag vocabulary. Seeded from EXACTLY the tags the two shipped
 # templates use (deploy/charts/orchestra/files/templates/{rstudio,jupyter}.yaml);
 # an unknown tag fails validation everywhere. Extending it is a reviewed PR to
@@ -75,7 +94,10 @@ class WorkshopStorage(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
-    size: str = Field(default="10Gi", description="Storage size")
+    size: str = Field(
+        default="10Gi",
+        description=f"Storage size (Kubernetes quantity, at most {STORAGE_SIZE_MAX})",
+    )
     storage_class: str | None = Field(
         default=None,
         description="Storage class name. Leave unset to use the cluster default.",
@@ -91,6 +113,18 @@ class WorkshopStorage(BaseModel):
     @classmethod
     def empty_str_to_none(cls, v: str | None) -> str | None:
         return None if v == "" else v
+
+    @field_validator("size")
+    @classmethod
+    def size_within_cap(cls, v: str) -> str:
+        m = _QUANTITY_RE.match(v.strip())
+        if not m:
+            raise ValueError(
+                f"size must be a Kubernetes quantity like '10Gi', got {v!r}"
+            )
+        if float(m.group(1)) * _QUANTITY_BYTES[m.group(2)] > _STORAGE_SIZE_MAX_BYTES:
+            raise ValueError(f"size must be at most {STORAGE_SIZE_MAX}, got {v!r}")
+        return v
 
 
 class WorkshopTemplateCreate(BaseModel):

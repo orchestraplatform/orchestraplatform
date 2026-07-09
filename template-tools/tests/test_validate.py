@@ -129,6 +129,25 @@ def test_invalid_url_rejected():
         load_template(RSTUDIO + "\nurl: not-a-url")
 
 
+def test_storage_size_at_cap_ok():
+    # 20Gi is the cap itself; 21G (decimal) is under 20Gi (binary).
+    for size in ("20Gi", "21G", "500Mi"):
+        tmpl = load_template(RSTUDIO + f"\nstorage:\n  size: {size}")
+        assert tmpl.storage.size == size
+
+
+def test_storage_size_over_cap_rejected():
+    for size in ("21Gi", "500Gi", "1Ti"):
+        with pytest.raises(ValidationError, match="at most 20Gi"):
+            load_template(RSTUDIO + f"\nstorage:\n  size: {size}")
+
+
+def test_storage_size_malformed_rejected():
+    for size in ("lots", "10GB", "-5Gi"):
+        with pytest.raises(ValidationError, match="Kubernetes quantity"):
+            load_template(RSTUDIO + f"\nstorage:\n  size: '{size}'")
+
+
 def test_invalid_source_url_rejected():
     with pytest.raises(ValidationError):
         load_template(RSTUDIO + '\nsourceUrl: "ftp://example.org"')
