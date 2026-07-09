@@ -129,7 +129,9 @@ spec:
         - name: ORCHESTRA_BASE_DOMAIN
           value: {{ .Values.global.domain | quote }}
         - name: ORCHESTRA_INGRESS_ENTRY_POINTS
-          value: '["websecure"]'
+          value: {{ .Values.ingress.entryPoints | toJson | quote }}
+        - name: ORCHESTRA_INGRESS_PORT
+          value: {{ .Values.ingress.port | quote }}
         - name: ORCHESTRA_DEFAULT_WORKSHOP_IMAGE
           value: {{ .Values.operator.defaultWorkshopImage | quote }}
         # Tenant tier scheduling (ADR-0005). JSON-encoded map, parsed by
