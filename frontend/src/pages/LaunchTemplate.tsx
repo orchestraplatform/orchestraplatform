@@ -46,6 +46,11 @@ export function LaunchTemplate() {
     );
   }
 
+  // Guard the copy: a template can load with partial/empty fields, and we never
+  // want "undefined" or an empty "()" leaking into the heading or help text.
+  const name = template.name?.trim();
+  const defaultDuration = template.defaultDuration?.trim();
+
   const handleLaunch = async () => {
     try {
       const instance = await launch.mutateAsync({
@@ -71,7 +76,7 @@ export function LaunchTemplate() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Launch: {template.name}</CardTitle>
+          <CardTitle>{name ? `Launch: ${name}` : 'Launch Session'}</CardTitle>
           <CardDescription>{template.description ?? template.image}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -83,12 +88,13 @@ export function LaunchTemplate() {
               id="duration"
               type="text"
               className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              placeholder={`Default: ${template.defaultDuration}`}
+              placeholder={defaultDuration ? `Default: ${defaultDuration}` : 'e.g. 2h'}
               value={duration}
               onChange={(e) => setDuration(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Leave blank to use the template default ({template.defaultDuration}).
+              Leave blank to use the template default
+              {defaultDuration ? ` (${defaultDuration})` : ''}.
               Examples: 1h, 2h30m, 4h.
             </p>
           </div>
