@@ -43,7 +43,7 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/seandavi/orchestra-operator',
+          href: 'https://github.com/orchestraplatform',
         },
       ],
       // Docs live under /docs (the apex root is the marketing landing page).
