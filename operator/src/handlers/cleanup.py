@@ -64,8 +64,10 @@ async def workshop_delete_stamps_workspace(
     """
     try:
         pvc = workspace_pvc_ref(dict(spec))
-    except Exception:
-        return  # legacy/invalid spec — nothing to stamp
+    except Exception as e:
+        # Legacy/invalid spec — nothing to stamp, but say so for diagnosis.
+        logger.warning("Could not resolve workspace PVC for %s: %s", name, e)
+        return
     if pvc is None:
         return  # ephemeral storage; its PVC is owner-referenced and GC'd
 
@@ -117,7 +119,13 @@ async def reap_idle_workspaces(cluster: OperatorCluster) -> None:
                 raw,
                 get_settings().workspace_idle_ttl_days,
             )
-            await cluster.delete_pvc(name, namespace)
+            try:
+                await cluster.delete_pvc(name, namespace)
+            except Exception as e:
+                # Best-effort: one failed delete must not abort the sweep.
+                logger.warning(
+                    "Failed to delete workspace PVC %s/%s: %s", namespace, name, e
+                )
 
 
 async def workspace_reaper_loop(cluster: OperatorCluster) -> None:

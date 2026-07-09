@@ -165,7 +165,12 @@ def _ws_pvc(name, last_used_days_ago=None, namespace="default"):
         metadata=k8s.V1ObjectMeta(
             name=name,
             namespace=namespace,
-            labels={"component": "workspace"},
+            # The full label set the real adapter's WORKSPACE_PVC_SELECTOR
+            # (component=workspace + orchestra.io/owner-hash) lists by.
+            labels={
+                "component": "workspace",
+                "orchestra.io/owner-hash": "abc123def456",
+            },
             annotations=annotations,
         )
     )
@@ -227,6 +232,21 @@ async def test_reap_keeps_workspace_without_parseable_annotation():
     cluster.pvcs[("default", "ws-odd")] = _ws_pvc("ws-odd")  # no annotation
     await reap_idle_workspaces(cluster)
     assert cluster.deleted_pvcs == []
+
+
+@pytest.mark.asyncio
+async def test_reap_continues_past_a_failed_delete():
+    class FlakyDeleteCluster(FakeOperatorCluster):
+        async def delete_pvc(self, name, namespace):
+            if name == "ws-bad":
+                raise RuntimeError("apiserver down")
+            await super().delete_pvc(name, namespace)
+
+    cluster = FlakyDeleteCluster()
+    cluster.pvcs[("default", "ws-bad")] = _ws_pvc("ws-bad", last_used_days_ago=45)
+    cluster.pvcs[("default", "ws-idle")] = _ws_pvc("ws-idle", last_used_days_ago=45)
+    await reap_idle_workspaces(cluster)
+    assert ("default", "ws-idle") in cluster.deleted_pvcs
 
 
 @pytest.mark.asyncio

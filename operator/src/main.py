@@ -85,9 +85,13 @@ async def startup_handler(
 
 
 @kopf.on.cleanup()
-async def cleanup_handler(**kwargs: Any) -> None:
+async def cleanup_handler(memo: kopf.Memo, **kwargs: Any) -> None:
     """Clean up resources on operator shutdown."""
     logging.info("Orchestra Operator shutting down...")
+
+    reaper = getattr(memo, "workspace_reaper", None)
+    if reaper is not None:
+        reaper.cancel()
 
 
 def main() -> None:
