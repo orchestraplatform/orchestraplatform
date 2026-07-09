@@ -21,6 +21,9 @@ export type WorkshopTemplateResponse = {
     resources: WorkshopResources;
     storage?: (WorkshopStorage | null);
     tags?: Array<string>;
+    url?: (string | null);
+    sourceUrl?: (string | null);
+    submittedBy?: (string | null);
     isActive: boolean;
     createdBy: string;
     createdAt: string;

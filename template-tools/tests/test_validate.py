@@ -1,6 +1,10 @@
 """Tests for the shared template validation routine and CLI."""
 
+import pathlib
 import textwrap
+
+import pytest
+from pydantic import ValidationError
 
 from orchestra_template_tools import (
     build_schema,
@@ -8,6 +12,15 @@ from orchestra_template_tools import (
     validate_documents,
 )
 from orchestra_template_tools.cli import main as cli_main
+
+_SHIPPED_TEMPLATES = (
+    pathlib.Path(__file__).parents[2]
+    / "deploy"
+    / "charts"
+    / "orchestra"
+    / "files"
+    / "templates"
+)
 
 RSTUDIO = textwrap.dedent(
     """
@@ -90,6 +103,52 @@ def test_missing_required_field():
     result = validate_documents({"x.yaml": "slug: x\n"})  # no name
     assert not result.ok
     assert any("name" in e for f in result.files for e in f.errors)
+
+
+def test_catalog_metadata_fields_accepted():
+    tmpl = load_template(
+        RSTUDIO
+        + "\nurl: https://example.org/workshop"
+        + "\nsourceUrl: https://github.com/org/repo"
+        + "\nsubmittedBy: octocat"
+    )
+    assert str(tmpl.url) == "https://example.org/workshop"
+    assert str(tmpl.source_url) == "https://github.com/org/repo"
+    assert tmpl.submitted_by == "octocat"
+
+
+def test_catalog_metadata_optional_absent_ok():
+    tmpl = load_template(RSTUDIO)
+    assert tmpl.url is None
+    assert tmpl.source_url is None
+    assert tmpl.submitted_by is None
+
+
+def test_invalid_url_rejected():
+    with pytest.raises(ValidationError):
+        load_template(RSTUDIO + "\nurl: not-a-url")
+
+
+def test_invalid_source_url_rejected():
+    with pytest.raises(ValidationError):
+        load_template(RSTUDIO + '\nsourceUrl: "ftp://example.org"')
+
+
+def test_unknown_tag_rejected():
+    with pytest.raises(ValidationError):
+        load_template(RSTUDIO + "\ntags:\n  - not-a-real-tag")
+
+
+def test_known_tags_accepted():
+    tmpl = load_template(RSTUDIO + "\ntags:\n  - bioconductor\n  - rstudio")
+    assert tmpl.tags == ["bioconductor", "rstudio"]
+
+
+def test_shipped_templates_validate():
+    files = {p.name: p.read_text() for p in _SHIPPED_TEMPLATES.glob("*.yaml")}
+    assert files, "expected shipped template YAMLs to exist"
+    result = validate_documents(files)
+    assert result.ok, result.errors
 
 
 def test_build_schema_shape():

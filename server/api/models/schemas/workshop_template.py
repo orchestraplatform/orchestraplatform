@@ -66,6 +66,9 @@ class WorkshopTemplateResponse(BaseModel):
     resources: WorkshopResources
     storage: WorkshopStorage | None = None
     tags: list[str] = Field(default_factory=list)
+    url: str | None = None
+    source_url: str | None = Field(default=None, alias="sourceUrl")
+    submitted_by: str | None = Field(default=None, alias="submittedBy")
     is_active: bool = Field(alias="isActive")
     created_by: str = Field(alias="createdBy")
     created_at: datetime = Field(alias="createdAt")

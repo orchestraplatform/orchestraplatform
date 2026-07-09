@@ -92,7 +92,7 @@
         }
       ],
       "default": null,
-      "description": "Optional description",
+      "description": "Optional workshop description. Catalog metadata, interpreted as Markdown (rendered sanitized by the frontend \u2014 see #63); never reaches the CRD.",
       "title": "Description"
     },
     "image": {
@@ -156,8 +156,14 @@
       "default": null
     },
     "tags": {
-      "description": "Category tags for filtering",
+      "description": "Category tags for filtering, from a closed vocabulary. An unknown tag fails validation; extend the enum via a reviewed PR.",
       "items": {
+        "enum": [
+          "bioconductor",
+          "jupyter",
+          "python",
+          "rstudio"
+        ],
         "type": "string"
       },
       "title": "Tags",
@@ -168,6 +174,45 @@
       "description": "Whether the template is shown in the catalog and launchable. Set false to retire a template without deleting its file.",
       "title": "Enabled",
       "type": "boolean"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional URL of the workshop's landing/materials page (catalog 'Learn more' link). Catalog metadata; never reaches the CRD.",
+      "title": "Url"
+    },
+    "sourceUrl": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Optional URL of the repository the workshop content lives in (catalog 'Source' link). Catalog metadata; never reaches the CRD.",
+      "title": "Sourceurl"
+    },
+    "submittedBy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "GitHub handle of the last submitter, stamped by the template front-door Action from the issue author (ADR-0009); absent on hand-authored templates. Catalog metadata; never reaches the CRD.",
+      "title": "Submittedby"
     }
   },
   "required": [

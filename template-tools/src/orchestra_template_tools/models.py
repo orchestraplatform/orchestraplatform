@@ -13,10 +13,18 @@ can install it in CI without dragging in the platform's server/operator stack.
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_validator
 
 _K8S_SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
 _SLUG_MAX = 40
+
+# Closed catalog-tag vocabulary. Seeded from EXACTLY the tags the two shipped
+# templates use (deploy/charts/orchestra/files/templates/{rstudio,jupyter}.yaml);
+# an unknown tag fails validation everywhere. Extending it is a reviewed PR to
+# this enum (ADR-0009) so the issue-form checkboxes and the validator can't drift.
+TemplateTag = Literal["bioconductor", "jupyter", "python", "rstudio"]
+
+_URL_ADAPTER = TypeAdapter(HttpUrl)
 
 
 class WorkshopResources(BaseModel):
@@ -74,7 +82,12 @@ class WorkshopTemplateCreate(BaseModel):
         ...,
         description="k8s-safe identifier used as prefix for instance names (max 40 chars)",
     )
-    description: str | None = Field(default=None, description="Optional description")
+    description: str | None = Field(
+        default=None,
+        description="Optional workshop description. Catalog metadata, interpreted "
+        "as Markdown (rendered sanitized by the frontend — see #63); never reaches "
+        "the CRD.",
+    )
     image: str = Field(
         default="rocker/rstudio:latest", description="Default Docker image"
     )
@@ -108,8 +121,10 @@ class WorkshopTemplateCreate(BaseModel):
     )
     resources: WorkshopResources = Field(default_factory=WorkshopResources)
     storage: WorkshopStorage | None = Field(default=None)
-    tags: list[str] = Field(
-        default_factory=list, description="Category tags for filtering"
+    tags: list[TemplateTag] = Field(
+        default_factory=list,
+        description="Category tags for filtering, from a closed vocabulary. An "
+        "unknown tag fails validation; extend the enum via a reviewed PR.",
     )
 
     model_config = ConfigDict(populate_by_name=True)
@@ -142,3 +157,28 @@ class WorkshopTemplateFile(WorkshopTemplateCreate):
         description="Whether the template is shown in the catalog and launchable. "
         "Set false to retire a template without deleting its file.",
     )
+    url: str | None = Field(
+        default=None,
+        description="Optional URL of the workshop's landing/materials page (catalog "
+        "'Learn more' link). Catalog metadata; never reaches the CRD.",
+    )
+    source_url: str | None = Field(
+        default=None,
+        alias="sourceUrl",
+        description="Optional URL of the repository the workshop content lives in "
+        "(catalog 'Source' link). Catalog metadata; never reaches the CRD.",
+    )
+    submitted_by: str | None = Field(
+        default=None,
+        alias="submittedBy",
+        description="GitHub handle of the last submitter, stamped by the template "
+        "front-door Action from the issue author (ADR-0009); absent on hand-authored "
+        "templates. Catalog metadata; never reaches the CRD.",
+    )
+
+    @field_validator("url", "source_url")
+    @classmethod
+    def _valid_url(cls, v: str | None) -> str | None:
+        if v is not None:
+            _URL_ADAPTER.validate_python(v)  # raises if not a valid URL
+        return v
