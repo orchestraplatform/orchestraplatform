@@ -8,9 +8,15 @@ import pytest
 
 from api.models.db.workshop_instance import InstanceEvent, WorkshopInstance
 from api.models.schemas.workshop_template import WorkshopTemplateResponse
-from api.models.workshop import WorkshopResources, WorkshopStorage, WorkspaceStorage
+from api.models.workshop import (
+    WorkshopCreate,
+    WorkshopResources,
+    WorkshopStorage,
+    WorkspaceStorage,
+)
 from api.services.workshop_instance_service import (
     _TRANSITIONAL_PHASES,
+    ActiveSessionConflictError,
     WorkshopInstanceService,
 )
 from tests.fakes import FakeWorkshopCluster
@@ -146,9 +152,10 @@ def _launch_db(captured: list) -> MagicMock:
 
     db = MagicMock()
     db.add = MagicMock(side_effect=captured.append)
-    db.flush = AsyncMock(
-        side_effect=lambda: _refresh(captured[0] if captured else None)
-    )
+    db.flush = AsyncMock(side_effect=lambda: [_refresh(o) for o in captured])
+    empty_result = MagicMock()
+    empty_result.scalars.return_value.all.return_value = []
+    db.execute = AsyncMock(return_value=empty_result)
     db.commit = AsyncMock()
     db.refresh = AsyncMock(side_effect=_refresh)
     db.rollback = AsyncMock()
@@ -245,6 +252,136 @@ async def test_sync_from_k8s_does_not_reterminate_existing_row():
     assert row.terminated_at == terminated_at
     db.add.assert_not_called()
     db.commit.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# Same-workshop-twice on persistence-enabled templates (ADR-0010 decision F)
+# ---------------------------------------------------------------------------
+
+
+def _persist_template() -> WorkshopTemplateResponse:
+    return _template(
+        storage=WorkshopStorage(
+            size="20Gi", workspace=WorkspaceStorage(persist="per-user")
+        )
+    )
+
+
+def _conflict_db(captured: list, existing: WorkshopInstance) -> MagicMock:
+    """_launch_db whose execute() finds `existing` for both the active-session
+    query (scalars().all()) and terminate's lookup (scalar_one_or_none())."""
+    db = _launch_db(captured)
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = [existing]
+    result.scalar_one_or_none.return_value = existing
+    db.execute = AsyncMock(return_value=result)
+    return db
+
+
+async def _seed_existing(cluster: FakeWorkshopCluster, existing: WorkshopInstance):
+    """Create the existing session's CRD so _sync_from_k8s sees it live."""
+    await cluster.create(
+        WorkshopCreate(name=existing.k8s_name),
+        owner_email=existing.owner_email,
+        namespace=existing.namespace,
+    )
+
+
+@pytest.mark.asyncio
+async def test_launch_persist_conflicts_on_active_same_workshop():
+    """A second launch of a persistence-enabled workshop by the same user must
+    raise ActiveSessionConflictError (RWO PVC can't multi-attach) — no second CRD."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+    existing = _instance()
+    await _seed_existing(cluster, existing)
+    db = _conflict_db([], existing)
+
+    with pytest.raises(ActiveSessionConflictError) as exc_info:
+        await service.launch(
+            db,
+            template=_persist_template(),
+            k8s_name="rstudio-new456",
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    assert exc_info.value.existing.k8s_name == "rstudio-abc123"
+    assert exc_info.value.existing.url == existing.url
+    assert ("default", "rstudio-new456") not in cluster.workshops
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_launch_persist_replace_existing_terminates_then_launches():
+    """replace_existing=True (Start fresh) terminates the old session, then
+    launches the new one."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+    existing = _instance()
+    await _seed_existing(cluster, existing)
+    db = _conflict_db([], existing)
+
+    resp = await service.launch(
+        db,
+        template=_persist_template(),
+        k8s_name="rstudio-new456",
+        namespace="default",
+        owner_email="alice@example.com",
+        duration="2h",
+        replace_existing=True,
+    )
+
+    assert ("default", "rstudio-abc123") in cluster.deleted
+    assert existing.terminated_at is not None
+    assert ("default", "rstudio-new456") in cluster.workshops
+    assert resp.k8s_name == "rstudio-new456"
+
+
+@pytest.mark.asyncio
+async def test_launch_persist_ignores_stale_row_whose_crd_is_gone():
+    """A non-terminated DB row whose CRD vanished out-of-band must not produce
+    a false conflict: it is synced to Terminated and the launch proceeds."""
+    cluster = FakeWorkshopCluster()  # empty: the existing CRD is gone
+    service = WorkshopInstanceService(cluster)
+    existing = _instance()
+    db = _conflict_db([], existing)
+
+    resp = await service.launch(
+        db,
+        template=_persist_template(),
+        k8s_name="rstudio-new456",
+        namespace="default",
+        owner_email="alice@example.com",
+        duration="2h",
+    )
+
+    assert existing.phase == "Terminated"
+    assert ("default", "rstudio-new456") in cluster.workshops
+    assert resp.k8s_name == "rstudio-new456"
+
+
+@pytest.mark.asyncio
+async def test_launch_ephemeral_allows_concurrent_same_workshop():
+    """Ephemeral templates (no workspace persistence) never gate on an
+    existing session: concurrent same-workshop launches stay allowed."""
+    cluster = FakeWorkshopCluster()
+    service = WorkshopInstanceService(cluster)
+    template = _template()  # storage.workspace is None
+
+    for name in ("rstudio-one111", "rstudio-two222"):
+        await service.launch(
+            _launch_db([]),
+            template=template,
+            k8s_name=name,
+            namespace="default",
+            owner_email="alice@example.com",
+            duration="2h",
+        )
+
+    assert ("default", "rstudio-one111") in cluster.workshops
+    assert ("default", "rstudio-two222") in cluster.workshops
 
 
 # ---------------------------------------------------------------------------

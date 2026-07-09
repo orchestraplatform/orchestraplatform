@@ -19,7 +19,10 @@ from api.models.schemas.workshop_template import WorkshopTemplateResponse
 from api.models.workshop import WorkshopResources
 from api.routes.templates import get_template_reader
 from api.services.template_registry import TemplateRegistry, stable_template_id
-from api.services.workshop_instance_service import get_instance_service
+from api.services.workshop_instance_service import (
+    ActiveSessionConflictError,
+    get_instance_service,
+)
 
 NOW = datetime.now(UTC)
 
@@ -90,26 +93,30 @@ class TestImperativeEndpointsRemoved:
         assert resp.status_code == 405
 
 
+def _instance() -> WorkshopInstanceResponse:
+    return WorkshopInstanceResponse(
+        id=uuid.uuid4(),
+        workshopId=stable_template_id("rstudio"),
+        workshopName="Rstudio",
+        templateSlug="rstudio",
+        k8sName="rstudio-abc123",
+        namespace="default",
+        ownerEmail="alice@test.example.com",
+        phase="Pending",
+        url="http://rstudio-abc123.orchestra.localhost:30080",
+        durationRequested="4h",
+        launchedAt=NOW,
+        createdAt=NOW,
+        updatedAt=NOW,
+    )
+
+
 class TestLaunch:
     def test_launch_active_template(self, client):
         from main import app
 
-        instance = WorkshopInstanceResponse(
-            id=uuid.uuid4(),
-            workshopId=stable_template_id("rstudio"),
-            workshopName="Rstudio",
-            templateSlug="rstudio",
-            k8sName="rstudio-abc123",
-            namespace="default",
-            ownerEmail="alice@test.example.com",
-            phase="Pending",
-            durationRequested="4h",
-            launchedAt=NOW,
-            createdAt=NOW,
-            updatedAt=NOW,
-        )
         svc = AsyncMock()
-        svc.launch = AsyncMock(return_value=instance)
+        svc.launch = AsyncMock(return_value=_instance())
         app.dependency_overrides[get_instance_service] = lambda: svc
         try:
             resp = client.post(
@@ -125,3 +132,40 @@ class TestLaunch:
             f"/templates/{stable_template_id('jupyter')}/launch", json={}
         )
         assert resp.status_code == 404
+
+    def test_launch_conflict_returns_409_with_existing_instance(self, client):
+        """ActiveSessionConflictError surfaces as a structured 409 the client can
+        resolve with Continue / Start fresh (ADR-0010 decision F)."""
+        from main import app
+
+        existing = _instance()
+        svc = AsyncMock()
+        svc.launch = AsyncMock(side_effect=ActiveSessionConflictError(existing))
+        app.dependency_overrides[get_instance_service] = lambda: svc
+        try:
+            resp = client.post(
+                f"/templates/{stable_template_id('rstudio')}/launch", json={}
+            )
+            assert resp.status_code == 409
+            body = resp.json()
+            assert body["error"] == "active_session_exists"
+            assert body["instance"]["k8sName"] == "rstudio-abc123"
+            assert body["instance"]["url"] == existing.url
+        finally:
+            app.dependency_overrides.pop(get_instance_service, None)
+
+    def test_launch_passes_replace_existing_flag(self, client):
+        from main import app
+
+        svc = AsyncMock()
+        svc.launch = AsyncMock(return_value=_instance())
+        app.dependency_overrides[get_instance_service] = lambda: svc
+        try:
+            resp = client.post(
+                f"/templates/{stable_template_id('rstudio')}/launch",
+                json={"replaceExisting": True},
+            )
+            assert resp.status_code == 201
+            assert svc.launch.await_args.kwargs["replace_existing"] is True
+        finally:
+            app.dependency_overrides.pop(get_instance_service, None)

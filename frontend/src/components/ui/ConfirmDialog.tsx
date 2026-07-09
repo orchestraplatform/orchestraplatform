@@ -6,6 +6,7 @@ interface ConfirmDialogProps {
   title: string;
   message: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -15,6 +16,7 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -26,7 +28,7 @@ export function ConfirmDialog({
         <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-sm text-muted-foreground">{message}</p>
         <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onCancel}>{cancelLabel}</Button>
           <Button variant="destructive" size="sm" onClick={onConfirm}>{confirmLabel}</Button>
         </div>
       </div>

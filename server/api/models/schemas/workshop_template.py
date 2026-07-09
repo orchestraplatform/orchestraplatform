@@ -91,9 +91,19 @@ class WorkshopTemplateList(BaseModel):
 class WorkshopLaunchRequest(BaseModel):
     """Request body for launching a workshop instance from a template."""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     duration: str | None = Field(
         default=None,
         description="Override the template's default duration (e.g. '2h'). "
         "If omitted, the template default is used.",
     )
     namespace: str | None = Field(default=None, description="Kubernetes namespace")
+    replace_existing: bool = Field(
+        default=False,
+        alias="replaceExisting",
+        description="Start fresh: terminate the caller's existing active "
+        "session of this persistence-enabled workshop before launching "
+        "(ADR-0010 decision F). The durable /data workspace reattaches. "
+        "Has no effect for ephemeral templates.",
+    )

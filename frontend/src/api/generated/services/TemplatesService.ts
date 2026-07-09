@@ -116,6 +116,7 @@ export class TemplatesService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
+                409: `The caller already has an active session of this persistence-enabled workshop (ADR-0010 decision F). Continue with the returned instance, or relaunch with replaceExisting=true to terminate it and start fresh.`,
                 422: `Validation Error`,
             },
         });

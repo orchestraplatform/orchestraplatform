@@ -11,12 +11,17 @@ import string
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.core.auth import CurrentUser, get_current_user, require_admin
 from api.core.config import get_settings
 from api.core.database import get_db
-from api.models.schemas.workshop_instance import TemplateStats, WorkshopInstanceResponse
+from api.models.schemas.workshop_instance import (
+    LaunchConflict,
+    TemplateStats,
+    WorkshopInstanceResponse,
+)
 from api.models.schemas.workshop_template import (
     WorkshopLaunchRequest,
     WorkshopTemplateList,
@@ -24,6 +29,7 @@ from api.models.schemas.workshop_template import (
 )
 from api.services.template_registry import TemplateRegistry, get_registry
 from api.services.workshop_instance_service import (
+    ActiveSessionConflictError,
     WorkshopInstanceService,
     get_instance_service,
 )
@@ -116,6 +122,15 @@ async def get_template_stats(
     "/{template_id}/launch",
     response_model=WorkshopInstanceResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_409_CONFLICT: {
+            "model": LaunchConflict,
+            "description": "The caller already has an active session of this "
+            "persistence-enabled workshop (ADR-0010 decision F). Continue with "
+            "the returned instance, or relaunch with replaceExisting=true to "
+            "terminate it and start fresh.",
+        }
+    },
 )
 async def launch_workshop(
     body: WorkshopLaunchRequest,
@@ -150,6 +165,14 @@ async def launch_workshop(
             namespace=namespace,
             owner_email=current_user.email,
             duration=duration,
+            replace_existing=body.replace_existing,
+        )
+    except ActiveSessionConflictError as e:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content=LaunchConflict(instance=e.existing).model_dump(
+                mode="json", by_alias=True
+            ),
         )
     except Exception as e:
         logger.error("Failed to launch workshop instance: %s", e)
