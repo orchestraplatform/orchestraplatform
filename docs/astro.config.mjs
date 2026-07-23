@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 // GA4 property for orchestraplatform.org. Rotate by updating this ID (and the
 // matching one in src/pages/index.astro) — no separate secret/env wiring.
-const googleAnalyticsId = 'G-7SEJMRNJ0P';
+const googleAnalyticsId = 'G-9KW2P3BPLT';
 
 export default defineConfig({
   site: 'https://orchestraplatform.org',

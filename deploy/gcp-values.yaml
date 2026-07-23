@@ -88,7 +88,7 @@ frontend:
       memory: 512Mi
   # GA4 property for the Orchestra app (app.<domain>). Rotate by changing this
   # value and running helm upgrade — no image rebuild required.
-  gaMeasurementId: "G-7SEJMRNJ0P"
+  gaMeasurementId: "G-9KW2P3BPLT"
 
 persistence:
   storageClass: "standard-rwo"
