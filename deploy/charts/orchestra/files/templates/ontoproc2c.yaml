@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Bioc2026 ontology workshop with ontoProc2
+slug: ontoproc2c
+description: 'This workshop introduces ontoProc2 for working with any [Open Biological
+  Ontologies](https://obofoundry.org/).
+
+
+  We will work with Semantic SQL focusing on the MONDO ontology for diseases, focusing
+  on applications with
+
+  the GWAS catalog.  Additional material will touch on the Cell Ontology if time permits.'
+image: vjcitn/op2ws:0.0.1
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 8Gi
+  cpuRequest: 500m
+  memoryRequest: 8Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+storage:
+  size: 20Gi
+  workspace:
+    persist: per-user
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://vjcitn.github.io/op2workshop/
+sourceUrl: https://github.com/vjcitn/op2workshop
+submittedBy: vjcitn
+
