@@ -45,6 +45,25 @@ jobs:
             | orchestra-render-template --issue-body --validate || true)
           if [ "$(jq -r '.ok' <<<"$result")" = "true" ]; then
             body=$'✓ **Valid** — a maintainer can add the `approve` label to open the PR.'
+
+            # Advisories: schema-valid submissions that would still do the wrong
+            # thing. Warn, don't block — a maintainer decides on `approve`.
+            slug=$(jq -r '.slug' <<<"$result")
+            for ext in yaml yml; do
+              f="deploy/charts/orchestra/files/templates/${slug}.${ext}"
+              if [ -f "$f" ]; then
+                body+=$'\n\n⚠️ Slug `'"$slug"$'` already exists — approving will **update** `'"$f"$'`, not add a new workshop. Pick a different slug if you meant to add one.'
+              fi
+            done
+
+            # Nodes are amd64; an arm64-only image pulls then fails to exec.
+            # ponytail: anonymous inspect only — a private image just skips the check.
+            image=$(jq -r '.yaml' <<<"$result" | awk '/^image: /{print $2; exit}')
+            archs=$(docker manifest inspect -v "$image" 2>/dev/null \
+              | jq -r '[.] | flatten | .[].Descriptor.platform.architecture' | sort -u || true)
+            if [ -n "$archs" ] && ! grep -qx amd64 <<<"$archs"; then
+              body+=$'\n\n⚠️ `'"$image"$'` has no `linux/amd64` manifest (found: '"$(tr '\n' ' ' <<<"$archs")"$'). The cluster nodes are amd64 — build multi-arch: `docker buildx build --platform linux/amd64,linux/arm64 --push`.'
+            fi
           else
             errs=$(jq -r '.errors[] | "- " + .' <<<"$result")
             body=$'❌ **Validation failed.** Fix these, then edit the issue to re-run:\n\n'"$errs"
