@@ -98,4 +98,4 @@ jobs:
 
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
             --title "feat(template): ${slug} (#${ISSUE_NUMBER})" \
-            --body "$(printf 'Generated from #%s by @%s via the template front door (ADR-0009).\n\nCloses #%s\n' "$ISSUE_NUMBER" "$SUBMITTER" "$ISSUE_NUMBER")"
+            --body "$(printf 'Generated from #%s by @%s via the template front door (ADR-0009).\n\nTemplate file: `%s`\n\nCloses #%s\n' "$ISSUE_NUMBER" "$SUBMITTER" "$path" "$ISSUE_NUMBER")"

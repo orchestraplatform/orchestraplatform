@@ -23,8 +23,9 @@ the pull request for you ([ADR-0009](/docs/adr/0009-template-front-door/)).
    help text points you at it.)
 
 2. On submit, a bot **validates** your entry and comments. If a field is off,
-   fix it and edit the issue — the check re-runs. When it's valid, the comment
-   invites a maintainer to approve.
+   fix it by **editing the issue description** — validation re-runs on every
+   edit (commenting doesn't trigger it). When it's valid, the comment invites
+   a maintainer to approve.
 
 3. A maintainer adds the **`approve`** label. A bot opens a pull request
    containing the generated YAML — reusing an existing **slug** updates that
@@ -74,7 +75,11 @@ means "reviewed."
 
 ## Updating or retiring a workshop
 
-- **Update** — edit the same file and open another PR; the diff shows exactly
-  what changed.
+Slugs are **unique** across the catalog — two templates can never share one.
+But *resubmitting* an existing slug isn't an error: it's how you update.
+
+- **Update** — open a new issue form with the **same slug** (the generated PR
+  shows the diff against the existing file), or edit the file and open another
+  PR yourself.
 - **Retire** — set the template inactive (or an admin removes the file). Retiring
   is an admin action.

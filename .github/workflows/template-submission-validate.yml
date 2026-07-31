@@ -66,6 +66,6 @@ jobs:
             fi
           else
             errs=$(jq -r '.errors[] | "- " + .' <<<"$result")
-            body=$'❌ **Validation failed.** Fix these, then edit the issue to re-run:\n\n'"$errs"
+            body=$'❌ **Validation failed.** Fix the fields below by **editing the issue description** (the form you filled in) — validation re-runs on every edit. Commenting does *not* re-run it.\n\n'"$errs"
           fi
           gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$body"

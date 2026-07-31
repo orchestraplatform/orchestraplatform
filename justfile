@@ -223,7 +223,7 @@ template-from-issue n:
     branch="template/${slug}-issue-{{n}}"
     git checkout -b "$branch"
     git add "$path"
-    git commit -m "feat(template): ${slug} (from #{{n}})" -m "Closes #{{n}}"
+    git commit -m "feat(template): ${slug} (from #{{n}})" -m "Template file: ${path}" -m "Closes #{{n}}"
     git push -u origin "$branch"
     gh pr create --fill --base main
 

@@ -14,6 +14,9 @@ body:
 
         Re-using an existing **Slug** updates that template (the PR diff shows
         the change); a new slug adds one.
+
+        If validation fails, **edit this issue** to fix the fields — the check
+        re-runs on every edit. Commenting does not re-run it.
   - type: input
     id: name
     attributes:
@@ -26,7 +29,7 @@ body:
     id: slug
     attributes:
       label: Slug
-      description: k8s-safe identifier (lowercase letters, digits, dashes; max 40).
+      description: Unique catalog identifier, also used in URLs — lowercase letters, digits, dashes only; must start/end alphanumeric; max 40. Reusing an existing slug updates that workshop.
       placeholder: rstudio
     validations:
       required: true
