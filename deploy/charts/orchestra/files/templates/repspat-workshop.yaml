@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Detecting Repeated Spatial Patterns With repSpat
+slug: repspat-workshop
+description: A workshop introducing repSpat for detecting repeated spatial patterns
+  in spatial omics data.
+image: ghcr.io/amanpreet60/repspat_workshop:latest
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 8Gi
+  cpuRequest: 500m
+  memoryRequest: 8Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+tags:
+  - bioconductor
+  - python
+  - rstudio
+enabled: true
+url: https://amanpreet60.github.io/repSpat_Workshop/
+sourceUrl: https://github.com/amanpreet60/repSpat_Workshop
+submittedBy: amanpreet60
+
