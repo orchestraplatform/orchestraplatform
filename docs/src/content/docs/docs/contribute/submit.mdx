@@ -83,3 +83,28 @@ But *resubmitting* an existing slug isn't an error: it's how you update.
   PR yourself.
 - **Retire** — set the template inactive (or an admin removes the file). Retiring
   is an admin action.
+
+### Updating your container
+
+Changing the *workshop content* means changing the *image*, and the reliable way
+to do that is to **push a new tag and update the template's `image:` field** —
+`myuser/myworkshop:0.0.1` → `myuser/myworkshop:0.0.2`.
+
+Rebuilding and pushing over an existing tag does **not** reliably update running
+workshops. Orchestra doesn't override Kubernetes' default pull policy, which for
+a pinned tag is `IfNotPresent`: a cluster node that already pulled
+`myworkshop:0.0.1` keeps serving its cached copy, while a node seeing that tag
+for the first time pulls your rebuild. Participants land on whichever node has
+room, so a mutable tag means some of them get the old content and some get the
+new — with no way to tell which.
+
+<Aside type="caution" title="What about `:latest`?">
+An image tagged `:latest` (or with no tag) *does* get pulled on every launch,
+because Kubernetes defaults that case to `Always`. It's still the wrong choice
+for a workshop: nothing records which build a session actually ran, so a
+participant's "it worked yesterday" becomes unanswerable. Version the tag.
+</Aside>
+
+Once the template change merges, the deploy refreshes the catalog and **new**
+launches use the new image. Sessions already running keep the image they started
+with — so land content changes before your event, not during it.
