@@ -385,7 +385,7 @@ test-frontend:
 #
 # To create the secrets file on a new machine, see docs/deployment/gcp.mdx.
 
-gcp_context := "gke_orchestraplatform-dev_us-central1_orchestra-dev"
+gcp_context := "gke_orchestraplatform-dev_us-central1-a_orchestra-standard"
 gcp_namespace := "orchestra-system"
 
 # Deploy (or upgrade) Orchestra to GCP. Requires deploy/gcp-values-secrets.yaml.
