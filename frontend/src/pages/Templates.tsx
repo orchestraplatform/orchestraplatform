@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTemplates, useTemplateLaunchCounts } from '../hooks/useTemplates';
 import { useInstances, useExtendInstance } from '../hooks/useInstances';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/Card';
@@ -9,20 +10,13 @@ import { useNavigate } from 'react-router-dom';
 import { WorkshopPhase } from '../api/generated';
 import type { WorkshopTemplateResponse, WorkshopInstanceResponse } from '../api/generated';
 import { track } from '../utils/analytics';
+import { buildActiveByTemplate } from '../utils/activeInstances';
 
 function connectToInstance(instance: WorkshopInstanceResponse) {
   if (!instance.url) return;
   track('session_connect', { template_slug: instance.templateSlug });
   window.open(instance.url, '_blank', 'noopener,noreferrer');
 }
-
-const ACTIVE_PHASES = new Set<WorkshopPhase>([
-  WorkshopPhase.PENDING,
-  WorkshopPhase.CREATING,
-  WorkshopPhase.STARTING,
-  WorkshopPhase.READY,
-  WorkshopPhase.RUNNING,
-]);
 
 interface TemplateCardProps {
   template: WorkshopTemplateResponse;
@@ -207,6 +201,7 @@ export function Templates() {
   const { data, isLoading, error, refetch } = useTemplates();
   const { data: statsData } = useTemplateLaunchCounts();
   const { data: instancesData } = useInstances();
+  const { data: currentUser } = useCurrentUser();
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('newest');
   const [activeTag, setActiveTag] = useState('');
@@ -226,13 +221,10 @@ export function Templates() {
     return map;
   }, [statsData]);
 
-  const activeByTemplate = useMemo(() => {
-    const map = new Map<string, WorkshopInstanceResponse>();
-    for (const inst of instancesData?.items ?? []) {
-      if (ACTIVE_PHASES.has(inst.phase)) map.set(inst.workshopId, inst);
-    }
-    return map;
-  }, [instancesData]);
+  const activeByTemplate = useMemo(
+    () => buildActiveByTemplate(instancesData?.items ?? [], currentUser?.email),
+    [instancesData, currentUser]
+  );
 
   const active = useMemo(() => (data?.items ?? []).filter((t) => t.isActive), [data]);
 
