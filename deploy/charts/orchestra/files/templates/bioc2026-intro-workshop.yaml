@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Intro to Bioconductor, Bioc2026
+slug: bioc2026-intro-workshop
+description: 'Workshop introducing new users of Bioconductor to basic concepts:
+
+
+  - Understanding and using Bioconductor Objects
+
+  - Loading Data into a Bioconductor Object
+
+  - Installing Bioconductor on your system'
+image: fhdsl/bioc2026-intro
+defaultDuration: 4h
+port: 8787
+tier: small
+resources:
+  cpu: '2'
+  memory: 4Gi
+  cpuRequest: 500m
+  memoryRequest: 4Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://hutchdatascience.org/bioc2026Intro/
+sourceUrl: https://github.com/fhdsl/bioc2026Intro/tree/devel
+submittedBy: laderast
+
