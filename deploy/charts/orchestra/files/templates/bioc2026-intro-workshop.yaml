@@ -9,12 +9,12 @@ description: 'Workshop introducing new users of Bioconductor to basic concepts:
   - Loading Data into a Bioconductor Object
 
   - Installing Bioconductor on your system'
-image: fhdsl/bioc2026-intro
+image: ghcr.io/fhdsl/bioc2026-intro:latest
 defaultDuration: 4h
 port: 8787
 tier: small
 resources:
-  cpu: '2'
+  cpu: '1'
   memory: 4Gi
   cpuRequest: 500m
   memoryRequest: 4Gi
