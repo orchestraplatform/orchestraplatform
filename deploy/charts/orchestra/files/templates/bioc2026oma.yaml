@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Orchestrating Microbiome Analysis with Bioconductor (BioC2026)
+slug: bioc2026oma
+description: Workshop for Bioconductor conference, Seattle 10-12 August 2026.
+image: ghcr.io/microbiome/bioc2026oma:8fe3bff
+defaultDuration: 4h
+port: 8787
+tier: small
+resources:
+  cpu: '2'
+  memory: 4Gi
+  cpuRequest: 500m
+  memoryRequest: 4Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 8Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://microbiome.github.io/BioC2026OMA/articles/bioc2026.html
+sourceUrl: https://github.com/microbiome/BioC2026OMA
+submittedBy: TuomasBorman
+
