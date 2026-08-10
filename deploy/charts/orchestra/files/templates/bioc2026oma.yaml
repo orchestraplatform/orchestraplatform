@@ -12,7 +12,7 @@ resources:
   cpuRequest: 500m
   memoryRequest: 4Gi
   ephemeralStorage: 8Gi
-  ephemeralStorageRequest: 8Gi
+  ephemeralStorageRequest: 1Gi
 tags:
   - bioconductor
   - rstudio

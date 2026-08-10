@@ -68,3 +68,19 @@ def test_size_omitted_uses_model_defaults():
     assert doc["tier"] == "small"
     assert doc["resources"]["memory"] == "2Gi"  # WorkshopResources default
     assert "size" not in doc  # never a stored field
+
+
+def test_ephemeral_request_cap_rejects_limit_sized_request():
+    """An 8Gi request (copied from the eviction limit) must not validate.
+
+    This is the regression that capped every node at 2 sessions regardless of
+    machine type; templates are authored by copying, so it spread silently.
+    """
+    import pytest
+    from pydantic import ValidationError
+
+    from orchestra_template_tools.models import WorkshopResources
+
+    WorkshopResources(ephemeralStorageRequest="2Gi")  # at the cap: fine
+    with pytest.raises(ValidationError, match="at most 2Gi"):
+        WorkshopResources(ephemeralStorageRequest="8Gi")

@@ -41,11 +41,21 @@ orchestraplatform/
   Helm chart hardcodes the operator ingress entrypoint to `websecure` and omits
   `ORCHESTRA_INGRESS_PORT`, so a pure-Helm install can't route sessions on a
   local NodePort — the rehearsal uses `just dev` instead.
-- GKE Standard migration (ADR-0005) in progress: OpenTofu cluster module written
-  in `monode/infrastructure` (`feat/gke-standard-cluster`); operator-side tier
-  map + `safe-to-evict`/grace-period stamping is the coupled prerequisite in this
-  repo. Cluster `apply` + Orchestra deploy pending GCP auth + resolving the
-  module's open questions (network/subnet reuse, NAP bounds, `master_authorized_networks`).
+- **GKE Standard migration (ADR-0005) is done and live.** The cluster is
+  `orchestra-standard` (zonal, `us-central1-a`, `orchestraplatform-dev`);
+  Autopilot is decommissioned. The OpenTofu module is merged to
+  `monode/infrastructure` `main` (`terraform/modules/gke-standard/`, PRs #38–#40)
+  and applied — state in `gs://cdsci-tfstate/monode/infrastructure`. The
+  operator-side tier map + `safe-to-evict`/grace-period stamping shipped here.
+  Still open from the module's original questions:
+  `master_authorized_networks` is `[]`, so the public control-plane endpoint is
+  unrestricted.
+- Fleet density: workshop templates request 1Gi ephemeral-storage against an 8Gi
+  eviction limit (#133). The request is what bin-packs, a 50GB NAP boot disk
+  yields only ~17.5GiB allocatable, and setting request == limit silently caps
+  every node at 2 sessions regardless of machine type. Don't collapse them again.
+  Tenant node shapes are pinned in the ComputeClass (`monode` #42), not chosen
+  per-family by NAP.
 
 ## Context
 

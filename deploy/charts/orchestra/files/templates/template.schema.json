@@ -35,7 +35,7 @@
         },
         "ephemeralStorageRequest": {
           "default": "1Gi",
-          "description": "Ephemeral storage request \u2014 what the scheduler bin-packs on. Keep it near real usage (sessions measure ~50MB) rather than matching the limit, or one oversized request caps how many sessions fit per node.",
+          "description": "Ephemeral storage request \u2014 what the scheduler bin-packs on. Keep it near real usage (sessions measure ~50MB) rather than matching the limit; at most 2Gi.",
           "title": "Ephemeralstoragerequest",
           "type": "string"
         }

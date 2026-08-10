@@ -37,6 +37,12 @@ _QUANTITY_BYTES = {
 }
 _STORAGE_SIZE_MAX_BYTES = 20 * 2**30
 
+# Ceiling on a template's ephemeral-storage REQUEST (not its limit). A NAP node
+# allocates ~17.5GiB of ephemeral storage, so this bound keeps at least ~8
+# sessions schedulable per node. See WorkshopResources.ephemeral_request_within_cap.
+EPHEMERAL_REQUEST_MAX = "2Gi"
+_EPHEMERAL_REQUEST_MAX_BYTES = 2 * 2**30
+
 # Closed catalog-tag vocabulary. Seeded from EXACTLY the tags the two shipped
 # templates use (deploy/charts/orchestra/files/templates/{rstudio,jupyter}.yaml);
 # an unknown tag fails validation everywhere. Extending it is a reviewed PR to
@@ -73,10 +79,40 @@ class WorkshopResources(BaseModel):
         description=(
             "Ephemeral storage request — what the scheduler bin-packs on. Keep it "
             "near real usage (sessions measure ~50MB) rather than matching the "
-            "limit, or one oversized request caps how many sessions fit per node."
+            f"limit; at most {EPHEMERAL_REQUEST_MAX}."
         ),
         alias="ephemeralStorageRequest",
     )
+
+    @field_validator("ephemeral_storage_request")
+    @classmethod
+    def ephemeral_request_within_cap(cls, v: str) -> str:
+        """Cap the request so one template can't throttle whole-node density.
+
+        A node fits floor(allocatable ephemeral / request) sessions, whatever its
+        machine type, and a NAP node allocates only ~17.5GiB. Templates are
+        written by copying an existing one, so an 8Gi request (== the eviction
+        limit) propagated silently and capped every node at 2 sessions — 8-vCPU
+        machines ran two 1-vCPU pods. Reject it at authoring time rather than
+        rediscovering it on a busy cluster.
+        """
+        m = _QUANTITY_RE.match(v.strip())
+        if not m:
+            raise ValueError(
+                f"ephemeralStorageRequest must be a Kubernetes quantity like "
+                f"'1Gi', got {v!r}"
+            )
+        if (
+            float(m.group(1)) * _QUANTITY_BYTES[m.group(2)]
+            > _EPHEMERAL_REQUEST_MAX_BYTES
+        ):
+            raise ValueError(
+                f"ephemeralStorageRequest must be at most {EPHEMERAL_REQUEST_MAX}, "
+                f"got {v!r}. This is the scheduler's bin-packing input, not the "
+                f"eviction threshold — set the headroom you need on "
+                f"ephemeralStorage (the limit) instead."
+            )
+        return v
 
 
 class WorkspaceStorage(BaseModel):
