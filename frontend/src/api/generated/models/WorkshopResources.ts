@@ -27,7 +27,7 @@ export type WorkshopResources = {
      */
     ephemeralStorage?: string;
     /**
-     * Ephemeral storage request — what the scheduler bin-packs on. Keep it near real usage (sessions measure ~50MB) rather than matching the limit, or one oversized request caps how many sessions fit per node.
+     * Ephemeral storage request — what the scheduler bin-packs on. Keep it near real usage (sessions measure ~50MB) rather than matching the limit; at most 2Gi.
      */
     ephemeralStorageRequest?: string;
 };
