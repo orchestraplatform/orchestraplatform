@@ -156,16 +156,18 @@ def create_rstudio_deployment(
     # Ephemeral storage covers everything written outside the /data PVC: R/Python
     # package installs, compilation artifacts, /tmp, logs, and the container's
     # writable layer. The limit is the kubelet's eviction threshold — exceeding it
-    # evicts the whole pod (not just a container restart). When unset, GKE Autopilot
-    # defaults this to 1Gi, which Bioconductor sessions blow past, so set it
-    # explicitly (incident 2026-06-16).
+    # evicts the whole pod (not just a container restart). Keep it generous (8Gi):
+    # Bioconductor sessions blow past the 1Gi a cluster defaults to when unset
+    # (incident 2026-06-16).
     #
-    # CAP: GKE Autopilot rejects pods whose *total* ephemeral-storage request
-    # across all containers exceeds 10Gi, and forces limit == request. With the
-    # sidecar requesting 1Gi, the app can request at most ~9Gi here. Going beyond
-    # 10Gi/pod needs Local SSD-backed ephemeral storage or GKE Standard (ADR-0005).
+    # The REQUEST is deliberately much smaller than the limit. It is what the
+    # scheduler bin-packs on, and measured sessions use ~50MB. Requesting the full
+    # 8Gi capped a node at floor(allocatable/8Gi) = 2 sessions no matter how large
+    # the machine, so NAP scaled out 8-vCPU nodes to run two 1-vCPU pods. Autopilot
+    # used to force request == limit; on GKE Standard (ADR-0005) it does not, so
+    # request what sessions use and let the limit stay the eviction guard.
     ephemeral_limit = resources.get("ephemeralStorage", "8Gi")
-    ephemeral_request = resources.get("ephemeralStorageRequest", "8Gi")
+    ephemeral_request = resources.get("ephemeralStorageRequest", "1Gi")
 
     app_env = {**_DEFAULT_APP_ENV, **(env or {})}
 
@@ -217,9 +219,7 @@ def create_rstudio_deployment(
         ),
         spec=k8s.V1DeploymentSpec(
             replicas=1,
-            selector=k8s.V1LabelSelector(
-                match_labels=selector_labels(workshop_name)
-            ),
+            selector=k8s.V1LabelSelector(match_labels=selector_labels(workshop_name)),
             template=k8s.V1PodTemplateSpec(
                 metadata=k8s.V1ObjectMeta(
                     labels=workshop_labels(workshop_name),

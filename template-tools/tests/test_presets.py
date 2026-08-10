@@ -37,7 +37,7 @@ def test_size_expands_to_tier_and_resources(size, tier, memory):
     assert res["memory"] == memory
     assert res["memoryRequest"] == memory
     assert res["ephemeralStorage"] == "8Gi"
-    assert res["ephemeralStorageRequest"] == "8Gi"
+    assert res["ephemeralStorageRequest"] == "1Gi"
 
 
 def test_size_takes_precedence_over_supplied_tier_and_resources():

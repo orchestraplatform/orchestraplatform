@@ -19,7 +19,7 @@ resources:
   cpuRequest: 500m
   memoryRequest: 8Gi
   ephemeralStorage: 8Gi
-  ephemeralStorageRequest: 8Gi
+  ephemeralStorageRequest: 1Gi
 storage:
   size: 20Gi
   workspace:

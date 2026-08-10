@@ -18,7 +18,7 @@ resources:
   cpuRequest: "1"
   memoryRequest: 2Gi
   ephemeralStorage: 8Gi
-  ephemeralStorageRequest: 8Gi
+  ephemeralStorageRequest: 1Gi
 storage:
   size: 10Gi
 tags:

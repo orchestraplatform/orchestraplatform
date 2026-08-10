@@ -80,7 +80,7 @@ class TestPortWiring:
 class TestResources:
     """The app container must carry ephemeral-storage requests/limits.
 
-    GKE Autopilot defaults ephemeral-storage to 1Gi when unset, which Bioconductor
+    A cluster defaults ephemeral-storage to 1Gi when unset, which Bioconductor
     sessions exceed and get evicted (incident 2026-06-16). The operator sets it
     explicitly, defaulting when the Workshop spec omits it.
     """
@@ -88,7 +88,19 @@ class TestResources:
     def test_ephemeral_storage_defaults_applied(self):
         app = _app_container(_make(resources={}))
         assert app.resources.limits["ephemeral-storage"] == "8Gi"
-        assert app.resources.requests["ephemeral-storage"] == "8Gi"
+        assert app.resources.requests["ephemeral-storage"] == "1Gi"
+
+    def test_ephemeral_request_stays_well_under_limit(self):
+        """Request is the bin-packing input; limit is the eviction guard.
+
+        Collapsing them (the old Autopilot-era default) caps a node at
+        floor(allocatable / limit) sessions regardless of machine size.
+        """
+        app = _app_container(_make(resources={}))
+        req = app.resources.requests["ephemeral-storage"]
+        lim = app.resources.limits["ephemeral-storage"]
+        assert req != lim, "request must not track the eviction limit"
+        assert int(req.removesuffix("Gi")) * 4 <= int(lim.removesuffix("Gi"))
 
     def test_ephemeral_storage_from_spec(self):
         app = _app_container(

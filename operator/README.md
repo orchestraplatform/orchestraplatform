@@ -95,7 +95,7 @@ spec:
     cpuRequest: "1"
     memoryRequest: "2Gi"
     ephemeralStorage: "8Gi"
-    ephemeralStorageRequest: "8Gi"
+    ephemeralStorageRequest: "1Gi"
   storage:
     size: "20Gi"
     storageClass: "fast-ssd"
@@ -212,7 +212,7 @@ just test                       # Run test suite
 | `resources.cpuRequest` | string | `"500m"` | CPU request |
 | `resources.memoryRequest` | string | `"1Gi"` | Memory request |
 | `resources.ephemeralStorage` | string | `"8Gi"` | Ephemeral storage limit (pod eviction threshold for non-`/data` writes) |
-| `resources.ephemeralStorageRequest` | string | `"8Gi"` | Ephemeral storage request |
+| `resources.ephemeralStorageRequest` | string | `"1Gi"` | Ephemeral storage request — what the scheduler bin-packs on. Keep it near real usage, well under the limit. |
 | `storage.size` | string | `"10Gi"` | Storage size |
 | `storage.storageClass` | string | `""` | Storage class name |
 | `ingress.host` | string | `""` | Ingress hostname |
