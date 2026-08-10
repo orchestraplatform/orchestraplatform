@@ -58,7 +58,10 @@ FULL_SPEC = {
         "cpuRequest": "1",
         "memoryRequest": "2Gi",
         "ephemeralStorage": "9Gi",
-        "ephemeralStorageRequest": "9Gi",
+        # Request stays well under the limit and under the model's 2Gi cap; the
+        # old 9Gi here mirrored Autopilot's 10Gi-per-pod ceiling, which no longer
+        # applies on GKE Standard and is not what this field is for.
+        "ephemeralStorageRequest": "2Gi",
     },
     "storage": {
         "size": "20Gi",
