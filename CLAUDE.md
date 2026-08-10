@@ -26,13 +26,19 @@ orchestraplatform/
   (`deploy/charts/orchestra/files/templates/`); no external repo / runtime fetch.
   ADR-0007 phase 1 (the extracted `orchestra-template-tools` package) was kept;
   phases 2–6 were paused — see the deferral note in ADR-0007 for the rationale
-  and the fetch-on-startup escalation path. In-flight ADR-0006 completion work
-  (see the session task list): publish/document the template schema + `$schema`
-  wiring, PR-validation CI (repo has none yet) + CODEOWNERS, and CD via GitHub
-  Actions (`helm upgrade` on merge/tag).
+  and the fetch-on-startup escalation path. The ADR-0006 completion work listed
+  here as in-flight is **done**: `$schema` wiring in every template,
+  `.github/CODEOWNERS`, PR-validation CI (`ci.yml`, `validate-templates.yml`,
+  `template-submission-validate.yml`), and CD (`deploy.yml`).
+- **CD is live: a merge to `main` runs `deploy.yml`, which `helm upgrade`s the
+  GKE cluster.** Merging deploys — there is no separate manual step. The chart
+  stamps a `checksum/templates` annotation on the API Deployment, so a template
+  edit rolls the API pod (the registry loads templates from disk at startup, so
+  without that restart a ConfigMap change would be invisible).
 - ADR-0006 (git-managed YAML workshop templates) — all six phases merged to
-  `main`. JupyterLab (`jupyter`) and Bioconductor RStudio (`rstudio`) templates
-  ship in `deploy/charts/orchestra/files/templates/`.
+  `main`. Six templates ship in `deploy/charts/orchestra/files/templates/`:
+  `rstudio`, `jupyter`, `ontoproc2c`, `repspat-workshop`, `bioc2026oma`,
+  `bioc2026-intro-workshop`.
 - Local template rehearsal: `just rehearse-check` (no-cluster smoke checks) +
   the printed runbook validate catalog → launch → ready → connect via `just dev`.
 - [#27](https://github.com/orchestraplatform/orchestraplatform/issues/27) —
