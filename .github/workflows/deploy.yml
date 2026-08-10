@@ -53,7 +53,7 @@ jobs:
       NAMESPACE: orchestra-system
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Resolve image tag (short SHA)
         id: vars
@@ -61,7 +61,7 @@ jobs:
 
       # ---- Authenticate to GCP via Workload Identity Federation (no JSON key) ----
       - name: Authenticate to Google Cloud (WIF)
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@v3
         with:
           # TODO: set WIF_PROVIDER as a repo/environment secret — the full provider
           #   resource name, e.g.
@@ -72,7 +72,7 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
       - name: Set up gcloud
-        uses: google-github-actions/setup-gcloud@v2
+        uses: google-github-actions/setup-gcloud@v3
         with:
           project_id: ${{ env.GCP_PROJECT }}
 
@@ -83,13 +83,13 @@ jobs:
       # gke-gcloud-auth-plugin under the hood). Replaces `kubectl config
       # use-context` from the local recipe.
       - name: Get GKE credentials
-        uses: google-github-actions/get-gke-credentials@v2
+        uses: google-github-actions/get-gke-credentials@v3
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.GKE_LOCATION }}
 
-      - uses: azure/setup-helm@v4
-      - uses: extractions/setup-just@v2
+      - uses: azure/setup-helm@v5
+      - uses: extractions/setup-just@v4
 
       # ---- Reconstruct the gitignored OAuth secrets values file ----
       # `deploy/gcp-values-secrets.yaml` is gitignored (local-only); on CI it is
@@ -108,7 +108,7 @@ jobs:
 
       # ---- Build & push the three images at this SHA (matches `ship-gcp`) ----
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and push images
         env:

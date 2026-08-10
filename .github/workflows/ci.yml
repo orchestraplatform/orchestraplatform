@@ -24,10 +24,15 @@ jobs:
     name: server (pytest + ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
+      # NOTE: setup-uv is pinned to an exact version on purpose. Upstream deleted
+      # its floating major/minor tags in v8 — `astral-sh/setup-uv@v9` does not
+      # resolve and fails the job at startup. Bump this to another exact version;
+      # do not "tidy" it to a bare major. Same applies to the other three
+      # workflows that use it.
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           # uv reads server/.python-version (3.13); cache keyed on the lockfiles.
           enable-cache: true
@@ -35,7 +40,7 @@ jobs:
             server/uv.lock
             template-tools/uv.lock
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       # `server` depends on the sibling `template-tools` path package
       # ([tool.uv.sources]), so a bare `uv sync` in server/ resolves both.
@@ -52,15 +57,15 @@ jobs:
     name: template-tools (pytest + ruff)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: template-tools/uv.lock
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Sync template-tools deps
         run: cd template-tools && uv sync --group dev
@@ -75,15 +80,15 @@ jobs:
     name: operator (pytest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: operator/uv.lock
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Sync operator deps
         run: cd operator && uv sync --group dev
@@ -97,17 +102,17 @@ jobs:
     name: template schema in sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: |
             server/uv.lock
             template-tools/uv.lock
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Sync server deps
         run: cd server && uv sync --group dev
@@ -121,16 +126,16 @@ jobs:
     name: frontend (eslint + tsc + vitest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           # Cache the npm download cache keyed on the committed lockfile.
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       # `npm ci` installs exactly the committed lockfile (fails if out of sync).
       - name: Install frontend deps
@@ -148,11 +153,11 @@ jobs:
     name: helm lint + render
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@v5
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       # helm lint + `helm template` for both charts (default values, plus the
       # committed gcp-values overrides, which render without the gitignored
@@ -164,23 +169,23 @@ jobs:
     name: generated client in sync
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: |
             server/uv.lock
             template-tools/uv.lock
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - uses: extractions/setup-just@v2
+      - uses: extractions/setup-just@v4
 
       - name: Sync server deps
         run: cd server && uv sync --group dev
