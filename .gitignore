@@ -61,3 +61,8 @@ temp/
 .wrangler
 .dev.vars*
 !.dev.vars.example
+
+# R
+.Rhistory
+.RData
+.Rproj.user/

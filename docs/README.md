@@ -1,9 +1,8 @@
 # Orchestra Platform Documentation
 
 [![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
-[![Netlify Status](https://api.netlify.com/api/v1/badges/60e9ed33-676c-4e4c-84ab-7980d564e880/deploy-status)](https://app.netlify.com/projects/orchestraplatform-docs/deploys)
 
-This repository contains the documentation for the Orchestra Platform, built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/).
+This directory contains the public site for the Orchestra Platform, built with [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/). It serves the apex landing page (`src/pages/index.astro`) and the docs under `/docs`. The authenticated app lives at `app.orchestraplatform.org` and is deployed separately to GKE.
 
 ## 🚀 Quick Start
 
@@ -28,51 +27,27 @@ This starts the development server at `http://localhost:4321`.
 
 ## 🚀 Deployment
 
-### Netlify Deployment
+The site is a Cloudflare Worker serving static assets — Astro builds to `docs/dist` and Cloudflare serves it directly (no Worker script, no Astro Cloudflare adapter). Configuration lives in [`wrangler.jsonc`](../wrangler.jsonc) at the **repo root**, not in this directory, because Workers Builds runs from the repo root in this monorepo.
 
-This site is configured for automatic deployment to Netlify:
+Deploys are automatic: Workers Builds is connected to the GitHub repo and rebuilds on push. Pushes to `main` publish to production; other branches produce preview deployments, so PRs touching this directory get a preview URL in their checks.
 
-1. **Connect Repository**: Link your GitHub repository to Netlify
-2. **Build Settings**: 
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Node version: 18
-3. **Custom Domain**: Configure `docs.orchestraplatform.org` as a custom domain
-4. **SSL**: Netlify will automatically provision SSL certificates
+- Build command: `cd docs && npm ci && npm run build`
+- Deploy command: `npx wrangler deploy` (reads the root `wrangler.jsonc`)
+- Assets directory: `docs/dist`
+- Custom domain: `orchestraplatform.org` (apex). `app.` and `api.` stay on GKE.
 
-### Manual Build
+### Manual build and deploy
 
 ```bash
-npm run build
+npm run build          # from docs/ — output lands in docs/dist
+npx wrangler deploy    # from the repo root
 ```
 
-The built site will be in the `dist/` directory.
+Prefer letting Workers Builds handle production; a manual `wrangler deploy` publishes whatever is in your local `docs/dist`, which may not match `main`.
 
-```bash
-netlify deploy --prod
-```
+### Analytics
 
-will deploy the site to production. 
-
-### Custom Domain Setup
-
-To configure `docs.orchestraplatform.org`:
-
-1. **In Netlify Dashboard**:
-   - Go to Site settings → Domain management
-   - Add custom domain: `docs.orchestraplatform.org`
-   - You'll probably need to verify ownership via DNS TXT record or email verification.
-
-2. **DNS Configuration**:
-   - Add a CNAME record in your DNS provider:
-   ```
-   docs.orchestraplatform.org → YOUR_NETLIFY_SITE.netlify.app
-   ```
-
-3. **SSL Certificate**:
-   - Netlify will automatically provision a Let's Encrypt SSL certificate
-   - Your site will be available at `https://docs.orchestraplatform.org`
-   - In some cases like with Cloudflare, it will handle SSL certificates automatically.
+The GA4 measurement ID is hardcoded in two places that must stay in sync: `astro.config.mjs` and `src/pages/index.astro`. There is no env/secret wiring — rotate the property by editing both.
 
 ## 📁 Project Structure
 
@@ -100,7 +75,7 @@ Static assets, like favicons, can be placed in the `public/` directory.
 
 ## 🧞 Commands
 
-All commands are run from the root of the project, from a terminal:
+All commands are run from this `docs/` directory, from a terminal:
 
 | Command                   | Action                                           |
 | :------------------------ | :----------------------------------------------- |
@@ -110,7 +85,6 @@ All commands are run from the root of the project, from a terminal:
 | `npm run preview`         | Preview your build locally, before deploying     |
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
-| `netlify deploy --prod`   | Deploy the site to production on Netlify         |
 
 ## 👀 Want to learn more?
 
