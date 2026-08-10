@@ -22,7 +22,7 @@ def _resources(memory: str) -> dict[str, str]:
         "memory": memory,
         "memoryRequest": memory,
         "ephemeralStorage": "8Gi",
-        "ephemeralStorageRequest": "8Gi",
+        "ephemeralStorageRequest": "1Gi",
     }
 
 

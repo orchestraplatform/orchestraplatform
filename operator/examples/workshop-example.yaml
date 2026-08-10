@@ -13,7 +13,7 @@ spec:
     cpuRequest: "500m"
     memoryRequest: "1Gi"
     ephemeralStorage: "8Gi"
-    ephemeralStorageRequest: "8Gi"
+    ephemeralStorageRequest: "1Gi"
   storage:
     size: "100Gi"
     # storageClass: "fast-ssd"  # Optional

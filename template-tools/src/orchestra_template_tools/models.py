@@ -69,8 +69,12 @@ class WorkshopResources(BaseModel):
         alias="ephemeralStorage",
     )
     ephemeral_storage_request: str = Field(
-        default="8Gi",
-        description="Ephemeral storage request",
+        default="1Gi",
+        description=(
+            "Ephemeral storage request — what the scheduler bin-packs on. Keep it "
+            "near real usage (sessions measure ~50MB) rather than matching the "
+            "limit, or one oversized request caps how many sessions fit per node."
+        ),
         alias="ephemeralStorageRequest",
     )
 

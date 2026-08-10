@@ -57,8 +57,10 @@ module's variable inputs) — do **not** edit defaults in place.
    [gotcha](/docs/deployment/troubleshooting/#private-nodes-need-nat). For a clean
    cutover, most likely reuse the Autopilot cluster's VPC/subnet.
 3. **`nap_boot_disk_size_gb`** — **must be ≥ the templates' ephemeral-storage
-   request.** The default **30 GB is too small** for the 8Gi ephemeral request the
-   workshop templates carry (system reserve eats into it) — **use 50 GB.** See the
+   request**, and the request is what sets per-node session density: a node fits
+   `floor(allocatable ephemeral / request)` sessions. 50 GB yields ~17.5 GiB
+   allocatable (not the ~26 GiB a naive subtraction suggests), so keep template
+   requests small — 1Gi, not the 8Gi eviction limit. See the
    [gotcha](/docs/deployment/troubleshooting/#nap-disk-too-small-for-ephemeral-request).
 4. **NAP bounds** — `nap_max_cpu` / `nap_max_memory_gb`. Validate against
    *(realistic per-session request) × (target concurrency ≈ 300)*.
