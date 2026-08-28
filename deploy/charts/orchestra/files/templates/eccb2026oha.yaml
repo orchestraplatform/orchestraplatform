@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Orchestrating Hologenome Analysis with Bioconductor (ECCB2026)
+slug: eccb2026oha
+description: Workshop organized in European Conference on Computational Biology 2026.
+image: ghcr.io/microbiome/eccb2026oha:873ad69
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 8Gi
+  cpuRequest: 500m
+  memoryRequest: 8Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://microbiome.github.io/ECCB2026OHA/articles/OHA.html
+sourceUrl: https://github.com/microbiome/ECCB2026OHA
+submittedBy: TuomasBorman
+
