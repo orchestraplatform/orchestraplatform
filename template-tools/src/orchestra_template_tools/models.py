@@ -11,6 +11,7 @@ can install it in CI without dragging in the platform's server/operator stack.
 """
 
 import re
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_validator
@@ -267,6 +268,13 @@ class WorkshopTemplateFile(WorkshopTemplateCreate):
         description="GitHub handle of the last submitter, stamped by the template "
         "front-door Action from the issue author (ADR-0009); absent on hand-authored "
         "templates. Catalog metadata; never reaches the CRD.",
+    )
+    created_at: date | None = Field(
+        default=None,
+        alias="createdAt",
+        description="Optional ISO-8601 date (YYYY-MM-DD) recording when this "
+        "template was first published. Used by the catalog 'Newest' sort; "
+        "templates without this field sort by their registry-load timestamp.",
     )
 
     @field_validator("url", "source_url")
