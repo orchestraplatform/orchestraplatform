@@ -9,7 +9,6 @@ in a later ADR-0007 phase; this guard goes with it.)
 
 import pathlib
 
-import pytest
 from orchestra_template_tools import validate_documents
 
 from api.services.template_registry import TemplateRegistry

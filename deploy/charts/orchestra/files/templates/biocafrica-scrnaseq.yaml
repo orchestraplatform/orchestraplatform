@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Introduction to scRNAseq analysis (BiocAfrica workshop)
+slug: biocafrica-scrnaseq
+description: 2-session workshop (2 x 1h) covering introduction to single-cell RNA-seq
+  data analysis, conducted as part of BiocAfrica series of workshops.
+image: ghcr.io/js2264/biocafrica_scrnaseq2026:8e7f5ff
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 16Gi
+  cpuRequest: 500m
+  memoryRequest: 16Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+storage:
+  size: 10Gi
+  workspace:
+    persist: per-user
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://js2264.github.io/BiocAfrica_scRNAseq2026/
+sourceUrl: https://github.com/js2264/BiocAfrica_scRNAseq2026
+submittedBy: js2264
+
