@@ -18,7 +18,7 @@ import './index.css';
 OpenAPI.BASE = window.__ORCHESTRA_CONFIG__?.apiUrl || import.meta.env.VITE_API_URL || '';
 OpenAPI.WITH_CREDENTIALS = true;
 
-// GA4 — inert unless a measurement ID is configured (see utils/analytics.ts).
+// GA4 — inert on non-production hosts (see utils/analytics.ts).
 initAnalytics();
 
 // gtag is configured with send_page_view: false, so every page view (including

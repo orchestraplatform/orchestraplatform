@@ -47,7 +47,7 @@ Prefer letting Workers Builds handle production; a manual `wrangler deploy` publ
 
 ### Analytics
 
-The GA4 measurement ID is hardcoded in two places that must stay in sync: `astro.config.mjs` and `src/pages/index.astro`. There is no env/secret wiring — rotate the property by editing both.
+The GA4 measurement ID is hardcoded in two places that must stay in sync: `astro.config.mjs` and `src/pages/index.astro`. There is no env/secret wiring — rotate the property by editing both. It is the shared "Sean Davis — web" property (`G-KLLV1GCF4E`, `content_group: 'orchestraplatform'`); the tag is skipped on localhost, raw IPs, and `*.workers.dev` preview hosts. The app (`frontend/src/utils/analytics.ts`) hardcodes the same ID.
 
 ## 📁 Project Structure
 

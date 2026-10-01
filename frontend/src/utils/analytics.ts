@@ -1,12 +1,11 @@
 /**
  * Google Analytics 4 — no SDK, just the standard gtag.js bootstrap.
  *
- * The measurement ID comes from runtime config (`window.__ORCHESTRA_CONFIG__`,
- * written by docker-entrypoint.sh from the VITE_GA_MEASUREMENT_ID container env
- * var that the Helm chart sets — same mechanism as apiUrl) or, for local dev,
- * from the VITE_GA_MEASUREMENT_ID build-time env var. When neither is set
- * (local dev, CI, tests) analytics is completely inert: no script tag is
- * injected, no network calls happen, and track() is a no-op.
+ * Sends to the shared "Sean Davis — web" GA4 property (public ID, hardcoded)
+ * with content_group 'orchestraplatform'. On non-production hosts (localhost,
+ * raw IPs, *.workers.dev / *.netlify.app / *.ts.net) analytics is completely
+ * inert: no script tag is injected, no network calls happen, and track() is a
+ * no-op.
  *
  * Event params must NEVER contain PII — template slugs, phases, and booleans
  * are fine; emails, tokens, and per-session instance URLs are not.
@@ -16,21 +15,21 @@ export type EventParams = Record<string, string | number | boolean>;
 
 declare global {
   interface Window {
-    __ORCHESTRA_CONFIG__?: { apiUrl?: string; gaMeasurementId?: string };
+    __ORCHESTRA_CONFIG__?: { apiUrl?: string };
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
   }
 }
 
+const GA_ID = 'G-KLLV1GCF4E';
+const NON_PRODUCTION_HOST =
+  /^(localhost|127\.0\.0\.1|\[::1\]|\d+(\.\d+){3})$|\.(workers\.dev|netlify\.app|ts\.net)$/;
+
 let enabled = false;
 
 /** Inject gtag.js and start the command queue. Call once at startup. */
 export function initAnalytics(): void {
-  const id =
-    window.__ORCHESTRA_CONFIG__?.gaMeasurementId ||
-    import.meta.env.VITE_GA_MEASUREMENT_ID ||
-    '';
-  if (!id || enabled) return;
+  if (enabled || NON_PRODUCTION_HOST.test(window.location.hostname)) return;
 
   window.dataLayer = window.dataLayer || [];
   window.gtag = function () {
@@ -41,11 +40,11 @@ export function initAnalytics(): void {
   window.gtag('js', new Date());
   // SPA: the default snippet only records the first page, so page_view is sent
   // manually on every route change instead (PageTracker in App.tsx).
-  window.gtag('config', id, { send_page_view: false });
+  window.gtag('config', GA_ID, { send_page_view: false, content_group: 'orchestraplatform' });
 
   const script = document.createElement('script');
   script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
   document.head.appendChild(script);
   enabled = true;
 }

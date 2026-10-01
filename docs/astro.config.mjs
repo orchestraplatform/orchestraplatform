@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 // GA4 property for orchestraplatform.org. Rotate by updating this ID (and the
 // matching one in src/pages/index.astro) — no separate secret/env wiring.
-const googleAnalyticsId = 'G-7SEJMRNJ0P';
+const googleAnalyticsId = 'G-KLLV1GCF4E';
 
 export default defineConfig({
   site: 'https://orchestraplatform.org',
@@ -24,20 +24,20 @@ export default defineConfig({
       },
       head: [
         // Adding google analytics
-        {
-          tag: 'script',
-          attrs: {
-            src: `https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`,
-          },
-        },
+        // Skipped on non-production hosts (localhost, IPs, *.workers.dev previews).
         {
           tag: 'script',
           content: `
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-
-          gtag('config', '${googleAnalyticsId}');
+          if (!/^(localhost|127\\.0\\.0\\.1|\\[::1\\]|\\d+(\\.\\d+){3})$|\\.(workers\\.dev|netlify\\.app|ts\\.net)$/.test(location.hostname)) {
+            var s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}';
+            document.head.appendChild(s);
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${googleAnalyticsId}', { content_group: 'orchestraplatform' });
+          }
           `,
         },
       ],
