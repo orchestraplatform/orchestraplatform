@@ -9,11 +9,10 @@ interface StubScript {
   async?: boolean;
 }
 
-function stubDom(config?: { gaMeasurementId?: string }) {
+function stubDom(hostname = 'app.orchestraplatform.org') {
   const appended: StubScript[] = [];
   const win = {
-    __ORCHESTRA_CONFIG__: config,
-    location: { origin: 'https://app.example.org' },
+    location: { hostname, origin: `https://${hostname}` },
   } as unknown as Window & typeof globalThis;
   vi.stubGlobal('window', win);
   vi.stubGlobal('document', {
@@ -34,26 +33,29 @@ afterEach(() => {
 });
 
 describe('analytics', () => {
-  it('is completely inert when no measurement ID is configured', async () => {
+  it.each(['localhost', '127.0.0.1', '10.0.0.5', 'orchestra.example.workers.dev', 'box.tail1.ts.net'])(
+    'is completely inert on non-production host %s',
+    async (host) => {
+      const { win, appended } = stubDom(host);
+      const { initAnalytics, track } = await loadAnalytics();
+
+      initAnalytics();
+      track('workshop_launch', { template_slug: 'jupyter' });
+
+      expect(appended).toHaveLength(0);
+      expect(win.gtag).toBeUndefined();
+      expect(win.dataLayer).toBeUndefined();
+    },
+  );
+
+  it('injects gtag.js and queues events on the production host', async () => {
     const { win, appended } = stubDom();
-    const { initAnalytics, track } = await loadAnalytics();
-
-    initAnalytics();
-    track('workshop_launch', { template_slug: 'jupyter' });
-
-    expect(appended).toHaveLength(0);
-    expect(win.gtag).toBeUndefined();
-    expect(win.dataLayer).toBeUndefined();
-  });
-
-  it('injects gtag.js and queues events when the ID is set', async () => {
-    const { win, appended } = stubDom({ gaMeasurementId: 'G-TEST123' });
     const { initAnalytics, track } = await loadAnalytics();
 
     initAnalytics();
 
     expect(appended).toHaveLength(1);
-    expect(appended[0].src).toBe('https://www.googletagmanager.com/gtag/js?id=G-TEST123');
+    expect(appended[0].src).toBe('https://www.googletagmanager.com/gtag/js?id=G-KLLV1GCF4E');
     expect(appended[0].async).toBe(true);
 
     track('workshop_launch', { template_slug: 'jupyter', replace_existing: false });
@@ -61,7 +63,11 @@ describe('analytics', () => {
     const calls = win.dataLayer!.map((a) => Array.from(a as IArguments));
     expect(calls[0][0]).toBe('js');
     // Manual SPA page views: the config call must disable the automatic one.
-    expect(calls[1]).toEqual(['config', 'G-TEST123', { send_page_view: false }]);
+    expect(calls[1]).toEqual([
+      'config',
+      'G-KLLV1GCF4E',
+      { send_page_view: false, content_group: 'orchestraplatform' },
+    ]);
     expect(calls[2]).toEqual([
       'event',
       'workshop_launch',
@@ -70,7 +76,7 @@ describe('analytics', () => {
   });
 
   it('trackPageView sends page_view with path and title', async () => {
-    const { win } = stubDom({ gaMeasurementId: 'G-TEST123' });
+    const { win } = stubDom();
     const { initAnalytics, trackPageView } = await loadAnalytics();
 
     initAnalytics();
@@ -83,13 +89,13 @@ describe('analytics', () => {
       {
         page_path: '/templates',
         page_title: 'Orchestra - Workshop Management',
-        page_location: 'https://app.example.org/templates',
+        page_location: 'https://app.orchestraplatform.org/templates',
       },
     ]);
   });
 
   it('initAnalytics is idempotent', async () => {
-    const { appended } = stubDom({ gaMeasurementId: 'G-TEST123' });
+    const { appended } = stubDom();
     const { initAnalytics } = await loadAnalytics();
 
     initAnalytics();

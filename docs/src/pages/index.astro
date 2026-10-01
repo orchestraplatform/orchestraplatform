@@ -8,7 +8,7 @@ const contributeUrl = '/docs/contribute/overview/';
 const runningUrl = '/docs/deployment/overview/';
 const githubUrl = 'https://github.com/orchestraplatform/orchestraplatform';
 // Keep in sync with docs/astro.config.mjs — same GA4 property.
-const gaId = 'G-7SEJMRNJ0P';
+const gaId = 'G-KLLV1GCF4E';
 
 const features = [
   {
@@ -49,16 +49,20 @@ const features = [
     />
     <meta property="og:url" content="https://orchestraplatform.org/" />
     <meta name="twitter:card" content="summary_large_image" />
-    <script
-      async
-      src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}></script>
+    <!-- GA4; skipped on non-production hosts (localhost, IPs, *.workers.dev previews). -->
     <script is:inline define:vars={{ gaId }}>
-      window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
+      if (!/^(localhost|127\.0\.0\.1|\[::1\]|\d+(\.\d+){3})$|\.(workers\.dev|netlify\.app|ts\.net)$/.test(location.hostname)) {
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag() {
+          dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+        gtag('config', gaId, { content_group: 'orchestraplatform' });
       }
-      gtag('js', new Date());
-      gtag('config', gaId);
     </script>
   </head>
   <body>
