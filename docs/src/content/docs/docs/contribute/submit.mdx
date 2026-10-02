@@ -31,7 +31,9 @@ the pull request for you ([ADR-0009](/docs/adr/0009-template-front-door/)).
    containing the generated YAML — reusing an existing **slug** updates that
    template (the diff shows the change); a new slug adds one. Your GitHub handle
    is recorded on the template as `submittedBy` automatically — it's stamped from
-   the issue author, not a field you fill in.
+   the issue author, not a field you fill in. A new template also gets
+   `createdAt` (the approval date) for the catalog's newest/oldest sort; an
+   update keeps the original date.
 
 4. The PR is reviewed and merged like any other. Your workshop appears in the
    catalog on the next deploy, and merging closes your issue.
@@ -50,7 +52,7 @@ the form is a convenience, not the only door.
   locally), `just template-from-issue <n>` does what the convert Action does under
   your own `gh` auth: it parses issue `<n>`'s form, renders and validates the YAML,
   writes the file, branches, and opens the PR — stamping `submittedBy` from the
-  issue author.
+  issue author and `createdAt` as for the Action.
 </Aside>
 
 ## Who reviews it

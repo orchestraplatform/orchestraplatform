@@ -58,7 +58,8 @@ jobs:
           templates=deploy/charts/orchestra/files/templates
           result=$(printf '%s' "$ISSUE_BODY" \
             | orchestra-render-template --issue-body \
-                --submitted-by "$SUBMITTER" --templates-dir "$templates" || true)
+                --submitted-by "$SUBMITTER" --created-at "$(date -u +%F)" \
+                --templates-dir "$templates" || true)
           printf '%s' "$result" > /tmp/result.json
           echo "ok=$(jq -r '.ok' /tmp/result.json)" >> "$GITHUB_OUTPUT"
 
