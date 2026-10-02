@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Orchestrating Microbiome Analysis with Bioconductor (October 2026)
+slug: oma-october-2026
+image: ghcr.io/microbiome/workshop2026fall:c1acdb7
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 8Gi
+  cpuRequest: 500m
+  memoryRequest: 8Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://microbiome.github.io/workshop2026Fall/
+sourceUrl: https://github.com/microbiome/workshop2026Fall
+submittedBy: TuomasBorman
+
