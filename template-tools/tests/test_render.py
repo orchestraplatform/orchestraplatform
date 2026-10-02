@@ -200,6 +200,24 @@ def test_cli_created_at_stamped_on_create_and_kept_on_update(tmp_path, capsys):
     assert "createdAt: 2026-10-02" in out["yaml"]
 
 
+def test_cli_created_at_flag_must_be_iso_date(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(ISSUE_BODY)
+    rc = render_main([str(src), "--issue-body", "--created-at", "20261002"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any(e.startswith("createdAt:") for e in out["errors"])
+
+
+def test_cli_submitted_null_created_at_is_error_not_replaced(tmp_path, capsys):
+    src = tmp_path / "sub.json"
+    src.write_text(json.dumps({"name": "X", "slug": "x", "createdAt": None}))
+    rc = render_main([str(src), "--created-at", "2026-10-02"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any(e.startswith("createdAt:") for e in out["errors"])
+
+
 def test_cli_issue_body_malformed_env_returns_1(tmp_path, capsys):
     src = tmp_path / "body.md"
     src.write_text(
