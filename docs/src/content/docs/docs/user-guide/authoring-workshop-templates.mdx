@@ -69,7 +69,7 @@ snake_case; the schema uses camelCase.
 | `url`             | string \| null       | no       | `null`                  | Landing/materials page for the catalog's "Learn more" link (the form's **Landing URL**). Catalog metadata; never reaches the CRD.                    |
 | `sourceUrl`       | string \| null       | no       | `null`                  | Repository the workshop content lives in, for the catalog's "Source" link (the form's **Source repo URL**). Catalog metadata; never reaches the CRD. |
 | `submittedBy`     | string \| null       | no       | `null`                  | GitHub handle of the submitter, **stamped by the front door from the issue author** ([ADR-0009](/docs/adr/0009-template-front-door/)); **absent on hand-authored templates** — you don't set this. |
-| `createdAt`       | date (`YYYY-MM-DD`) \| null | no | `null`                | First-publication date, used by the catalog's **Newest**/**Oldest** sort. The front door stamps it on new templates and keeps it on updates; **set it by hand on hand-authored templates** — undated templates fall back to the API's load time, so two undated templates make the order ambiguous (and fail CI). |
+| `createdAt`       | date (`YYYY-MM-DD`)  | **yes**  | —                       | First-publication date, used by the catalog's **Newest**/**Oldest** sort. Must be a calendar date in `YYYY-MM-DD` form — not `null`, a timestamp, or a datetime. Several templates may share a date; ties sort by name. The front door stamps it (the approval date) on new templates and keeps it on updates; set it by hand on hand-authored templates. |
 
 <Aside type="note" title="Where tier + resources come from via the form">
   The submission form has no `tier`/`resources` fields — it offers a single
@@ -91,7 +91,7 @@ All resource fields are strings using Kubernetes quantity notation (e.g. `"2"`,
 | `cpuRequest`              | string | no       | `500m`  | CPU request.                                                                                                                                                               |
 | `memoryRequest`           | string | no       | `1Gi`   | Memory request.                                                                                                                                                            |
 | `ephemeralStorage`        | string | no       | `8Gi`   | Ephemeral-storage limit — everything written outside the `/data` PVC (package installs, `/tmp`, the container writable layer). The kubelet **evicts** the pod if exceeded. |
-| `ephemeralStorageRequest` | string | no       | `8Gi`   | Ephemeral-storage request.                                                                                                                                                 |
+| `ephemeralStorageRequest` | string | no       | `1Gi`   | Ephemeral-storage request — what the scheduler bin-packs on; **at most `2Gi`**. Put headroom on `ephemeralStorage` (the limit) instead.                                    |
 
 <Aside type="caution" title="Keep ephemeral storage at 8Gi on GKE Autopilot">
   Autopilot caps a pod's total ephemeral storage at 10Gi. The templates ship
@@ -128,12 +128,13 @@ resources:
   cpuRequest: '1'
   memoryRequest: 2Gi
   ephemeralStorage: 8Gi
-  ephemeralStorageRequest: 8Gi
+  ephemeralStorageRequest: 1Gi
 storage:
   size: 10Gi
 tags:
   - bioconductor
 enabled: true
+createdAt: 2026-10-02
 ```
 
 For JupyterLab and other stock images, see

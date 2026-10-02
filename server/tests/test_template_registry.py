@@ -1,6 +1,7 @@
 """Tests for the in-memory template registry and the reader dependency."""
 
 import uuid
+from datetime import UTC, date, datetime
 
 import pytest
 import yaml
@@ -21,6 +22,7 @@ _RSTUDIO = {
     "resources": {"cpu": "2", "memory": "4Gi"},
     "tags": ["rstudio"],
     "enabled": True,
+    "createdAt": date(2026, 10, 2),
 }
 _RETIRED = {
     "name": "Old Jupyter",
@@ -28,6 +30,7 @@ _RETIRED = {
     "image": "quay.io/jupyter/base-notebook:latest",
     "port": 8888,
     "enabled": False,
+    "createdAt": date(2026, 10, 2),
 }
 
 
@@ -72,6 +75,14 @@ class TestRegistryLoading:
         assert fetched is not None
         assert fetched.slug == "rstudio"
         assert fetched.tier == "small"
+
+    @pytest.mark.asyncio
+    async def test_templates_may_share_created_at(self, templates_dir):
+        # Both fixtures carry the same createdAt day (#147).
+        reg = TemplateRegistry.from_dir(templates_dir)
+        items, total = await reg.list_templates(include_inactive=True)
+        assert total == 2
+        assert {t.created_at for t in items} == {datetime(2026, 10, 2, tzinfo=UTC)}
 
     def test_stable_id_is_deterministic(self):
         assert stable_template_id("rstudio") == stable_template_id("rstudio")

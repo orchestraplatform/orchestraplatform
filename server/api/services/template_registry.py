@@ -36,18 +36,11 @@ def stable_template_id(slug: str) -> uuid.UUID:
 def _to_response(
     tmpl: WorkshopTemplateFile, loaded_at: datetime
 ) -> WorkshopTemplateResponse:
-    # Use the template's declared creation date when present so that catalog
-    # "newest" sort reflects authoring order rather than the registry startup
-    # time (which is the same instant for every template loaded from a dir).
-    if tmpl.created_at is not None:
-        created_at = datetime(
-            tmpl.created_at.year,
-            tmpl.created_at.month,
-            tmpl.created_at.day,
-            tzinfo=UTC,
-        )
-    else:
-        created_at = loaded_at
+    # createdAt is a required YYYY-MM-DD date in every template file; several
+    # templates may share one (the catalog breaks ties by name).
+    created_at = datetime(
+        tmpl.created_at.year, tmpl.created_at.month, tmpl.created_at.day, tzinfo=UTC
+    )
     return WorkshopTemplateResponse(
         id=stable_template_id(tmpl.slug),
         name=tmpl.name,

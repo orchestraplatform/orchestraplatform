@@ -11,13 +11,14 @@ can install it in CI without dragging in the platform's server/operator stack.
 """
 
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, TypeAdapter, field_validator
 
 _K8S_SLUG_RE = re.compile(r"^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$")
 _SLUG_MAX = 40
+_ISO_DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 # Cap on the /data volume size (#93). With per-user persistence (ADR-0010)
 # an oversized request is durable cost, so the shared model rejects it for
@@ -269,12 +270,12 @@ class WorkshopTemplateFile(WorkshopTemplateCreate):
         "front-door Action from the issue author (ADR-0009); absent on hand-authored "
         "templates. Catalog metadata; never reaches the CRD.",
     )
-    created_at: date | None = Field(
-        default=None,
+    created_at: date = Field(
         alias="createdAt",
-        description="Optional ISO-8601 date (YYYY-MM-DD) recording when this "
-        "template was first published. Used by the catalog 'Newest' sort; "
-        "templates without this field sort by their registry-load timestamp.",
+        description="ISO-8601 date (YYYY-MM-DD) this template was first "
+        "published. Required; drives the catalog Newest/Oldest sort. Several "
+        "templates may share a date. The front door stamps it on new templates "
+        "and keeps it on updates.",
     )
 
     @field_validator("url", "source_url")
@@ -283,3 +284,16 @@ class WorkshopTemplateFile(WorkshopTemplateCreate):
         if v is not None:
             _URL_ADAPTER.validate_python(v)  # raises if not a valid URL
         return v
+
+    @field_validator("created_at", mode="before")
+    @classmethod
+    def _created_at_is_iso_date(cls, v: object) -> object:
+        # Lax pydantic would coerce timestamps, datetimes and datetime strings
+        # to a date; accept only a calendar date — a YAML date (unquoted
+        # 2026-10-02) or a YYYY-MM-DD string. datetime subclasses date, so it
+        # is checked first. Pydantic then rejects impossible days (2026-02-30).
+        if isinstance(v, date) and not isinstance(v, datetime):
+            return v
+        if isinstance(v, str) and _ISO_DATE_RE.fullmatch(v):
+            return v
+        raise ValueError("createdAt must be an ISO-8601 date (YYYY-MM-DD)")
