@@ -92,7 +92,8 @@ def test_full_body_parses_to_submission():
 
 def test_full_body_round_trips_to_valid_yaml():
     sub = submission_from_issue_body(FULL_BODY)
-    result = render_submission(sub)
+    # The CLI stamps createdAt; the issue form never carries it.
+    result = render_submission({**sub, "createdAt": "2026-10-02"})
     assert result.ok, result.errors
     catalog = validate_documents({"rstudio.yaml": result.yaml_text})
     assert catalog.ok

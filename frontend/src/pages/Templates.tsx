@@ -243,8 +243,9 @@ export function Templates() {
         switch (sort) {
           case 'name-asc':  return a.name.localeCompare(b.name);
           case 'name-desc': return b.name.localeCompare(a.name);
-          case 'newest':    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-          case 'oldest':    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          // Several templates can share a createdAt date; ties sort by name.
+          case 'newest':    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || a.name.localeCompare(b.name);
+          case 'oldest':    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime() || a.name.localeCompare(b.name);
         }
       });
   }, [active, activeTag, durationFilter, search, sort]);

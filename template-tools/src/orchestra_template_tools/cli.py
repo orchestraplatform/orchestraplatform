@@ -14,7 +14,7 @@ JSON result envelope for the front-door Action to consume.
 import argparse
 import json
 import sys
-from datetime import date
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -164,12 +164,14 @@ def render_main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--created-at",
-        type=date.fromisoformat,
+        # Kept a string so the model's YYYY-MM-DD check applies; parsing here
+        # would let date.fromisoformat's other forms (20261002) through.
         default=None,
         metavar="YYYY-MM-DD",
         help=(
-            "Stamp createdAt (first-publication date). An update keeps the "
-            "existing file's createdAt; this date applies to new templates."
+            "createdAt (first-publication date) for a new template; default: "
+            "today (UTC). An update keeps the existing file's createdAt, and a "
+            "submission that carries its own createdAt keeps it."
         ),
     )
     parser.add_argument(
@@ -218,11 +220,15 @@ def render_main(argv: list[str] | None = None) -> int:
     if isinstance(data, dict):
         if args.submitted_by:
             data["submittedBy"] = args.submitted_by
-        if args.created_at:
-            data["createdAt"] = (
-                _existing_created_at(data.get("slug"), args.templates_dir)
-                or args.created_at
-            )
+        # createdAt is required, so every path — including --validate — stamps
+        # one; the issue form never carries it. Precedence: existing file (an
+        # update keeps its first-publication date) > the submission's own
+        # value, even if invalid, so the model reports it > --created-at > today.
+        existing = _existing_created_at(data.get("slug"), args.templates_dir)
+        if existing is not None:
+            data["createdAt"] = existing
+        elif "createdAt" not in data:
+            data["createdAt"] = args.created_at or datetime.now(UTC).date().isoformat()
 
     result = render_submission(data)
     print(_envelope(result, None if args.validate else args.templates_dir))

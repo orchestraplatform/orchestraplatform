@@ -248,23 +248,16 @@
       "title": "Submittedby"
     },
     "createdAt": {
-      "anyOf": [
-        {
-          "format": "date",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Optional ISO-8601 date (YYYY-MM-DD) recording when this template was first published. Used by the catalog 'Newest' sort; templates without this field sort by their registry-load timestamp.",
-      "title": "Createdat"
+      "description": "ISO-8601 date (YYYY-MM-DD) this template was first published. Required; drives the catalog Newest/Oldest sort. Several templates may share a date. The front door stamps it on new templates and keeps it on updates.",
+      "format": "date",
+      "title": "Createdat",
+      "type": "string"
     }
   },
   "required": [
     "name",
-    "slug"
+    "slug",
+    "createdAt"
   ],
   "title": "Orchestra Workshop Template",
   "type": "object",

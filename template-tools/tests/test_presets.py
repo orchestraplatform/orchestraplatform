@@ -5,7 +5,7 @@ import yaml
 
 from orchestra_template_tools import SIZE_NAMES, render_submission
 
-BASE = {"name": "X", "slug": "x"}
+BASE = {"name": "X", "slug": "x", "createdAt": "2026-10-02"}
 
 # (size, expected tier, expected memory limit == request)
 EXPECTED = [

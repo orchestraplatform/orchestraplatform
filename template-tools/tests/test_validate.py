@@ -30,6 +30,7 @@ RSTUDIO = textwrap.dedent(
     port: 8787
     tier: small
     enabled: true
+    createdAt: 2026-10-02
     """
 ).strip()
 
@@ -43,6 +44,7 @@ JUPYTER = textwrap.dedent(
     args:
       - start-notebook.py
     enabled: true
+    createdAt: 2026-10-02
     """
 ).strip()
 
@@ -57,11 +59,14 @@ def test_load_valid_template():
 
 
 def test_camelcase_alias_accepted():
-    tmpl = load_template("name: X\nslug: x\ndefaultDuration: 2h\n")
+    tmpl = load_template(
+        "name: X\nslug: x\ndefaultDuration: 2h\ncreatedAt: 2026-10-02\n"
+    )
     assert tmpl.default_duration == "2h"
 
 
 def test_valid_catalog():
+    # Both fixtures share a createdAt day: dates need not be unique (#147).
     result = validate_documents({"rstudio.yaml": RSTUDIO, "jupyter.yaml": JUPYTER})
     assert result.ok
     assert {t.slug for t in result.templates} == {"rstudio", "jupyter"}
@@ -127,6 +132,36 @@ def test_catalog_metadata_optional_absent_ok():
 def test_invalid_url_rejected():
     with pytest.raises(ValidationError):
         load_template(RSTUDIO + "\nurl: not-a-url")
+
+
+@pytest.mark.parametrize("value", ["2026-10-02", "'2026-10-02'"])
+def test_created_at_yaml_date_or_iso_string_accepted(value):
+    tmpl = load_template(f"name: X\nslug: x\ncreatedAt: {value}\n")
+    assert tmpl.created_at.isoformat() == "2026-10-02"
+
+
+def test_created_at_missing_rejected():
+    with pytest.raises(ValidationError, match="createdAt"):
+        load_template("name: X\nslug: x\n")
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "null",
+        "''",
+        "2026-10-02T12:00:00",  # YAML timestamp -> datetime
+        "'2026-10-02T00:00:00Z'",
+        "'2026-10-2'",
+        "'10/02/2026'",
+        "'20261002'",
+        "1790899200",  # unix timestamp
+        "'2026-02-30'",  # not a calendar day
+    ],
+)
+def test_created_at_malformed_rejected(value):
+    with pytest.raises(ValidationError, match="createdAt"):
+        load_template(f"name: X\nslug: x\ncreatedAt: {value}\n")
 
 
 def test_storage_size_at_cap_ok():

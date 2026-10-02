@@ -1,6 +1,7 @@
 """Tests for form-to-YAML rendering (ADR-0009)."""
 
 import json
+from datetime import UTC, datetime
 
 from orchestra_template_tools import (
     existing_template_path,
@@ -22,7 +23,9 @@ SUBMISSION = {
     "storage": {"size": "10Gi"},
     "tags": ["bioconductor", "rstudio"],
     "enabled": True,
+    "createdAt": "2026-10-02",
 }
+MINIMAL = {"name": "X", "slug": "x", "createdAt": "2026-10-02"}
 
 
 def test_valid_submission_renders_yaml():
@@ -51,7 +54,7 @@ def test_yaml_is_deterministic():
 
 
 def test_defaults_materialized_and_camelcase():
-    text = render_submission({"name": "X", "slug": "x"}).yaml_text
+    text = render_submission(MINIMAL).yaml_text
     # Defaults from the shared model are written out explicitly.
     assert "defaultDuration: 4h" in text
     assert "ephemeralStorage: 8Gi" in text
@@ -59,15 +62,13 @@ def test_defaults_materialized_and_camelcase():
 
 
 def test_empty_fields_omitted():
-    text = render_submission({"name": "X", "slug": "x"}).yaml_text
+    text = render_submission(MINIMAL).yaml_text
     for absent in ("description", "env", "args", "tags", "storage"):
         assert f"{absent}:" not in text
 
 
 def test_env_keys_sorted():
-    text = render_submission(
-        {"name": "X", "slug": "x", "env": {"ZZZ": "1", "AAA": "2"}}
-    ).yaml_text
+    text = render_submission({**MINIMAL, "env": {"ZZZ": "1", "AAA": "2"}}).yaml_text
     assert text.index("AAA") < text.index("ZZZ")
     assert load_template(text).env == {"AAA": "2", "ZZZ": "1"}
 
@@ -166,6 +167,8 @@ def test_cli_issue_body_parses_and_renders(tmp_path, capsys):
     assert "tier: small" in out["yaml"]  # standard -> small tier
     assert "memory: 4Gi" in out["yaml"]  # standard -> 4Gi
     assert out["exists"] is None  # --validate suppresses path resolution
+    # createdAt is required; with no --created-at the CLI stamps today (UTC).
+    assert f"createdAt: {datetime.now(UTC).date().isoformat()}" in out["yaml"]
 
 
 def test_cli_submitted_by_is_stamped(tmp_path, capsys):
@@ -195,6 +198,24 @@ def test_cli_created_at_stamped_on_create_and_kept_on_update(tmp_path, capsys):
     out = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert "createdAt: 2026-10-02" in out["yaml"]
+
+
+def test_cli_created_at_flag_must_be_iso_date(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(ISSUE_BODY)
+    rc = render_main([str(src), "--issue-body", "--created-at", "20261002"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any(e.startswith("createdAt:") for e in out["errors"])
+
+
+def test_cli_submitted_null_created_at_is_error_not_replaced(tmp_path, capsys):
+    src = tmp_path / "sub.json"
+    src.write_text(json.dumps({"name": "X", "slug": "x", "createdAt": None}))
+    rc = render_main([str(src), "--created-at", "2026-10-02"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert any(e.startswith("createdAt:") for e in out["errors"])
 
 
 def test_cli_issue_body_malformed_env_returns_1(tmp_path, capsys):
