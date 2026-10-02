@@ -69,6 +69,7 @@ snake_case; the schema uses camelCase.
 | `url`             | string \| null       | no       | `null`                  | Landing/materials page for the catalog's "Learn more" link (the form's **Landing URL**). Catalog metadata; never reaches the CRD.                    |
 | `sourceUrl`       | string \| null       | no       | `null`                  | Repository the workshop content lives in, for the catalog's "Source" link (the form's **Source repo URL**). Catalog metadata; never reaches the CRD. |
 | `submittedBy`     | string \| null       | no       | `null`                  | GitHub handle of the submitter, **stamped by the front door from the issue author** ([ADR-0009](/docs/adr/0009-template-front-door/)); **absent on hand-authored templates** — you don't set this. |
+| `createdAt`       | date (`YYYY-MM-DD`) \| null | no | `null`                | First-publication date, used by the catalog's **Newest**/**Oldest** sort. The front door stamps it on new templates and keeps it on updates; **set it by hand on hand-authored templates** — undated templates fall back to the API's load time, so two undated templates make the order ambiguous (and fail CI). |
 
 <Aside type="note" title="Where tier + resources come from via the form">
   The submission form has no `tier`/`resources` fields — it offers a single

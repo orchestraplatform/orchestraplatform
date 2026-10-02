@@ -177,6 +177,26 @@ def test_cli_submitted_by_is_stamped(tmp_path, capsys):
     assert "submittedBy: octocat" in out["yaml"]
 
 
+def test_cli_created_at_stamped_on_create_and_kept_on_update(tmp_path, capsys):
+    src = tmp_path / "body.md"
+    src.write_text(ISSUE_BODY)
+    tdir = tmp_path / "templates"
+    tdir.mkdir()
+    args = [str(src), "--issue-body", "--templates-dir", str(tdir)]
+
+    rc = render_main([*args, "--created-at", "2026-10-02"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert "createdAt: 2026-10-02" in out["yaml"]
+
+    # A resubmission updates the file but keeps its first-publication date.
+    (tdir / "demo.yaml").write_text(out["yaml"])
+    rc = render_main([*args, "--created-at", "2026-11-20"])
+    out = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert "createdAt: 2026-10-02" in out["yaml"]
+
+
 def test_cli_issue_body_malformed_env_returns_1(tmp_path, capsys):
     src = tmp_path / "body.md"
     src.write_text(

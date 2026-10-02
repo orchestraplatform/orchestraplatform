@@ -14,7 +14,10 @@ JSON result envelope for the front-door Action to consume.
 import argparse
 import json
 import sys
+from datetime import date
 from pathlib import Path
+
+import yaml
 
 from .forms import FormParseError, submission_from_issue_body
 from .render import RenderResult, existing_template_path, render_submission
@@ -160,6 +163,16 @@ def render_main(argv: list[str] | None = None) -> int:
         help="Stamp submittedBy (the GitHub login of the issue author).",
     )
     parser.add_argument(
+        "--created-at",
+        type=date.fromisoformat,
+        default=None,
+        metavar="YYYY-MM-DD",
+        help=(
+            "Stamp createdAt (first-publication date). An update keeps the "
+            "existing file's createdAt; this date applies to new templates."
+        ),
+    )
+    parser.add_argument(
         "--validate",
         action="store_true",
         help="Validate only: never resolve the create-vs-update path.",
@@ -202,12 +215,33 @@ def render_main(argv: list[str] | None = None) -> int:
             )
             return 1
 
-    if args.submitted_by and isinstance(data, dict):
-        data["submittedBy"] = args.submitted_by
+    if isinstance(data, dict):
+        if args.submitted_by:
+            data["submittedBy"] = args.submitted_by
+        if args.created_at:
+            data["createdAt"] = (
+                _existing_created_at(data.get("slug"), args.templates_dir)
+                or args.created_at
+            )
 
     result = render_submission(data)
     print(_envelope(result, None if args.validate else args.templates_dir))
     return 0 if result.ok else 1
+
+
+def _existing_created_at(slug: object, templates_dir: Path | None) -> object:
+    """``createdAt`` of the template file an update would overwrite, if any.
+
+    Keeps a template's first-publication date stable across resubmissions so
+    the catalog's newest/oldest sort doesn't reshuffle on every update.
+    """
+    if not isinstance(slug, str) or templates_dir is None:
+        return None
+    existing = existing_template_path(slug, templates_dir)
+    if existing is None:
+        return None
+    doc = yaml.safe_load(existing.read_text())
+    return doc.get("createdAt") if isinstance(doc, dict) else None
 
 
 def _envelope(result: RenderResult, templates_dir: Path | None) -> str:

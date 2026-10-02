@@ -211,7 +211,7 @@ template-from-issue n:
     author=$(gh issue view {{n}} --json author -q .author.login)
     result=$(printf '%s' "$body" | uv run --project template-tools \
         orchestra-render-template --issue-body --submitted-by "$author" \
-        --templates-dir "$templates")
+        --created-at "$(date -u +%F)" --templates-dir "$templates")
     if [ "$(jq -r '.ok' <<<"$result")" != "true" ]; then
         echo "✗ validation failed:" >&2
         jq -r '.errors[] | "  - " + .' <<<"$result" >&2
