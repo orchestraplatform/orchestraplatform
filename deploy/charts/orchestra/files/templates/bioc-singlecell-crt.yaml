@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Foundations of Data Science CRT Bioconductor Single-cell
+slug: bioc-singlecell-crt
+description: Bioconductor ecosystem and single-cell RNA-seq analysis workshop for
+  Foundation of Data Science CRT, University of Limerick.
+image: ghcr.io/michaelplynch/foundations-of-single-cell-data-science:1.0.1
+defaultDuration: 4h
+port: 8787
+env:
+  DISABLE_AUTH: 'true'
+tier: large
+resources:
+  cpu: '2'
+  memory: 16Gi
+  cpuRequest: 500m
+  memoryRequest: 16Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+storage:
+  size: 10Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://michaelplynch.github.io/foundations-of-single-cell-data-science/
+sourceUrl: https://github.com/michaelplynch/foundations-of-single-cell-data-science
+submittedBy: michaelplynch
+createdAt: 2026-10-15
+
