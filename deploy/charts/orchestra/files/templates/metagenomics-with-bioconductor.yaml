@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Metagenomics with Bioconductor
+slug: metagenomics-with-bioconductor
+description: Workshop on using Metagenomics tools in Bioconductor for Foundation of
+  Data Science CRT, University of Limerick.
+image: ghcr.io/npcooley/metagenomicswithbioconductor:cd76138
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 16Gi
+  cpuRequest: 500m
+  memoryRequest: 16Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://npcooley.github.io/MetagenomicsWithBioconductor/index.html
+sourceUrl: https://github.com/npcooley/MetagenomicsWithBioconductor
+submittedBy: npcooley
+createdAt: 2026-10-19
+
