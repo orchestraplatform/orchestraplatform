@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Introduction to scRNAseq analysis — GenE2 workshop
+slug: gene2scrnaseqintro
+description: 1-session workshop (2h30) covering introduction to single-cell RNA-seq
+  data analysis, conducted as part of the "Single-Cell Omics and Spatial Transcriptomics"
+  course of the GenE2 Master (Université Paris Saclay).
+image: ghcr.io/js2264/gene2scrnaseqintro:582fbd1
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 16Gi
+  cpuRequest: 500m
+  memoryRequest: 16Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+storage:
+  size: 10Gi
+  workspace:
+    persist: per-user
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://js2264.github.io/GenE2-scRNAseq-intro/devel/
+sourceUrl: https://github.com/js2264/GenE2-scRNAseq-intro/
+submittedBy: js2264
+createdAt: 2026-10-23
+
