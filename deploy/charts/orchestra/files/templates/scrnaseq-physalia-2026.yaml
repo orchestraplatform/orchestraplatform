@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=./template.schema.json
+name: Single-cell RNA-seq analysis with R/Bioconductor (Physalia 2026)
+slug: scrnaseq-physalia-2026
+description: 5-day workshop covering introduction to single-cell RNA-seq data analysis,
+  led by J. Serizay, O. Ashenberg and F. Almeida-Silva in 2026 as part of Bioconductor-backed
+  Physalia workshops series.
+image: ghcr.io/js2264/scrnaseqphysalia2026:1.0.3
+defaultDuration: 4h
+port: 8787
+tier: large
+resources:
+  cpu: '2'
+  memory: 16Gi
+  cpuRequest: 500m
+  memoryRequest: 16Gi
+  ephemeralStorage: 8Gi
+  ephemeralStorageRequest: 1Gi
+tags:
+  - bioconductor
+  - rstudio
+enabled: true
+url: https://js2264.github.io/scRNAseq_Physalia_2026/devel/
+sourceUrl: https://github.com/js2264/scRNAseq_Physalia_2026
+submittedBy: js2264
+createdAt: 2026-11-13
+
